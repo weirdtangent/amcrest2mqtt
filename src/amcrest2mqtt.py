@@ -489,7 +489,7 @@ async def main():
     try:
         for host in hosts:
             async for code, payload in cameras[host].async_event_actions("All"):
-                if (camera_configs[host].is_ad110 and code == "ProfileAlarmTransmit") or (code == "VideoMotion" and not camera_configs[host].is_ad110):
+                if (camera_configs[host]["is_ad110"] and code == "ProfileAlarmTransmit") or (code == "VideoMotion" and not camera_configs[host]["is_ad110"]):
                     motion_payload = "on" if payload["action"] == "Start" else "off"
                     mqtt_publish(camera_topics[host]["motion"], motion_payload)
                 elif code == "CrossRegionDetection" and payload["data"]["ObjectType"] == "Human":
