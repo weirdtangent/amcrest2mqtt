@@ -114,7 +114,7 @@ def signal_handler(sig, frame):
     is_exiting = True
     exit_gracefully(0)
 
-def get_camera(amcrest_host, amcrest_post, amcrest_username, amcrest_password):
+def get_camera(amcrest_host, amcrest_post, amcrest_username, amcrest_password, device_name):
   camera |= AmcrestCamera(
       amcrest_host, amcrest_port, amcrest_username, amcrest_password
   ).camera
@@ -397,7 +397,7 @@ signal.signal(signal.SIGINT, signal_handler)
 for x in range(1..host_count):
   if cameras[x] and camers[x].serial_number:
     continue
-  cameras[x], camera_configs[x], camera_topics[x] = get_camera(hosts[x], amcrest_port, amcrest_username, amcrest_password)
+  cameras[x], camera_configs[x], camera_topics[x] = get_camera(hosts[x], amcrest_port, amcrest_username, amcrest_password, names[x])
 camera_count = len(cameras)
 
 # Connect to MQTT
