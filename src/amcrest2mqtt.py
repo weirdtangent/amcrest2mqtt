@@ -434,7 +434,7 @@ async def main():
             log(str(payload))
 
     except AmcrestError as error:
-        log(f"Amcrest error: {error}", level="ERROR")
-        exit_gracefully(1)
+        log(f"Amcrest error: {AmcrestError}", level="ERROR")
+        time.sleep(10)
 
 asyncio.run(main())
