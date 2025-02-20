@@ -139,7 +139,7 @@ def get_camera(amcrest_host, amcrest_post, amcrest_username, amcrest_password, d
   camera_config["amcrest_host"] = amcrest_host
   try:
     camera_config["device_type"] = device_type = camera.device_type.replace("type=", "").strip()
-    is_ad110 = camera_config["device_type"] == "AD110"
+    camera_config["is_ad110"] = is_ad110 = camera_config["device_type"] == "AD110"
     camera_config["is_ad410"] = is_ad410 = camera_config["device_type"] == "AD410"
     camera_config["is_doorbell"] = is_doorbell = is_ad110 or is_ad410
     camera_config["serial_number"] = serial_number = camera.serial_number
