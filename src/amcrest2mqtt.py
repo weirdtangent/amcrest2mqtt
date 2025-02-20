@@ -96,8 +96,8 @@ def exit_gracefully(rc, skip_mqtt=False):
     # occur on a separate thread
     os._exit(rc)
 
-def refresh_storage_sensors(hosts, cameras, camera_topics):
-    global storage_poll_interval
+def refresh_storage_sensors():
+    global hosts, camera, camera_topics, storage_poll_interval
 
     Timer(storage_poll_interval, refresh_storage_sensors).start()
     log("Fetching storage sensors...")
@@ -481,7 +481,7 @@ for host in hosts:
     camera_online(config, camera_configs[host], camera_topics[host])
 
 if storage_poll_interval > 0:
-    refresh_storage_sensors(hosts, cameras, camera_topics)
+    refresh_storage_sensors()
 
 log("Listening for events...")
 
