@@ -13,6 +13,11 @@ import asyncio
 is_exiting = False
 mqtt_client = None
 
+config = {}
+cameras = {}
+camera_configs = {}
+camera_topics = {}
+
 # Read env variables
 amcrest_hosts = os.getenv("AMCREST_HOSTS")
 amcrest_port = int(os.getenv("AMCREST_PORT") or 80)
@@ -70,35 +75,42 @@ def mqtt_publish(topic, payload, exit_on_error=True, json=False):
 
 def on_mqtt_disconnect(client, userdata, rc):
     if rc != 0:
-        log(f"Unexpected MQTT disconnection", level="ERROR")
+        if rc == 5:
+          log(f"MQTT connection not authorized", level="ERROR")
+        else:
+          log(f"Unexpected MQTT disconnection: {rc}", level="ERROR")
         exit_gracefully(rc, skip_mqtt=True)
 
 def exit_gracefully(rc, skip_mqtt=False):
-    global topics, mqtt_client
+    global hosts, camera_topics, mqtt_client
 
     log("Exiting app...")
 
     if mqtt_client is not None and mqtt_client.is_connected() and skip_mqtt == False:
-        mqtt_publish(topics["status"], "offline", exit_on_error=False)
+        for host in hosts:
+          topics = camera_topics[host]
+          mqtt_publish(topics["status"], "offline", exit_on_error=False)
         mqtt_client.disconnect()
 
     # Use os._exit instead of sys.exit to ensure an MQTT disconnect event causes the program to exit correctly as they
     # occur on a separate thread
     os._exit(rc)
 
-def refresh_storage_sensors():
-    global camera, topics, storage_poll_interval
+def refresh_storage_sensors(hosts, cameras, camera_topics):
+    global storage_poll_interval
 
     Timer(storage_poll_interval, refresh_storage_sensors).start()
     log("Fetching storage sensors...")
 
-    try:
-        storage = camera.storage_all
+    for host in hosts:
+      topics = camera_topics[host]
+      try:
+        storage = cameras[host].storage_all
 
         mqtt_publish(topics["storage_used_percent"], str(storage["used_percent"]))
         mqtt_publish(topics["storage_used"], to_gb(storage["used"]))
         mqtt_publish(topics["storage_total"], to_gb(storage["total"]))
-    except AmcrestError as error:
+      except AmcrestError as error:
         log(f"Error fetching storage information {error}", level="WARNING")
 
 def to_gb(total):
@@ -115,19 +127,21 @@ def signal_handler(sig, frame):
     exit_gracefully(0)
 
 def get_camera(amcrest_host, amcrest_post, amcrest_username, amcrest_password, device_name):
-  camera |= AmcrestCamera(
+  camera = AmcrestCamera(
       amcrest_host, amcrest_port, amcrest_username, amcrest_password
   ).camera
 
   # Fetch camera details
   log("Fetching camera details...")
 
+  camera_config = {}
+  camera_config["device_name"] = device_name
   camera_config["amcrest_host"] = amcrest_host
   try:
     camera_config["device_type"] = device_type = camera.device_type.replace("type=", "").strip()
     is_ad110 = camera_config["device_type"] == "AD110"
-    is_ad410 = camera_config["device_type"] == "AD410"
-    is_doorbell = is_ad110 or is_ad410
+    camera_config["is_ad410"] = is_ad410 = camera_config["device_type"] == "AD410"
+    camera_config["is_doorbell"] = is_doorbell = is_ad110 or is_ad410
     camera_config["serial_number"] = serial_number = camera.serial_number
 
     if not isinstance(serial_number, str):
@@ -142,7 +156,7 @@ def get_camera(amcrest_host, amcrest_post, amcrest_username, amcrest_password, d
     if not device_name:
         device_name = camera.machine_name.replace("name=", "").strip()
 
-    device_slug = slugify(device_name, separator="_")
+    camera_config["device_slug"] = device_slug = slugify(device_name, separator="_")
   except AmcrestError as error:
     log(f"Error fetching camera details", level="ERROR")
     exit_gracefully(1)
@@ -152,8 +166,10 @@ def get_camera(amcrest_host, amcrest_post, amcrest_username, amcrest_password, d
   log(f"Software version: {amcrest_version}")
   log(f"Device name: {device_name}")
 
-  # MQTT topics
-  topics = {
+  setup = {}
+  setup["camera"] = camera
+  setup["camera_config"] = camera_config
+  setup["camera_topic"] = {
     "config": f"amcrest2mqtt/{serial_number}/config",
     "status": f"amcrest2mqtt/{serial_number}/status",
     "event": f"amcrest2mqtt/{serial_number}/event",
@@ -187,9 +203,12 @@ def get_camera(amcrest_host, amcrest_post, amcrest_username, amcrest_password, d
     },
   }
 
-  return camera, camera_config, topics
+  return setup
 
 def config_home_assistant(config, camera_config, topics):
+    amcrest_version = config["amcrest_version"]
+    device_name = camera_config["device_name"]
+    device_slug = camera_config["device_slug"]
     device_type = camera_config["device_type"]
     serial_number = camera_config["serial_number"]
 
@@ -206,7 +225,7 @@ def config_home_assistant(config, camera_config, topics):
         },
     }
 
-    if is_doorbell:
+    if camera_config["is_doorbell"]:
         doorbell_name = "Doorbell" if device_name == "Doorbell" else f"{device_name} Doorbell"
 
         mqtt_publish(topics["home_assistant_legacy"]["doorbell"], "")
@@ -224,7 +243,7 @@ def config_home_assistant(config, camera_config, topics):
             json=True,
         )
 
-    if is_ad410:
+    if camera_config["is_ad410"]:
         mqtt_publish(topics["home_assistant_legacy"]["human"], "")
         mqtt_publish(
             topics["home_assistant"]["human"],
@@ -351,14 +370,21 @@ def config_home_assistant(config, camera_config, topics):
         )
 
 def camera_online(config, camera_config, topics):
+  amcrest_version = config["amcrest_version"]
+  host = camera_config["amcrest_host"]
+  device_name = camera_config["device_name"]
+  device_slug = camera_config["device_slug"]
+  device_type = camera_config["device_type"]
+  serial_number = camera_config["serial_number"]
+
   mqtt_publish(topics["status"], "online")
   mqtt_publish(topics["config"], {
       "version": version,
-      "device_type": camera_config["device_type"],
+      "device_type": device_type,
       "device_name": device_name,
-      "sw_version": config["amcrest_version"],
-      "serial_number": camera_config["serial_number"],
-      "host": camera_config["amcrest_host"],
+      "sw_version": amcrest_version,
+      "serial_number": serial_number,
+      "host": host,
   }, json=True)
 
 # Exit if any of the required vars are not provided
@@ -394,11 +420,14 @@ log(f"App Version: {version}")
 signal.signal(signal.SIGINT, signal_handler)
 
 # Connect to each camera, if not already 
-for x in range(1..host_count):
-  if cameras[x] and camers[x].serial_number:
+for host in hosts:
+  log(f"Working host: {host}", level="INFO")
+  if host in cameras and camers[host].serial_number:
     continue
-  cameras[x], camera_configs[x], camera_topics[x] = get_camera(hosts[x], amcrest_port, amcrest_username, amcrest_password, names[x])
-camera_count = len(cameras)
+  setup = get_camera(host, amcrest_port, amcrest_username, amcrest_password, names.pop())
+  cameras[host] = setup["camera"]
+  camera_configs[host] = setup["camera_config"]
+  camera_topics[host] = setup["camera_topic"]
 
 # Connect to MQTT
 mqtt_client = mqtt.Client(
@@ -406,9 +435,9 @@ mqtt_client = mqtt.Client(
 )
 mqtt_client.on_disconnect = on_mqtt_disconnect
 # send "will_set" for each connected camera
-for x in range(1..camera_count):
-  if camera_topics[x]["status"]:
-    mqtt_client.will_set(camera_topics[x]["status"], payload="offline", qos=config["mqtt_qos"], retain=True)
+for host in hosts:
+  if camera_topics[host]["status"]:
+    mqtt_client.will_set(camera_topics[host]["status"], payload="offline", qos=config["mqtt_qos"], retain=True)
 
 if mqtt_tls_enabled:
     log(f"Setting up MQTT for TLS")
@@ -442,35 +471,35 @@ except ConnectionError as error:
 if home_assistant:
     log("Writing Home Assistant discovery config...")
 
-    for x in range(1..camera_count):
-      if camera_topics[x]["status"]:
-        config_home_assistant(camera_configs[x], camera_topics[x])
+    for host in hosts:
+      if host in camera_topics:
+        config_home_assistant(config, camera_configs[host], camera_topics[host])
 
 # Main loop
-for x in range(1..camera_count):
-  if camera_topics[x]["status"]:
-    camera_online(config, camera_configs[x], camera_topics[x])
+for host in hosts:
+  if host in camera_topics:
+    camera_online(config, camera_configs[host], camera_topics[host])
 
 if storage_poll_interval > 0:
-    refresh_storage_sensors()
+    refresh_storage_sensors(hosts, cameras, camera_topics)
 
 log("Listening for events...")
 
 async def main():
     try:
-        for x in range(1..camera_count):
-            async for code, payload in cameras[x].async_event_actions("All"):
-                if (camera_config[x].is_ad110 and code == "ProfileAlarmTransmit") or (code == "VideoMotion" and not camera_config[x].is_ad110):
+        for host in hosts:
+            async for code, payload in cameras[host].async_event_actions("All"):
+                if (camera_configs[host].is_ad110 and code == "ProfileAlarmTransmit") or (code == "VideoMotion" and not camera_configs[host].is_ad110):
                     motion_payload = "on" if payload["action"] == "Start" else "off"
-                    mqtt_publish(camera_topics[x]["motion"], motion_payload)
+                    mqtt_publish(camera_topics[host]["motion"], motion_payload)
                 elif code == "CrossRegionDetection" and payload["data"]["ObjectType"] == "Human":
                     human_payload = "on" if payload["action"] == "Start" else "off"
-                    mqtt_publish(camera_topics[x]["human"], human_payload)
+                    mqtt_publish(camera_topics[host]["human"], human_payload)
                 elif code == "_DoTalkAction_":
                     doorbell_payload = "on" if payload["data"]["Action"] == "Invite" else "off"
-                    mqtt_publish(camera_topics[x]["doorbell"], doorbell_payload)
+                    mqtt_publish(camera_topics[host]["doorbell"], doorbell_payload)
 
-                mqtt_publish(camera_topics[x]["event"], payload, json=True)
+                mqtt_publish(camera_topics[host]["event"], payload, json=True)
                 log(str(payload))
 
     except AmcrestError as error:
