@@ -14,4 +14,12 @@ COPY src /app
 COPY VERSION /app
 WORKDIR /app
 
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+
+RUN addgroup --gid $GROUP_ID appuser && \
+    adduser --uid $USER_ID --gid $GROUP_ID --disabled-password --gecos "" appuser
+
+USER appuser
+
 CMD [ "python", "-u", "/app/amcrest2mqtt.py" ]
