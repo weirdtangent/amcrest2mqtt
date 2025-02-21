@@ -1,23 +1,18 @@
-FROM python:3.9-alpine AS base
-FROM base AS builder
+FROM python:3.9-alpine
 
 RUN python3 -m ensurepip
 
 # Upgrade pip and setuptools
 RUN pip3 install --upgrade pip setuptools
 
-RUN mkdir /install
-WORKDIR /install
+WORKDIR /usr/src/app
 
-COPY requirements.txt /
-RUN pip3 install --no-warn-script-location --prefix=/install -r /requirements.txt
+COPY requirements.txt ./
+RUN pip3 install --no-cache-dir --upgrade -r requirements.txt
 
-FROM base
-STOPSIGNAL SIGINT
-COPY --from=builder /install /usr/local
-COPY src /app
-COPY VERSION /app
-WORKDIR /app
+RUN pip3 check
+
+COPY . .
 
 ARG USER_ID=1000
 ARG GROUP_ID=1000
@@ -27,4 +22,4 @@ RUN addgroup -g $GROUP_ID appuser && \
 
 USER appuser
 
-CMD [ "python", "-u", "/app/amcrest2mqtt.py" ]
+CMD [ "python", "-u", "./amcrest2mqtt.py" ]
