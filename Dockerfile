@@ -17,8 +17,8 @@ WORKDIR /app
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 
-RUN addgroup --gid $GROUP_ID appuser && \
-    adduser --uid $USER_ID --gid $GROUP_ID --disabled-password --gecos "" appuser
+RUN addgroup -g $GROUP_ID appuser && \
+    adduser -u $USER_ID -G appuser --disabled-password --gecos "" appuser
 
 USER appuser
 
