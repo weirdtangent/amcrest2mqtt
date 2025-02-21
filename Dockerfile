@@ -1,11 +1,16 @@
 FROM python:3.9-alpine AS base
 FROM base AS builder
 
+RUN python3 -m ensurepip
+
+# Upgrade pip and setuptools
+RUN pip3 install --upgrade pip setuptools
+
 RUN mkdir /install
 WORKDIR /install
 
 COPY requirements.txt /
-RUN pip install --no-warn-script-location --prefix=/install -r /requirements.txt
+RUN pip3 install --no-warn-script-location --prefix=/install -r /requirements.txt
 
 FROM base
 STOPSIGNAL SIGINT
