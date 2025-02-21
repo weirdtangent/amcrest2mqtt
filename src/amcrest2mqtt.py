@@ -484,7 +484,7 @@ async def main():
       camera = device["camera"]
       topics = device["topics"]
       async for code, payload in camera.async_event_actions("All"):
-        log(f"Event on {host}: {str(payload)}", level="INFO")
+        log(f"Event on {host}: {str(payload)}", level="DEBUG")
         if ((code == "ProfileAlarmTransmit" and config["is_ad110"])
          or (code == "VideoMotion" and not config["is_ad110"])):
             motion_payload = "on" if payload["action"] == "Start" else "off"
