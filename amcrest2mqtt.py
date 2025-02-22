@@ -83,8 +83,11 @@ def mqtt_connect():
 
     # Connect to MQTT
     mqtt_client = mqtt.Client(
-      client_id=f"amcrest2mqtt_broker", clean_session=False
+      mqtt.CallbackAPIVersion.VERSION1,
+      client_id=f"amcrest2mqtt_broker",
+      clean_session=False
     )
+    mqtt_client.on_connect = on_mqtt_connect
     mqtt_client.on_disconnect = on_mqtt_disconnect
 
     # send "will_set" for each connected camera
@@ -118,6 +121,12 @@ def mqtt_connect():
     except ConnectionError as error:
         log(f"Could not connect to MQTT server: {error}", level="ERROR")
         sys.exit(1)
+
+def on_mqtt_connect(mqtt_client, userdata, flags, rc):
+    if rc != 0:
+        log(f"MQTT Connection Issue: {rc}", level="ERROR")
+        exit_gracefully(rc, skip_mqtt=True)
+    log(f"MQTT Connected", level="INFO")
 
 def on_mqtt_disconnect(mqtt_client, userdata, flags, rc, properties):
     if rc != 0:
