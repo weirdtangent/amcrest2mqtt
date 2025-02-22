@@ -116,7 +116,11 @@ def mqtt_connect():
         mqtt_client.username_pw_set(mqtt_username, password=mqtt_password)
 
     try:
-        mqtt_client.connect(mqtt_host, port=mqtt_port)
+        mqtt_client.connect(
+            mqtt_host,
+            port=mqtt_port,
+            keepalive=60
+        )
         mqtt_client.loop_start()
     except ConnectionError as error:
         log(f"Could not connect to MQTT server: {error}", level="ERROR")
