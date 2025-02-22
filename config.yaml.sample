@@ -1,0 +1,28 @@
+mqtt:
+  host: 10.10.10.1
+  port: 1883
+  username: mqtt
+  password: password
+  qos: 0
+  prefix: amcrest2mqtt
+  homeassistant: homeassistant
+  tls_enabled: False
+  tls_ca_cert: filename
+  tls_cert: filename
+  tls_key: string
+
+amcrest:
+  hosts:
+    - 10.10.10.20
+    - camera2.local
+  names:
+    - camera.front
+    - camera.patio
+  port: 80
+  username: admin
+  password: password
+  storage_poll_interval: 60
+
+home_assistant: True
+home_assistant_prefix: homeassistant
+debug: False

@@ -22,4 +22,4 @@ RUN addgroup -g $GROUP_ID appuser && \
 
 USER appuser
 
-CMD [ "python", "-u", "./amcrest2mqtt.py" ]
+CMD [ "python", "-u", "./amcrest2mqtt.py", "-c", "/config" ]

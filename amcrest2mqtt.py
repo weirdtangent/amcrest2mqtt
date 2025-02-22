@@ -1,37 +1,29 @@
-from slugify import slugify
 from amcrest import AmcrestCamera, AmcrestError
+import argparse
+import asyncio
 from datetime import datetime, timezone
+from json import dumps
 import paho.mqtt.client as mqtt
 import os
-import sys
-import time
-from json import dumps
 import signal
-from threading import Timer
+from slugify import slugify
 import ssl
-import asyncio
+import sys
+from threading import Timer
+import time
+import yaml
 
 is_exiting = False
 mqtt_client = None
+config = {}
 devices = {}
 
-# Read env variables
-amcrest_hosts = os.getenv("AMCREST_HOSTS")
-amcrest_port = int(os.getenv("AMCREST_PORT") or 80)
-amcrest_username = os.getenv("AMCREST_USERNAME") or "admin"
-amcrest_password = os.getenv("AMCREST_PASSWORD")
-
-mqtt_qos = int(os.getenv("MQTT_QOS") or 0)
-
-storage_poll_interval = int(os.getenv("STORAGE_POLL_INTERVAL") or 3600)
-device_names = os.getenv("DEVICE_NAMES")
-
-home_assistant = os.getenv("HOME_ASSISTANT") == "true"
-home_assistant_prefix = os.getenv("HOME_ASSISTANT_PREFIX") or "homeassistant"
-
-debug_mode = os.getenv("AMCREST_DEBUG") == "true"
-
 # Helper functions and callbacks
+def log(msg, level="INFO"):
+    ts = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M:%S")
+    if level != "DEBUG" or ('debug' in config and config['debug']):
+        print(f"{ts} [{level}] {msg}")
+
 def read_file(file_name):
     with open(file_name, 'r') as file:
         data = file.read().replace('\n', '')
@@ -44,16 +36,9 @@ def read_version():
 
     return read_file("../VERSION")
 
-def log(msg, level="INFO"):
-    ts = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M:%S")
-    if level != "DEBUG" or debug_mode:
-        print(f"{ts} [{level}] {msg}")
-
 def mqtt_publish(topic, payload, exit_on_error=True, json=False):
-    global mqtt_client, mqtt_qos
-
     msg = mqtt_client.publish(
-      topic, payload=(dumps(payload) if json else payload), qos=mqtt_qos, retain=True
+      topic, payload=(dumps(payload) if json else payload), qos=config['mqtt']['qos'], retain=True
     )
 
     if msg.rc == mqtt.MQTT_ERR_SUCCESS:
@@ -66,19 +51,10 @@ def mqtt_publish(topic, payload, exit_on_error=True, json=False):
         exit_gracefully(msg.rc, skip_mqtt=True)
 
 def mqtt_connect():
-    global mqtt_client, mqtt_qos
+    global mqtt_client
 
-    mqtt_host = os.getenv("MQTT_HOST") or "localhost"
-    mqtt_port = int(os.getenv("MQTT_PORT") or 1883)
-    mqtt_username = os.getenv("MQTT_USERNAME")
-    mqtt_password = os.getenv("MQTT_PASSWORD")  # can be None
-    mqtt_tls_enabled = os.getenv("MQTT_TLS_ENABLED") == "true"
-    mqtt_tls_ca_cert = os.getenv("MQTT_TLS_CA_CERT")
-    mqtt_tls_cert = os.getenv("MQTT_TLS_CERT")
-    mqtt_tls_key = os.getenv("MQTT_TLS_KEY")
-
-    if mqtt_username is None:
-        log("Please set the MQTT_USERNAME environment variable", level="ERROR")
+    if config['mqtt']['username'] is None:
+        log("Missing env vari: MQTT_USERNAME or mqtt.username in config", level="ERROR")
         sys.exit(1)
 
     # Connect to MQTT
@@ -91,34 +67,34 @@ def mqtt_connect():
     mqtt_client.on_disconnect = on_mqtt_disconnect
 
     # send "will_set" for each connected camera
-    for host in hosts:
-        mqtt_client.will_set(devices[host]["topics"]["status"], payload="offline", qos=mqtt_qos, retain=True)
+    for host in config['amcrest']['hosts']:
+        mqtt_client.will_set(devices[host]["topics"]["status"], payload="offline", qos=config['mqtt']['qos'], retain=True)
 
-    if mqtt_tls_enabled:
+    if config['mqtt']['tls_enabled']:
         log(f"Setting up MQTT for TLS")
-        if mqtt_tls_ca_cert is None:
-            log("Missing env var: MQTT_TLS_CA_CERT", level="ERROR")
+        if config['mqtt']['tls_ca_cert'] is None:
+            log("Missing env var: MQTT_TLS_CA_CERT or mqtt.tls_ca_cert in config", level="ERROR")
             sys.exit(1)
-        if mqtt_tls_cert is None:
-            log("Missing env var: MQTT_TLS_CERT", level="ERROR")
+        if config['mqtt']['tls_cert'] is None:
+            log("Missing env var: MQTT_TLS_CERT or mqtt.tls_cert in config", level="ERROR")
             sys.exit(1)
-        if mqtt_tls_cert is None:
-            log("Missing env var: MQTT_TLS_KEY", level="ERROR")
+        if config['mqtt']['tls_cert'] is None:
+            log("Missing env var: MQTT_TLS_KEY or mqtt.tls_key in config", level="ERROR")
             sys.exit(1)
         mqtt_client.tls_set(
-            ca_certs=mqtt_tls_ca_cert,
-            certfile=mqtt_tls_cert,
-            keyfile=mqtt_tls_key,
+            ca_certs=config['mqtt']['tls_ca_cert'],
+            certfile=config['mqtt']['tls_cert'],
+            keyfile=config['mqtt']['tls_key'],
             cert_reqs=ssl.CERT_REQUIRED,
             tls_version=ssl.PROTOCOL_TLS,
         )
     else:
-        mqtt_client.username_pw_set(mqtt_username, password=mqtt_password)
+        mqtt_client.username_pw_set(config['mqtt']['username'], password=config['mqtt']['password'])
 
     try:
         mqtt_client.connect(
-            mqtt_host,
-            port=mqtt_port,
+            config['mqtt']['host'],
+            port=config['mqtt']['port'],
             keepalive=60
         )
         mqtt_client.loop_start()
@@ -140,12 +116,10 @@ def on_mqtt_disconnect(mqtt_client, userdata, flags, rc, properties):
     exit_gracefully(rc, skip_mqtt=True)
 
 def exit_gracefully(rc, skip_mqtt=False):
-    global hosts, devices, mqtt_client
-
     log("Exiting app...")
 
     if mqtt_client is not None and mqtt_client.is_connected() and skip_mqtt == False:
-        for host in hosts:
+        for host in config['amcrest']['hosts']:
             mqtt_publish(devices[host]["topics"]["status"], "offline", exit_on_error=False)
         mqtt_client.disconnect()
 
@@ -154,12 +128,10 @@ def exit_gracefully(rc, skip_mqtt=False):
     os._exit(rc)
 
 def refresh_storage_sensors():
-    global hosts, devices, storage_poll_interval
+    Timer(config['amcrest']['storage_poll_interval'], refresh_storage_sensors).start()
+    log(f"Fetching storage sensors for {config['amcrest']['host_count']} host(s)")
 
-    Timer(storage_poll_interval, refresh_storage_sensors).start()
-    log(f"Fetching storage sensors for {len(hosts)} host(s)")
-
-    for host in hosts:
+    for host in config['amcrest']['hosts']:
         device = devices[host]
         topics = device["topics"]
         try:
@@ -184,7 +156,7 @@ def signal_handler(sig, frame):
     is_exiting = True
     exit_gracefully(0)
 
-def get_device(amcrest_host, amcrest_post, amcrest_username, amcrest_password, device_name):
+def get_device(amcrest_host, amcrest_port, amcrest_username, amcrest_password, device_name):
     log(f"Connecting to device and getting details for {amcrest_host}...")
     camera = AmcrestCamera(
         amcrest_host, amcrest_port, amcrest_username, amcrest_password
@@ -217,6 +189,8 @@ def get_device(amcrest_host, amcrest_post, amcrest_username, amcrest_password, d
     log(f"Serial number: {serial_number}")
     log(f"Software version: {amcrest_version}")
     log(f"Hardware version: {camera.hardware_version}")
+
+    home_assistant_prefix = config['home_assistant_prefix']
 
     return {
       "camera": camera,
@@ -270,8 +244,6 @@ def get_device(amcrest_host, amcrest_post, amcrest_username, amcrest_password, d
     }
 
 def config_home_assistant(device):
-    global mqtt_qos
-
     vendor = device["config"]["vendor"]
     device_name = device["config"]["device_name"]
     device_type = device["config"]["device_type"]
@@ -282,7 +254,7 @@ def config_home_assistant(device):
 
     base_config = {
       "availability_topic": device["topics"]["status"],
-      "qos": mqtt_qos,
+      "qos": config['mqtt']['qos'],
       "device": {
         "name": f"{vendor} {device_type}",
         "manufacturer": vendor,
@@ -391,7 +363,7 @@ def config_home_assistant(device):
         json=True,
     )
 
-    if storage_poll_interval > 0:
+    if config['amcrest']['storage_poll_interval'] > 0:
         mqtt_publish(device["topics"]["home_assistant_legacy"]["storage_used_percent"], "")
         mqtt_publish(
           device["topics"]["home_assistant"]["storage_used_percent"],
@@ -441,7 +413,6 @@ def config_home_assistant(device):
 def camera_online(device):
     mqtt_publish(device["topics"]["status"], "online")
     mqtt_publish(device["topics"]["config"], {
-      "version": device["config"]["amcrest_version"],
       "device_type": device["config"]["device_type"],
       "device_name": device["config"]["device_name"],
       "sw_version": device["config"]["amcrest_version"],
@@ -451,24 +422,73 @@ def camera_online(device):
     }, json=True)
 
 
+# cmd-line args
+argparser = argparse.ArgumentParser()
+argparser.add_argument(
+    "-c",
+    "--config",
+    required=False,
+    help="Directory holding config.yaml or full path to config file",
+)
+args = argparser.parse_args()
+
+# load config file
+configpath = args.config
+if configpath:
+    if not configpath.endswith(".yaml"):
+        if not configpath.endswith("/"):
+            configpath += "/"
+        configpath += "config.yaml"
+    log(f"Trying to load config file {configpath}")
+    with open(configpath) as file:
+        config = yaml.safe_load(file)
+# or check env vars
+else:
+    log(f"INFO:root:No config file specified, checking ENV")
+    config = {
+        'mqtt': {
+            'host': os.getenv("MQTT_HOST") or 'localhost',
+            'port': int(os.getenv("MQTT_PORT") or 1883),
+            'username': os.getenv("MQTT_USERNAME"),
+            'password': os.getenv("MQTT_PASSWORD"),  # can be None
+            'qos': int(os.getenv("MQTT_QOS") or 0),
+            'prefix': os.getenv("MQTT_PREFIX") or 'govee2mqtt',
+            'homeassistant': os.getenv("MQTT_HOMEASSISTANT") or 'homeassistant',
+            'tls_enabled': os.getenv("MQTT_TLS_ENABLED") == "true",
+            'tls_ca_cert': os.getenv("MQTT_TLS_CA_CERT"),
+            'tls_cert': os.getenv("MQTT_TLS_CERT"),
+            'tls_key': os.getenv("MQTT_TLS_KEY"),
+        },
+        'amcrest': {
+            'hosts': os.getenv("AMCREST_HOSTS"),
+            'names': os.getenv("AMCREST_NAMES"),
+            'port': int(os.getenv("AMCREST_PORT") or 80),
+            'username': os.getenv("AMCREST_USERNAME") or "admin",
+            'password': os.getenv("AMCREST_PASSWORD"),
+            'storage_poll_interval': int(os.getenv("STORAGE_POLL_INTERVAL") or 3600),
+        },
+        'home_assistant': os.getenv("HOME_ASSISTANT") == "true",
+        'home_assistant_prefix': os.getenv("HOME_ASSISTANT_PREFIX") or "homeassistant",
+        'debug': os.getenv("AMCREST_DEBUG") == "true",
+    }
+
+
 # Exit if any of the required vars are not provided
-if amcrest_hosts is None:
-    log("Please set the AMCREST_HOSTS environment variable", level="ERROR")
+if config['amcrest']['hosts'] is None:
+    log("Missing env var: AMCREST_HOSTS or amcrest.hosts in config", level="ERROR")
     sys.exit(1)
-hosts = amcrest_hosts.split()
-host_count = len(hosts)
+config['amcrest']['host_count'] = len(config['amcrest']['hosts'])
 
-if device_names is None:
-    log("Please set the DEVICE_NAMES environment variable", level="ERROR")
+if config['amcrest']['names'] is None:
+    log("Missing env var: AMCREST_NAMES or amcrest.names in config", level="ERROR")
     sys.exit(1)
-names = device_names.split()
-name_count = len(names)
+config['amcrest']['name_count'] = len(config['amcrest']['names'])
 
-if host_count != name_count:
-    log("The AMCREST_HOSTS and DEVICE_NAMES must have the same number of space-delimited hosts/names", level="ERROR")
+if config['amcrest']['host_count'] != config['amcrest']['name_count']:
+    log("The AMCREST_HOSTS and AMCREST_NAMES must have the same number of space-delimited hosts/names", level="ERROR")
     sys.exit(1)
 
-if amcrest_password is None:
+if config['amcrest']['password'] is None:
     log("Please set the AMCREST_PASSWORD environment variable", level="ERROR")
     sys.exit(1)
 
@@ -479,52 +499,53 @@ log(f"App Version: {version}")
 signal.signal(signal.SIGINT, signal_handler)
 
 # Connect to each camera, if not already
-for host in hosts:
-    name = names.pop(0)
+amcrest_names = config['amcrest']['names']
+for host in config['amcrest']['hosts']:
+    name = amcrest_names.pop(0)
     log(f"Connecting host: {host} as {name}", level="INFO")
-    devices[host] = get_device(host, amcrest_port, amcrest_username, amcrest_password, name)
+    devices[host] = get_device(host, config['amcrest']['port'], config['amcrest']['username'], config['amcrest']['password'], name)
 log(f"Connecting to hosts done.", level="INFO")
 
 # connect to MQTT service
 mqtt_connect()
 
 # Configure Home Assistant
-if home_assistant:
-    for host in hosts:
+if config['home_assistant']:
+    for host in config['amcrest']['hosts']:
         config_home_assistant(devices[host])
 
 # Main loop
-for host in hosts:
+for host in config['amcrest']['hosts']:
     camera_online(devices[host])
 
-if storage_poll_interval > 0:
+if config['amcrest']['storage_poll_interval'] > 0:
     refresh_storage_sensors()
 
-log(f"Listening for events on {len(hosts)} host(s)", level="DEBUG")
+log(f"Listening for events on {config['amcrest']['host_count']} host(s)", level="DEBUG")
 
 async def main():
     try:
-        for host in hosts:
+        for host in config['amcrest']['hosts']:
             device = devices[host]
-            config = device["config"]
-            topics = device["topics"]
+            device_config = device["config"]
+            device_topics = device["topics"]
             async for code, payload in device["camera"].async_event_actions("All"):
                 log(f"Event on {host}: {str(payload)}", level="DEBUG")
-                if ((code == "ProfileAlarmTransmit" and config["is_ad110"])
-                or (code == "VideoMotion" and not config["is_ad110"])):
+                if ((code == "ProfileAlarmTransmit" and device_config["is_ad110"])
+                or (code == "VideoMotion" and not device_config["is_ad110"])):
                     motion_payload = "on" if payload["action"] == "Start" else "off"
-                    mqtt_publish(topics["motion"], motion_payload)
+                    mqtt_publish(device_topics["motion"], motion_payload)
                 elif code == "CrossRegionDetection" and payload["data"]["ObjectType"] == "Human":
                     human_payload = "on" if payload["action"] == "Start" else "off"
-                    mqtt_publish(topics["human"], human_payload)
+                    mqtt_publish(device_topics["human"], human_payload)
                 elif code == "_DoTalkAction_":
                     doorbell_payload = "on" if payload["data"]["Action"] == "Invite" else "off"
-                    mqtt_publish(topics["doorbell"], doorbell_payload)
+                    mqtt_publish(device_topics["doorbell"], doorbell_payload)
 
-                mqtt_publish(topics["event"], payload, json=True)
+                mqtt_publish(device_topics["event"], payload, json=True)
 
     except AmcrestError as error:
-        log(f"Amcrest error while working on {host}: {AmcrestError}", level="ERROR")
+        log(f"Amcrest error while working on {host}: {AmcrestError}. Sleeping for 10 seconds.", level="ERROR")
         time.sleep(10)
 
 asyncio.run(main())
