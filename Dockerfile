@@ -1,4 +1,4 @@
-FROM python:3.9-alpine
+FROM python:3.14.0a5-alpine3.21
 
 RUN python3 -m ensurepip
 

@@ -119,29 +119,12 @@ def mqtt_connect():
         log(f"Could not connect to MQTT server: {error}", level="ERROR")
         sys.exit(1)
 
-def on_mqtt_disconnect(client, userdata, rc):
-    match rc:
-        case 0:
-            return
-        case 1:
-            log(f"MQTT connection refused: protocol level not supported", level="ERROR")
-            exit_gracefully(rc, skip_mqtt=True)
-        case 2:
-            log(f"MQTT connection refused: client-id not allowed", level="ERROR")
-            exit_gracefully(rc, skip_mqtt=True)
-        case 3:
-            log(f"MQTT connection refused: MQTT service not available", level="ERROR")
-        case 4:
-            log(f"MQTT connection refused: user or password malformed", level="ERROR")
-            exit_gracefully(rc, skip_mqtt=True)
-        case 5:
-            log(f"MQTT connection refused: not authorized", level="ERROR")
-            exit_gracefully(rc, skip_mqtt=True)
-        case _:
-            log(f"Unexpected MQTT disconnection: {rc}", level="ERROR")
-            exit_gracefully(rc, skip_mqtt=True)
-    time.sleep(60)
-    mqtt_connect()
+def on_mqtt_disconnect(mqtt_client, userdata, flags, rc, properties):
+    if rc != 0:
+        log(f"MQTT connection failed: {rc}", level="ERROR")
+    else:
+        log(f"MQTT connection closed successfully", level="INFO")
+    exit_gracefully(rc, skip_mqtt=True)
 
 def exit_gracefully(rc, skip_mqtt=False):
     global hosts, devices, mqtt_client
