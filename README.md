@@ -25,8 +25,9 @@ Or, we support the following environment variables and defaults:
 -   `MQTT_TLS_CA_CERT` (required if using TLS) - path to the ca certs
 -   `MQTT_TLS_CERT` (required if using TLS) - path to the private cert
 -   `MQTT_TLS_KEY` (required if using TLS) - path to the private key
+-   `MQTT_HOME_ASSISTANT_PREFIX` (optional, default = 'homeassistant')
+
 -   `HOME_ASSISTANT` (optional, default = false)
--   `HOME_ASSISTANT_PREFIX` (optional, default = 'homeassistant')
 -   `STORAGE_POLL_INTERVAL` (optional, default = 3600) - how often to fetch storage data (in seconds) (set to 0 to disable functionality)
 
 It exposes events to the following topics:
@@ -63,7 +64,7 @@ services:
       MQTT_USERNAME: admin
       MQTT_PASSWORD: password
       MQTT_PREFIX: govee2mqtt
-      MQTT_HOMEASSISTANT: homeassistant
+      MQTT_HOMEASSISTANT_PREFIX: homeassistant
       AMCREST_HOSTS: "10.10.10.20 camera2.local"
       AMCREST_NAMES: "camera.front camera.patio"
       AMCREST_USERNAME: viewer

@@ -19,10 +19,12 @@ config = {}
 devices = {}
 
 # Helper functions and callbacks
-def log(msg, level="INFO"):
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-    if level != "DEBUG" or ('debug' in config and config['debug']):
-        print(f"{ts} [{level}] {msg}")
+def log(msg, level='INFO'):
+    ts = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+    if len(msg) > 20480:
+        raise ValueError('Log message exceeds max length')
+    if level != "DEBUG" or os.getenv('DEBUG'):
+        print(f'{ts} [{level}] {msg}')
 
 def read_file(file_name):
     with open(file_name, 'r') as file:
@@ -60,13 +62,14 @@ def mqtt_connect():
     # Connect to MQTT
     mqtt_client = mqtt.Client(
       mqtt.CallbackAPIVersion.VERSION1,
-      client_id=f"amcrest2mqtt_broker",
+      client_id=f'{config["mqtt"]["prefix"]}_broker',
       clean_session=False
     )
     mqtt_client.on_connect = on_mqtt_connect
     mqtt_client.on_disconnect = on_mqtt_disconnect
 
-    # send "will_set" for each connected camera
+    # send "will_set" for the broker and each connected camera
+    mqtt_client.will_set(f'{config["mqtt"]["prefix"]}/{via_device}', payload="offline", qos=config['mqtt']['qos'], retain=True)
     for host in config['amcrest']['hosts']:
         mqtt_client.will_set(devices[host]["topics"]["status"], payload="offline", qos=config['mqtt']['qos'], retain=True)
 
@@ -108,7 +111,7 @@ def on_mqtt_connect(mqtt_client, userdata, flags, rc):
         exit_gracefully(rc, skip_mqtt=True)
     log(f"MQTT Connected", level="INFO")
 
-def on_mqtt_disconnect(mqtt_client, userdata, flags, rc, properties):
+def on_mqtt_disconnect(mqtt_client, userdata, rc):
     if rc != 0:
         log(f"MQTT connection failed: {rc}", level="ERROR")
     else:
@@ -129,7 +132,7 @@ def exit_gracefully(rc, skip_mqtt=False):
 
 def refresh_storage_sensors():
     Timer(config['amcrest']['storage_poll_interval'], refresh_storage_sensors).start()
-    log(f"Fetching storage sensors for {config['amcrest']['host_count']} host(s)")
+    log(f'Fetching storage sensors for {config["amcrest"]["host_count"]} host(s) (every {config["amcrest"]["storage_poll_interval"]} secs)')
 
     for host in config['amcrest']['hosts']:
         device = devices[host]
@@ -183,14 +186,14 @@ def get_device(amcrest_host, amcrest_port, amcrest_username, amcrest_password, d
         log(f"Error fetching camera details for {amcrest_host}", level="ERROR")
         exit_gracefully(1)
 
-    log(f"Vendor: {camera.vendor_information}")
-    log(f"Device name: {device_name}")
-    log(f"Device type: {device_type}")
-    log(f"Serial number: {serial_number}")
-    log(f"Software version: {amcrest_version}")
-    log(f"Hardware version: {camera.hardware_version}")
+    log(f"  Vendor: {camera.vendor_information}")
+    log(f"  Device name: {device_name}")
+    log(f"  Device type: {device_type}")
+    log(f"  Serial number: {serial_number}")
+    log(f"  Software version: {amcrest_version}")
+    log(f"  Hardware version: {camera.hardware_version}")
 
-    home_assistant_prefix = config['home_assistant_prefix']
+    home_assistant_prefix = config['mqtt']['home_assistant_prefix']
 
     return {
       "camera": camera,
@@ -209,26 +212,15 @@ def get_device(amcrest_host, amcrest_port, amcrest_username, amcrest_password, d
         "vendor": vendor,
       },
       "topics": {
-        "config": f"amcrest2mqtt/{serial_number}/config",
-        "status": f"amcrest2mqtt/{serial_number}/status",
-        "event": f"amcrest2mqtt/{serial_number}/event",
-        "motion": f"amcrest2mqtt/{serial_number}/motion",
-        "doorbell": f"amcrest2mqtt/{serial_number}/doorbell",
-        "human": f"amcrest2mqtt/{serial_number}/human",
-        "storage_used": f"amcrest2mqtt/{serial_number}/storage/used",
-        "storage_used_percent": f"amcrest2mqtt/{serial_number}/storage/used_percent",
-        "storage_total": f"amcrest2mqtt/{serial_number}/storage/total",
-        "home_assistant_legacy": {
-          "doorbell": f"{home_assistant_prefix}/binary_sensor/amcrest2mqtt-{serial_number}/{device_slug}_doorbell/config",
-          "human": f"{home_assistant_prefix}/binary_sensor/amcrest2mqtt-{serial_number}/{device_slug}_human/config",
-          "motion": f"{home_assistant_prefix}/binary_sensor/amcrest2mqtt-{serial_number}/{device_slug}_motion/config",
-          "storage_used": f"{home_assistant_prefix}/sensor/amcrest2mqtt-{serial_number}/{device_slug}_storage_used/config",
-          "storage_used_percent": f"{home_assistant_prefix}/sensor/amcrest2mqtt-{serial_number}/{device_slug}_storage_used_percent/config",
-          "storage_total": f"{home_assistant_prefix}/sensor/amcrest2mqtt-{serial_number}/{device_slug}_storage_total/config",
-          "version": f"{home_assistant_prefix}/sensor/amcrest2mqtt-{serial_number}/{device_slug}_version/config",
-          "host": f"{home_assistant_prefix}/sensor/amcrest2mqtt-{serial_number}/{device_slug}_host/config",
-          "serial_number": f"{home_assistant_prefix}/sensor/amcrest2mqtt-{serial_number}/{device_slug}_serial_number/config",
-        },
+        "config": f'{config["mqtt"]["prefix"]}/{serial_number}/config',
+        "status": f'{config["mqtt"]["prefix"]}/{serial_number}/status',
+        "event": f'{config["mqtt"]["prefix"]}/{serial_number}/event',
+        "motion": f'{config["mqtt"]["prefix"]}/{serial_number}/motion',
+        "doorbell": f'{config["mqtt"]["prefix"]}/{serial_number}/doorbell',
+        "human": f'{config["mqtt"]["prefix"]}/{serial_number}/human',
+        "storage_used": f'{config["mqtt"]["prefix"]}/{serial_number}/storage/used',
+        "storage_used_percent": f'{config["mqtt"]["prefix"]}/{serial_number}/storage/used_percent',
+        "storage_total": f'{config["mqtt"]["prefix"]}/{serial_number}/storage/total',
         "home_assistant": {
           "doorbell": f"{home_assistant_prefix}/binary_sensor/amcrest2mqtt-{serial_number}/doorbell/config",
           "human": f"{home_assistant_prefix}/binary_sensor/amcrest2mqtt-{serial_number}/human/config",
@@ -242,6 +234,22 @@ def get_device(amcrest_host, amcrest_port, amcrest_username, amcrest_password, d
         },
       },
     }
+
+def config_broker_home_assistant():
+    mqtt_publish(f'{config["mqtt"]["home_assistant_prefix"]}/sensor/{via_device}/broker/config', {
+        "availability_topic": f'{config["mqtt"]["prefix"]}/{via_device}/availability',
+        "state_topic": f'{config["mqtt"]["prefix"]}/{via_device}/status',
+        "qos": config['mqtt']['qos'],
+        "device": {
+            "name": 'amcrest2mqtt broker',
+            "identifiers": via_device,
+        },
+        "icon": 'mdi:language-python',
+        "unique_id": via_device,
+        "name": "amcrest2mqtt broker",
+        },
+        json=True,
+    )
 
 def config_home_assistant(device):
     vendor = device["config"]["vendor"]
@@ -262,14 +270,13 @@ def config_home_assistant(device):
         "identifiers": serial_number,
         "sw_version": amcrest_version,
         "hw_version": hw_version,
-        "via_device": f"amcrest2mqtt v{version}",
+        "via_device": via_device,
       },
     }
 
     if device["config"]["is_doorbell"]:
         doorbell_name = "Doorbell" if device_name == "Doorbell" else f"{device_name} Doorbell"
 
-        mqtt_publish(device["topics"]["home_assistant_legacy"]["doorbell"], "")
         mqtt_publish(
           device["topics"]["home_assistant"]["doorbell"],
           base_config
@@ -285,7 +292,6 @@ def config_home_assistant(device):
         )
 
     if device["config"]["is_ad410"]:
-        mqtt_publish(device["topics"]["home_assistant_legacy"]["human"], "")
         mqtt_publish(
           device["topics"]["home_assistant"]["human"],
           base_config
@@ -300,7 +306,6 @@ def config_home_assistant(device):
           json=True,
         )
 
-    mqtt_publish(device["topics"]["home_assistant_legacy"]["motion"], "")
     mqtt_publish(
       device["topics"]["home_assistant"]["motion"],
       base_config
@@ -315,7 +320,6 @@ def config_home_assistant(device):
       json=True,
     )
 
-    mqtt_publish(device["topics"]["home_assistant_legacy"]["version"], "")
     mqtt_publish(
       device["topics"]["home_assistant"]["version"],
       base_config
@@ -331,7 +335,6 @@ def config_home_assistant(device):
       json=True,
     )
 
-    mqtt_publish(device["topics"]["home_assistant_legacy"]["serial_number"], "")
     mqtt_publish(
       device["topics"]["home_assistant"]["serial_number"],
       base_config
@@ -347,7 +350,6 @@ def config_home_assistant(device):
       json=True,
     )
 
-    mqtt_publish(device["topics"]["home_assistant_legacy"]["host"], "")
     mqtt_publish(
       device["topics"]["home_assistant"]["host"],
       base_config
@@ -364,7 +366,6 @@ def config_home_assistant(device):
     )
 
     if config['amcrest']['storage_poll_interval'] > 0:
-        mqtt_publish(device["topics"]["home_assistant_legacy"]["storage_used_percent"], "")
         mqtt_publish(
           device["topics"]["home_assistant"]["storage_used_percent"],
           base_config
@@ -380,7 +381,6 @@ def config_home_assistant(device):
           json=True,
         )
 
-        mqtt_publish(device["topics"]["home_assistant_legacy"]["storage_used"], "")
         mqtt_publish(
           device["topics"]["home_assistant"]["storage_used"],
           base_config
@@ -395,7 +395,6 @@ def config_home_assistant(device):
           json=True,
         )
 
-        mqtt_publish(device["topics"]["home_assistant_legacy"]["storage_total"], "")
         mqtt_publish(
           device["topics"]["home_assistant"]["storage_total"],
           base_config
@@ -411,6 +410,12 @@ def config_home_assistant(device):
         )
 
 def camera_online(device):
+    mqtt_publish(f'{config["mqtt"]["prefix"]}/{via_device}/availability', "online")
+    mqtt_publish(f'{config["mqtt"]["prefix"]}/{via_device}/status', "online")
+    mqtt_publish(f'{config["mqtt"]["prefix"]}/{via_device}/config', {
+        'device_name': 'amcrest2mqtt broker',
+        'sw_version': version,
+    }, json=True)
     mqtt_publish(device["topics"]["status"], "online")
     mqtt_publish(device["topics"]["config"], {
       "device_type": device["config"]["device_type"],
@@ -453,7 +458,7 @@ else:
             'password': os.getenv("MQTT_PASSWORD"),  # can be None
             'qos': int(os.getenv("MQTT_QOS") or 0),
             'prefix': os.getenv("MQTT_PREFIX") or 'govee2mqtt',
-            'homeassistant': os.getenv("MQTT_HOMEASSISTANT") or 'homeassistant',
+            'home_assistant_prefix': os.getenv("HOME_ASSISTANT_PREFIX") or "homeassistant",
             'tls_enabled': os.getenv("MQTT_TLS_ENABLED") == "true",
             'tls_ca_cert': os.getenv("MQTT_TLS_CA_CERT"),
             'tls_cert': os.getenv("MQTT_TLS_CERT"),
@@ -468,7 +473,6 @@ else:
             'storage_poll_interval': int(os.getenv("STORAGE_POLL_INTERVAL") or 3600),
         },
         'home_assistant': os.getenv("HOME_ASSISTANT") == "true",
-        'home_assistant_prefix': os.getenv("HOME_ASSISTANT_PREFIX") or "homeassistant",
         'debug': os.getenv("AMCREST_DEBUG") == "true",
     }
 
@@ -493,7 +497,8 @@ if config['amcrest']['password'] is None:
     sys.exit(1)
 
 version = read_version()
-log(f"App Version: {version}")
+via_device = config["mqtt"]["prefix"] + '-broker'
+log(f"Starting: amcrest2mqtt v{version}")
 
 # Handle interruptions
 signal.signal(signal.SIGINT, signal_handler)
@@ -511,6 +516,7 @@ mqtt_connect()
 
 # Configure Home Assistant
 if config['home_assistant']:
+    config_broker_home_assistant()
     for host in config['amcrest']['hosts']:
         config_home_assistant(devices[host])
 
