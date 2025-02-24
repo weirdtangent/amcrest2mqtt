@@ -457,7 +457,7 @@ else:
             'username': os.getenv("MQTT_USERNAME"),
             'password': os.getenv("MQTT_PASSWORD"),  # can be None
             'qos': int(os.getenv("MQTT_QOS") or 0),
-            'prefix': os.getenv("MQTT_PREFIX") or 'govee2mqtt',
+            'prefix': os.getenv("MQTT_PREFIX") or 'amcrest2mqtt',
             'home_assistant_prefix': os.getenv("MQTT_HOME_ASSISTANT_PREFIX") or "homeassistant",
             'tls_enabled': os.getenv("MQTT_TLS_ENABLED") == "true",
             'tls_ca_cert': os.getenv("MQTT_TLS_CA_CERT"),

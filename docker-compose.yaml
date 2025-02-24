@@ -8,7 +8,7 @@ services:
       MQTT_HOST: 192.168.0.2
       MQTT_USERNAME: admin
       MQTT_PASSWORD: password
-      MQTT_PREFIX: govee2mqtt
+      MQTT_PREFIX: amcrest2mqtt
       MQTT_HOMEASSISTANT: homeassistant
       AMCREST_HOSTS: "10.10.10.20 camera2.local"
       AMCREST_NAMES: "frontyard patio"

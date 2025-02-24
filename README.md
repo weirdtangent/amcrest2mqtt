@@ -63,10 +63,10 @@ services:
       MQTT_HOST: 10.10.10.1
       MQTT_USERNAME: admin
       MQTT_PASSWORD: password
-      MQTT_PREFIX: govee2mqtt
+      MQTT_PREFIX: amcrest2mqtt
       MQTT_HOMEASSISTANT_PREFIX: homeassistant
       AMCREST_HOSTS: "10.10.10.20 camera2.local"
-      AMCREST_NAMES: "camera.front camera.patio"
+      AMCREST_NAMES: "Front_Yard Patio"
       AMCREST_USERNAME: viewer
       AMCREST_PASSWORD: password
       HOME_ASSISTANT: true
