@@ -264,7 +264,7 @@ def config_home_assistant(device):
       "availability_topic": device["topics"]["status"],
       "qos": config['mqtt']['qos'],
       "device": {
-        "name": f"{vendor} {device_type} - {device_name}",
+        "name": device_name,
         "manufacturer": vendor,
         "model": device_type,
         "identifiers": serial_number,
