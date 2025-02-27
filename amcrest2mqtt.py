@@ -122,8 +122,13 @@ def exit_gracefully(rc, skip_mqtt=False):
     log("Exiting app...")
 
     if mqtt_client is not None and mqtt_client.is_connected() and skip_mqtt == False:
+        # set cameras offline
         for host in config['amcrest']['hosts']:
             mqtt_publish(devices[host]["topics"]["status"], "offline", exit_on_error=False)
+        # set broker offline
+        mqtt_publish(f'{config["mqtt"]["prefix"]}/{via_device}/availability', "offline")
+        mqtt_publish(f'{config["mqtt"]["prefix"]}/{via_device}/status', "offline")
+
         mqtt_client.disconnect()
 
     # Use os._exit instead of sys.exit to ensure an MQTT disconnect event causes the program to exit correctly as they
@@ -425,7 +430,6 @@ def camera_online(device):
       "serial_number": device["config"]["serial_number"],
       "host": device["config"]["amcrest_host"],
     }, json=True)
-
 
 # cmd-line args
 argparser = argparse.ArgumentParser()
