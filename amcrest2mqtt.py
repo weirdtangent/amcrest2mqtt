@@ -240,7 +240,7 @@ def get_device(amcrest_host, amcrest_port, amcrest_username, amcrest_password, d
       },
     }
 
-def config_broker_home_assistant():
+def send_broker_discovery():
     mqtt_publish(f'{config["mqtt"]["home_assistant_prefix"]}/sensor/{via_device}/broker/config', {
         "availability_topic": f'{config["mqtt"]["prefix"]}/{via_device}/availability',
         "state_topic": f'{config["mqtt"]["prefix"]}/{via_device}/status',
@@ -256,7 +256,7 @@ def config_broker_home_assistant():
         json=True,
     )
 
-def config_home_assistant(device):
+def send_device_discovery(device):
     vendor = device["config"]["vendor"]
     device_name = device["config"]["device_name"]
     device_type = device["config"]["device_type"]
@@ -414,21 +414,33 @@ def config_home_assistant(device):
           json=True,
         )
 
-def camera_online(device):
-    mqtt_publish(f'{config["mqtt"]["prefix"]}/{via_device}/availability', "online")
-    mqtt_publish(f'{config["mqtt"]["prefix"]}/{via_device}/status', "online")
+def refresh_broker():
+    mqtt_publish(f'{config["mqtt"]["prefix"]}/{via_device}/availability', 'online')
+    mqtt_publish(f'{config["mqtt"]["prefix"]}/{via_device}/status', 'online')
     mqtt_publish(f'{config["mqtt"]["prefix"]}/{via_device}/config', {
         'device_name': 'amcrest2mqtt broker',
         'sw_version': version,
+        'origin': {
+            'name': 'amcrest2mqtt broker',
+            'sw_version': version,
+            'url': 'https://github.com/weirdtangent/amcrest2mqtt',
+        },
     }, json=True)
-    mqtt_publish(device["topics"]["status"], "online")
-    mqtt_publish(device["topics"]["config"], {
-      "device_type": device["config"]["device_type"],
-      "device_name": device["config"]["device_name"],
-      "sw_version": device["config"]["amcrest_version"],
-      "hw_version": device["config"]["hardware_version"],
-      "serial_number": device["config"]["serial_number"],
-      "host": device["config"]["amcrest_host"],
+
+def refresh_camera(device):
+    mqtt_publish(device['topics']['status'], 'online')
+    mqtt_publish(device['topics']['config'], {
+        'device_type': device['config']['device_type'],
+        'device_name': device['config']['device_name'],
+        'sw_version': device['config']['amcrest_version'],
+        'hw_version': device['config']['hardware_version'],
+        'serial_number': device['config']['serial_number'],
+        'host': device["config"]["amcrest_host"],
+        'origin': {
+            'name': 'amcrest2mqtt broker',
+            'sw_version': version,
+            'url': 'https://github.com/weirdtangent/amcrest2mqtt',
+        },
     }, json=True)
 
 # cmd-line args
@@ -520,13 +532,14 @@ mqtt_connect()
 
 # Configure Home Assistant
 if config['home_assistant']:
-    config_broker_home_assistant()
+    send_broker_discovery()
     for host in config['amcrest']['hosts']:
-        config_home_assistant(devices[host])
+        send_device_discovery(devices[host])
 
 # Main loop
+refresh_broker()
 for host in config['amcrest']['hosts']:
-    camera_online(devices[host])
+    refresh_camera(devices[host])
 
 if config['amcrest']['storage_poll_interval'] > 0:
     refresh_storage_sensors()
@@ -541,6 +554,7 @@ async def main():
             device_topics = device["topics"]
             async for code, payload in device["camera"].async_event_actions("All"):
                 log(f"Event on {host}: {str(payload)}", level="DEBUG")
+                refresh_broker()
                 if ((code == "ProfileAlarmTransmit" and device_config["is_ad110"])
                 or (code == "VideoMotion" and not device_config["is_ad110"])):
                     motion_payload = "on" if payload["action"] == "Start" else "off"
