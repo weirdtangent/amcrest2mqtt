@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 
 is_exiting = False
 mqtt_client = None
-config = { 'timezone': 'utc' }
+config = { 'timezone': 'America/New_York' }
 devices = {}
 
 # Helper functions and callbacks
