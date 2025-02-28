@@ -28,6 +28,7 @@ Or, we support the following environment variables and defaults:
 -   `MQTT_HOME_ASSISTANT_PREFIX` (optional, default = 'homeassistant')
 
 -   `HOME_ASSISTANT` (optional, default = false)
+-   `TZ` (required, timezone identifier, see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List)
 -   `STORAGE_POLL_INTERVAL` (optional, default = 3600) - how often to fetch storage data (in seconds) (set to 0 to disable functionality)
 
 It exposes events to the following topics:
@@ -50,30 +51,7 @@ If you are using a different MQTT prefix to the default, you will need to set th
 
 ## Running the app
 
-To run via env variables with Docker Compose
-
-```yaml
-version: "3.4"
-services:
-  amcrest2mqtt:
-    image: weirdtangent/amcrest2mqtt:latest
-    container_name: amcrest2mqtt
-    restart: unless-stopped
-    environment:
-      MQTT_HOST: 10.10.10.1
-      MQTT_USERNAME: admin
-      MQTT_PASSWORD: password
-      MQTT_PREFIX: amcrest2mqtt
-      MQTT_HOMEASSISTANT_PREFIX: homeassistant
-      AMCREST_HOSTS: "10.10.10.20 camera2.local"
-      AMCREST_NAMES: "Front_Yard Patio"
-      AMCREST_USERNAME: viewer
-      AMCREST_PASSWORD: password
-      HOME_ASSISTANT: true
-      STORAGE_POLL_INTERVAL: 600
-      DEBUG_MODE: false
-```
-
+To run via env variables with Docker Compose, see docker-compose.yaml
 or make sure you attach a volume with the config file and point to that directory, for example:
 ```
 CMD [ "python", "-u", "./amcrest2mqtt.py", "-c", "/config" ]
