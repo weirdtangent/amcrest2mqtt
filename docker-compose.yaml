@@ -1,15 +1,16 @@
-version: "3.4"
 services:
   amcrest2mqtt:
     image: weirdtangent/amcrest2mqtt:latest
     container_name: amcrest2mqtt
     restart: unless-stopped
+    volumes:
+      - ~/.docker-conf/amcrest2mqtt/config/:/config/
     environment:
-      MQTT_HOST: 192.168.0.2
+      MQTT_HOST: 10.10.10.1
       MQTT_USERNAME: admin
       MQTT_PASSWORD: password
-      MQTT_PREFIX: amcrest2mqtt
-      MQTT_HOMEASSISTANT: homeassistant
+      MQTT_PREFIX: "amcrest2mqtt"
+      MQTT_HOMEASSISTANT: "homeassistant"
       AMCREST_HOSTS: "10.10.10.20 camera2.local"
       AMCREST_NAMES: "frontyard patio"
       AMCREST_USERNAME: viewer
@@ -17,3 +18,4 @@ services:
       HOME_ASSISTANT: true
       STORAGE_POLL_INTERVAL: 600
       DEBUG_MODE: false
+    command: python3 -u amcrest2mqtt.py -c /config
