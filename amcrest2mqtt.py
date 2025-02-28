@@ -202,6 +202,8 @@ def get_device(amcrest_host, amcrest_port, amcrest_username, amcrest_password, d
         "hardware_version": hardware_version,
         "vendor": vendor,
       },
+      "telemetry": {
+      },
       "topics": {
         "config": f'{config["mqtt"]["prefix"]}/{serial_number}/config',
         "status": f'{config["mqtt"]["prefix"]}/{serial_number}/status',
@@ -438,7 +440,7 @@ def refresh_device(device):
         },
     }, json=True)
     mqtt_publish(device['topics']['telemetry'],
-        device['telemetry'] if 'telemetry' in device else {},
+        dumps(device['telemetry']),
     json=True)
 
 def refresh_storage_sensors():
@@ -568,20 +570,20 @@ async def main():
             device_config = device["config"]
             device_topics = device["topics"]
             async for code, payload in device["camera"].async_event_actions("All"):
-                log(f"Event on {host}: {str(payload)}")
+                log(f"Event on {host} - {code}: {payload['action']}")
                 if ((code == "ProfileAlarmTransmit" and device_config["is_ad110"])
                 or (code == "VideoMotion" and not device_config["is_ad110"])):
                     motion_payload = "on" if payload["action"] == "Start" else "off"
                     mqtt_publish(device_topics["motion"], motion_payload)
-                    device[host]['telemetry']['last_motion_event'] =str(datetime.now(tz=ZoneInfo(config['timezone'])))
+                    device[host]['telemetry']['last_motion_event'] = str(datetime.now(tz=ZoneInfo(config['timezone'])))
                 elif code == "CrossRegionDetection" and payload["data"]["ObjectType"] == "Human":
                     human_payload = "on" if payload["action"] == "Start" else "off"
                     mqtt_publish(device_topics["human"], human_payload)
-                    device[host]['telemetry']['last_human_event'] =str(datetime.now(tz=ZoneInfo(config['timezone'])))
+                    device[host]['telemetry']['last_human_event'] = str(datetime.now(tz=ZoneInfo(config['timezone'])))
                 elif code == "_DoTalkAction_":
                     doorbell_payload = "on" if payload["data"]["Action"] == "Invite" else "off"
                     mqtt_publish(device_topics["doorbell"], doorbell_payload)
-                    device[host]['telemetry']['last_doorbell_event'] =str(datetime.now(tz=ZoneInfo(config['timezone'])))
+                    device[host]['telemetry']['last_doorbell_event'] = str(datetime.now(tz=ZoneInfo(config['timezone'])))
 
                 mqtt_publish(device_topics["event"], payload, json=True)
                 refresh_device(device)
