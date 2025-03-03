@@ -356,7 +356,6 @@ class AmcrestMqtt(object):
                 'device_class': '',
                 'icon': 'mdi:doorbell',
                 'state_topic': self.get_discovery_topic(device_id, 'doorbell'),
-                'availability_topic': device['availability_topic'],
                 'value_template': '{{ value_json.doorbell }}',
                 'unique_id': self.get_slug(device_id, 'doorbell'),
             }
@@ -369,7 +368,6 @@ class AmcrestMqtt(object):
                 'payload_off': 'off',
                 'device_class': 'motion',
                 'state_topic': self.get_discovery_topic(device_id, 'human'),
-                'availability_topic': device['availability_topic'],
                 'value_template': '{{ value_json.human }}',
                 'unique_id': self.get_slug(device_id, 'human'),
             }
@@ -381,7 +379,6 @@ class AmcrestMqtt(object):
             'payload_off': 'off',
             'device_class': 'motion',
             'state_topic': self.get_discovery_topic(device_id, 'motion'),
-            'availability_topic': device['availability_topic'],
             'unique_id': self.get_slug(device_id, 'motion'),
         }
 
@@ -390,7 +387,6 @@ class AmcrestMqtt(object):
             'platform': 'sensor',
             'icon': 'mdi:package-up',
             'state_topic': device['state_topic'],
-            'availability_topic': device['availability_topic'],
             'value_template': '{{ value_json.sw_version }}',
             'entity_category': 'diagnostic',
             'unique_id': self.get_slug(device_id, 'sw_version'),
@@ -401,7 +397,6 @@ class AmcrestMqtt(object):
             'platform': 'sensor',
             'icon': 'mdi:alphabetical-variant-up',
             'state_topic': device['state_topic'],
-            'availability_topic': device['availability_topic'],
             'value_template': '{{ value_json.serial_number }}',
             'entity_category': 'diagnostic',
             'unique_id': self.get_slug(device_id, 'serial_number'),
@@ -412,7 +407,6 @@ class AmcrestMqtt(object):
             'platform': 'sensor',
             'icon': 'mdi:ip-network',
             'state_topic': device['state_topic'],
-            'availability_topic': device['availability_topic'],
             'value_template': '{{ value_json.host }}',
             'entity_category': 'diagnostic',
             'unique_id': self.get_slug(device_id, 'host'),
@@ -422,7 +416,6 @@ class AmcrestMqtt(object):
             'name': 'Event',
             'platform': 'sensor',
             'state_topic': self.get_discovery_topic(device_id, 'event'),
-            'availability_topic': device['availability_topic'],
             'unique_id': self.get_slug(device_id, 'event'),
         }
 
@@ -432,7 +425,6 @@ class AmcrestMqtt(object):
             'icon': 'mdi:micro-sd',
             'unit_of_measurement': '%',
             'state_topic': self.get_discovery_topic(device_id, 'storage'),
-            'availability_topic': device['availability_topic'],
             'value_template': '{{ value_json.used_percent }}',
             'entity_category': 'diagnostic',
             'unique_id': self.get_slug(device_id, 'storage_used_percent'),
@@ -443,7 +435,6 @@ class AmcrestMqtt(object):
             'icon': 'mdi:micro-sd',
             'unit_of_measurement': 'GB',
             'state_topic': self.get_discovery_topic(device_id, 'storage'),
-            'availability_topic': device['availability_topic'],
             'value_template': '{{ value_json.total }}',
             'entity_category': 'diagnostic',
             'unique_id': self.get_slug(device_id, 'storage_total'),
@@ -454,7 +445,6 @@ class AmcrestMqtt(object):
             'icon': 'mdi:micro-sd',
             'unit_of_measurement': 'GB',
             'state_topic': self.get_discovery_topic(device_id, 'storage'),
-            'availability_topic': device['availability_topic'],
             'value_template': '{{ value_json.used }}',
             'entity_category': 'diagnostic',
             'unique_id': self.get_slug(device_id, 'storage_used'),
@@ -464,7 +454,6 @@ class AmcrestMqtt(object):
             'platform': 'sensor',
             'device_class': 'timestamp',
             'state_topic': device['state_topic'],
-            'availability_topic': device['availability_topic'],
             'value_template': '{{ value_json.last_update }}',
             'unique_id': self.get_slug(device_id, 'last_update'),
         }
