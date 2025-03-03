@@ -31,16 +31,19 @@ Or, we support the following environment variables and defaults:
 -   `MQTT_DISCOVERY_PREFIX` (optional, default = 'homeassistant')
 
 -   `TZ` (required, timezone identifier, see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List)
--   `STORAGE_POLL_INTERVAL` (optional, default = 3600) - how often to fetch storage data (in seconds) (set to 0 to disable functionality)
+-   `DEVICE_UPDATE_INTERVAL` (optional, default = 3600) - how often to fetch storage stats (in seconds)
 
-It exposes events to the following topics:
+It exposes through device discovery a `service` and a `device` with components for each camera:
 
--   `amcrest2mqtt/broker` - broker config
--   `amcrest2mqtt/[SERIAL_NUMBER]/event` - all events
--   `amcrest2mqtt/[SERIAL_NUMBER]/doorbell` - doorbell status (if AD110 or AD410)
--   `amcrest2mqtt/[SERIAL_NUMBER]/human` - human detection (if AD410)
--   `amcrest2mqtt/[SERIAL_NUMBER]/motion` - motion events (if supported)
--   `amcrest2mqtt/[SERIAL_NUMBER]/config` - device configuration information
+-   `homeassistant/device/amcrest-service` - service config
+
+-   `homeassistant/device/amcrest-[SERIAL_NUMBER]` per camera, with components:
+-    `event`    - all events
+-    `doorbell` - doorbell status (if AD110 or AD410)
+-    `human`    - human detection (if AD410)
+-    `motion`   - motion events (if supported)
+-    `config`   - device configuration information
+-    `storage`  - storage stats
 
 ## Device Support
 
@@ -48,15 +51,15 @@ The app supports events for any Amcrest device supported by [`python-amcrest`](h
 
 ## Home Assistant
 
-The app has built-in support for Home Assistant discovery. Set the `HOME_ASSISTANT` environment variable to `true` to enable support.
-If you are using a different MQTT prefix to the default, you will need to set the `HOME_ASSISTANT_PREFIX` environment variable.
+The app has built-in support for Home Assistant discovery. Set the `MQTT_HOMEASSISTANT` environment variable to `true` to enable support.
+If you are using a different MQTT prefix to the default, you will need to set the `MQTT_DISCOVERY_PREFIX` environment variable.
 
 ## Running the app
 
 To run via env variables with Docker Compose, see docker-compose.yaml
 or make sure you attach a volume with the config file and point to that directory, for example:
 ```
-CMD [ "python", "-u", "./amcrest2mqtt.py", "-c", "/config" ]
+CMD [ "python", "-u", "./app.py", "-c", "/config" ]
 ```
 
 ## Out of Scope

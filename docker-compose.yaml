@@ -16,6 +16,5 @@ services:
       AMCREST_USERNAME: viewer
       AMCREST_PASSWORD: password
       HOME_ASSISTANT: true
-      STORAGE_POLL_INTERVAL: 600
+      DEVICE_UPDATE_INTERVAL: 600
       DEBUG_MODE: false
-    command: python3 -u amcrest2mqtt.py -c /config
