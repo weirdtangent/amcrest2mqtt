@@ -16,6 +16,9 @@ RUN pip3 install --no-cache-dir --upgrade -r requirements.txt
 
 COPY . .
 
+RUN mkdir /config
+RUN touch /config/config.yaml
+
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 
