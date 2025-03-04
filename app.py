@@ -113,6 +113,9 @@ if not 'timezone' in config:
 else:
     logger.info(f'TIMEZONE set as {config["timezone"]}')
 
+if config['debug']:
+    logger.setLevel(logging.DEBUG)
+
 try:
     with AmcrestMqtt(config) as mqtt:
         asyncio.run(mqtt.main_loop())
