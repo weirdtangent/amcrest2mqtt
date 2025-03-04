@@ -124,7 +124,6 @@ class AmcrestAPI(object):
         try:
             tasks = [self.get_events_from_device(device_id) for device_id in self.devices]
             await asyncio.gather(*tasks)
-            self.logger.info(f'Checked all devices for events')
         except Exception as err:
             self.logger.error(f'collect_all_device_events: {err}')
 
@@ -134,7 +133,6 @@ class AmcrestAPI(object):
                 await self.process_device_event(device_id, code, payload)
         except Exception as err:
             self.logger.error(f'get_events_from_device: {err}')
-        self.logger.info(f'Checked {device_id} for events')
 
     async def process_device_event(self, device_id, code, payload):
         try:
@@ -154,14 +152,9 @@ class AmcrestAPI(object):
                 self.events.append({ 'device_id': device_id, 'event': 'doorbell', 'payload': doorbell_payload })
 
             self.events.append({ 'device_id': device_id, 'event': code , 'payload': payload['action'] })
-            self.logger.info(f'Event(s) appended to queue, queue length now: {len(self.events)}')
         except Exception as err:
             self.logger.error(f'process_device_event: {err}')
 
 
     def get_next_event(self):
-        if len(self.events) > 0:
-            self.logger.info('Found event on queue')
-            return self.events.pop(0)
-
-        return None
+        return self.events.pop(0) if len(self.events) > 0 else None
