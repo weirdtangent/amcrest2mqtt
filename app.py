@@ -1,6 +1,7 @@
 import asyncio
 import argparse
 from amcrest_mqtt import AmcrestMqtt
+import logging
 import os
 import sys
 import time
@@ -21,8 +22,15 @@ def read_version():
     return read_file('../VERSION')
 
 # Let's go!
+logging.basicConfig(
+    format = '%(asctime)s.%(msecs)03d [%(levelname)s] %(name)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
 version = read_version()
-app_log(f'Starting: amcrest2mqtt v{version}')
+logger.info(f'Starting: amcrest2mqtt v{version}')
 
 # cmd-line args
 argparser = argparse.ArgumentParser()
@@ -43,11 +51,11 @@ try:
         configfile = configpath + 'config.yaml'
     with open(configfile) as file:
         config = yaml.safe_load(file)
-    app_log(f'Reading config file {configpath}')
+    logger.info(f'Reading config file {configpath}')
     config['config_from'] = 'file'
     config['config_path'] = configpath
 except:
-    app_log(f'config.yaml not found, checking ENV')
+    logger.info(f'config.yaml not found, checking ENV')
     config = {
         'mqtt': {
             'host': os.getenv('MQTT_HOST') or 'localhost',
@@ -72,44 +80,43 @@ except:
             'device_update_interval': int(os.getenv("DEVICE_UPDATE_INTERVAL") or 600),
         },
         'debug': True if os.getenv('DEBUG') else False,
-        'hide_ts': True if os.getenv('HIDE_TS') else False,
         'config_from': 'env',
         'timezone': os.getenv('TZ'),
     }
 
 config['version'] = version
 config['configpath'] = os.path.dirname(configpath)
-if not 'hide_ts' in config:
-    config['hide_ts'] = False
 
 # Exit if any of the required vars are not provided
 if config['amcrest']['hosts'] is None:
-    app_log("Missing env var: AMCREST_HOSTS or amcrest.hosts in config", level="ERROR")
+    logger.error('Missing env var: AMCREST_HOSTS or amcrest.hosts in config')
     sys.exit(1)
 config['amcrest']['host_count'] = len(config['amcrest']['hosts'])
 
 if config['amcrest']['names'] is None:
-    app_log("Missing env var: AMCREST_NAMES or amcrest.names in config", level="ERROR")
+    logger.error('Missing env var: AMCREST_NAMES or amcrest.names in config')
     sys.exit(1)
 config['amcrest']['name_count'] = len(config['amcrest']['names'])
 
 if config['amcrest']['host_count'] != config['amcrest']['name_count']:
-    app_log("The AMCREST_HOSTS and AMCREST_NAMES must have the same number of space-delimited hosts/names", level="ERROR")
+    logger.error('The AMCREST_HOSTS and AMCREST_NAMES must have the same number of space-delimited hosts/names')
     sys.exit(1)
-app_log(f"Found {config['amcrest']['host_count']} host(s) defined to monitor")
+logger.info(f'Found {config["amcrest"]["host_count"]} host(s) defined to monitor')
 
 if config['amcrest']['password'] is None:
-    app_log("Please set the AMCREST_PASSWORD environment variable", level="ERROR")
+    logger.error('Please set the AMCREST_PASSWORD environment variable')
     sys.exit(1)
 
 if not 'timezone' in config:
-    app_log('`timezone` required in config file or in TZ env var', level='ERROR', tz=timezone)
+    logger.info('`timezone` required in config file or in TZ env var', level='ERROR', tz=timezone)
     exit(1)
 else:
-    app_log(f'TIMEZONE set as {config["timezone"]}', tz=config["timezone"])
+    logger.info(f'TIMEZONE set as {config["timezone"]}')
 
 try:
     with AmcrestMqtt(config) as mqtt:
         asyncio.run(mqtt.main_loop())
+except KeyboardInterrupt:
+    pass
 except Exception as err:
-    app_log(f'CAUGHT IN app: {err}', level='ERROR')
+    logging.exception("Exception caught", exc_info=True)
