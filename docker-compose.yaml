@@ -18,3 +18,8 @@ services:
       HOME_ASSISTANT: true
       DEVICE_UPDATE_INTERVAL: 600
       DEBUG_MODE: false
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "[P]ython -u app.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
