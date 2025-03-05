@@ -1,7 +1,7 @@
 from amcrest import AmcrestCamera, AmcrestError
 import asyncio
 from asyncio import timeout
-from datetime import date
+from datetime import datetime
 import httpx
 import logging
 import time
@@ -32,10 +32,9 @@ class AmcrestAPI(object):
         for host in self.amcrest_config['hosts']:
             task = asyncio.create_task(self.get_device(host, device_names.pop(0)))
             tasks.append(task)
-        await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks, return_exceptions=True)
 
-        self.logger.info('Connecting to hosts done.')
-
+        # return just the config of each device, not the camera object
         return {d: self.devices[d]['config'] for d in self.devices.keys()}
 
     def get_camera(self, host):
@@ -92,27 +91,15 @@ class AmcrestAPI(object):
                     "mac": mac_address,
                 }
             },
-            "storage": {},
         }
 
     def get_device_storage_stats(self, device_id):
-        if 'error' in self.devices[device_id]:
-            try:
-                self.devices[device_id]['camera'] = self.get_camera(self.devices[device_id]['config']['host'])
-                del self.devices[device_id]['error']
-            except Exception as err:
-                err_msg = f'Problem re-connecting to camera: {err}'
-                self.logger.error(err_msg)
-                self.devices[device_id]["error"] = err_msg
-                raise Exception(err_msg)
-
         try:
             storage = self.devices[device_id]["camera"].storage_all
         except Exception as err:
-            err_msg = f'Problem connecting with camera to get storage stats: {err}'
-            self.logger.error(err_msg)
-            self.devices[device_id]["error"] = err_msg
-            raise Exception(err_msg)
+            self.logger.error(f'Problem connecting with camera to get storage stats: {err}')
+            return {}
+
         return { 
             'last_update': str(datetime.now(ZoneInfo(self.timezone))),
             'used_percent': str(storage['used_percent']),
@@ -125,14 +112,14 @@ class AmcrestAPI(object):
             tasks = [self.get_events_from_device(device_id) for device_id in self.devices]
             await asyncio.gather(*tasks)
         except Exception as err:
-            self.logger.error(f'collect_all_device_events: {err}', exc_info=True)
+            self.logger.error(f'collect_all_device_events: {err}')
 
     async def get_events_from_device(self, device_id):
         try:
             async for code, payload in self.devices[device_id]["camera"].async_event_actions("All"):
                 await self.process_device_event(device_id, code, payload)
         except Exception as err:
-            self.logger.error(f'Failed to get events from device ({device_id}): {err}', exc_info=True)
+            self.logger.error(f'Failed to get events from device ({device_id}): {err}')
 
     async def process_device_event(self, device_id, code, payload):
         try:

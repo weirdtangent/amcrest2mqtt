@@ -8,23 +8,10 @@ import time
 from util import *
 import yaml
 
-# Helper functions and callbacks
-def read_file(file_name):
-    with open(file_name, 'r') as file:
-        data = file.read().replace('\n', '')
-
-    return data
-
-def read_version():
-    if os.path.isfile('./VERSION'):
-        return read_file('./VERSION')
-
-    return read_file('../VERSION')
-
 # Let's go!
 version = read_version()
 
-# cmd-line args
+# Cmd-line args
 argparser = argparse.ArgumentParser()
 argparser.add_argument(
     '-c',
@@ -34,7 +21,7 @@ argparser.add_argument(
 )
 args = argparser.parse_args()
 
-# load config file
+# Setup config from yaml file or env
 configpath = args.config or '/config'
 try:
     if not configpath.endswith('.yaml'):
@@ -43,8 +30,8 @@ try:
         configfile = configpath + 'config.yaml'
     with open(configfile) as file:
         config = yaml.safe_load(file)
-    config['config_from'] = 'file'
     config['config_path'] = configpath
+    config['config_from'] = 'file'
 except:
     config = {
         'mqtt': {
@@ -71,9 +58,13 @@ except:
         },
         'debug': True if os.getenv('DEBUG') else False,
         'hide_ts': True if os.getenv('HIDE_TS') else False,
-        'config_from': 'env',
         'timezone': os.getenv('TZ'),
+        'config_from': 'env',
     }
+config['version'] = version
+config['configpath'] = os.path.dirname(configpath)
+if 'timezone' not in config: config['timezone'] = 'UTC'
+if 'debug' not in config: config['debug'] = False
 
 logging.basicConfig(
     format = '%(asctime)s.%(msecs)03d [%(levelname)s] %(name)s: %(message)s' if config['hide_ts'] == False else '[%(levelname)s] %(name)s: %(message)s',
@@ -84,37 +75,26 @@ logger = logging.getLogger(__name__)
 logger.info(f'Starting: amcrest2mqtt v{version}')
 logger.info(f'Config loaded from {config["config_from"]}')
 
-config['version'] = version
-config['configpath'] = os.path.dirname(configpath)
-
-# Exit if any of the required vars are not provided
+# Check for required config properties
 if config['amcrest']['hosts'] is None:
     logger.error('Missing env var: AMCREST_HOSTS or amcrest.hosts in config')
-    sys.exit(1)
+    exit(1)
 config['amcrest']['host_count'] = len(config['amcrest']['hosts'])
 
 if config['amcrest']['names'] is None:
     logger.error('Missing env var: AMCREST_NAMES or amcrest.names in config')
-    sys.exit(1)
+    exit(1)
 config['amcrest']['name_count'] = len(config['amcrest']['names'])
 
 if config['amcrest']['host_count'] != config['amcrest']['name_count']:
     logger.error('The AMCREST_HOSTS and AMCREST_NAMES must have the same number of space-delimited hosts/names')
-    sys.exit(1)
+    exit(1)
 logger.info(f'Found {config["amcrest"]["host_count"]} host(s) defined to monitor')
 
 if config['amcrest']['password'] is None:
     logger.error('Please set the AMCREST_PASSWORD environment variable')
-    sys.exit(1)
-
-if not 'timezone' in config:
-    logger.info('`timezone` required in config file or in TZ env var', level='ERROR', tz=timezone)
     exit(1)
-else:
-    logger.info(f'TIMEZONE set as {config["timezone"]}')
 
-if config['debug']:
-    logger.setLevel(logging.DEBUG)
-
+# Go!
 with AmcrestMqtt(config) as mqtt:
     asyncio.run(mqtt.main_loop())

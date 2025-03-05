@@ -1,13 +1,17 @@
-from datetime import datetime, timezone
 import os
-from zoneinfo import ZoneInfo
 
-def app_log(msg, level='INFO', tz='UTC', hide_ts=False):
-    ts = datetime.now(ZoneInfo(tz)).strftime('%Y-%m-%d %H:%M:%S %Z')
-    if len(msg) > 102400:
-        raise ValueError('Log message exceeds max length')
-    if level != 'DEBUG' or os.getenv('DEBUG'):
-        print(f'{ts + " " if not hide_ts else ""}[{level}] {msg}')
+# Helper functions and callbacks
+def read_file(file_name):
+    with open(file_name, 'r') as file:
+        data = file.read().replace('\n', '')
+
+    return data
+
+def read_version():
+    if os.path.isfile('./VERSION'):
+        return read_file('./VERSION')
+
+    return read_file('../VERSION')
 
 def to_gb(total):
     return str(round(float(total[0]) / 1024 / 1024 / 1024, 2))
