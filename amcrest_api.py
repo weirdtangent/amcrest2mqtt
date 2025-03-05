@@ -138,7 +138,7 @@ class AmcrestAPI(object):
         try:
             config = self.devices[device_id]['config']
 
-            self.logger.info(f'Event on {config["host"]} - {code}: {payload}')
+            self.logger.debug(f'Event on {config["host"]} - {code}: {payload}')
 
             if ((code == "ProfileAlarmTransmit" and config["is_ad110"])
             or (code == "VideoMotion" and not config["is_ad110"])):

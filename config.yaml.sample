@@ -5,7 +5,8 @@ mqtt:
   password: password
   qos: 0
   prefix: amcrest2mqtt
-  homeassistant: homeassistant
+  home_assistant: True
+  discovery_prefix: homeassistant
   tls_enabled: False
   tls_ca_cert: filename
   tls_cert: filename
@@ -23,6 +24,6 @@ amcrest:
   password: password
   storage_poll_interval: 60
 
-home_assistant: True
-home_assistant_prefix: homeassistant
+timezone: America/New_York
+hide_ts: False
 debug: False
