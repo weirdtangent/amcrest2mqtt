@@ -125,20 +125,20 @@ class AmcrestAPI(object):
             tasks = [self.get_events_from_device(device_id) for device_id in self.devices]
             await asyncio.gather(*tasks)
         except Exception as err:
-            self.logger.error(f'collect_all_device_events: {err}')
+            self.logger.error(f'collect_all_device_events: {err}', exc_info=True)
 
     async def get_events_from_device(self, device_id):
         try:
             async for code, payload in self.devices[device_id]["camera"].async_event_actions("All"):
                 await self.process_device_event(device_id, code, payload)
         except Exception as err:
-            self.logger.error(f'get_events_from_device: {err}')
+            self.logger.error(f'Failed to get events from device ({device_id}): {err}', exc_info=True)
 
     async def process_device_event(self, device_id, code, payload):
         try:
             config = self.devices[device_id]['config']
 
-            self.logger.debug(f'Event on {config["host"]} - {code}: {payload}')
+            self.logger.info(f'Event on {config["host"]} - {code}: {payload}')
 
             if ((code == "ProfileAlarmTransmit" and config["is_ad110"])
             or (code == "VideoMotion" and not config["is_ad110"])):
@@ -150,10 +150,20 @@ class AmcrestAPI(object):
             elif code == "_DoTalkAction_":
                 doorbell_payload = "on" if payload["data"]["Action"] == "Invite" else "off"
                 self.events.append({ 'device_id': device_id, 'event': 'doorbell', 'payload': doorbell_payload })
-
-            self.events.append({ 'device_id': device_id, 'event': code , 'payload': payload['action'] })
+            elif code == "NewFile":
+                file_payload = { 'file': payload["data"]["File"], 'size': payload["data"]["Size"] }
+                self.events.append({ 'device_id': device_id, 'event': 'recording', 'payload': file_payload })
+            # lets ignore the event codes we don't care about (for now)
+            elif code == "VideoMotionInfo":
+                pass
+            elif code == "TimeChange":
+                pass
+            elif code == "NTPAdjustTime":
+                pass
+            else:
+                self.events.append({ 'device_id': device_id, 'event': code , 'payload': payload['action'] })
         except Exception as err:
-            self.logger.error(f'process_device_event: {err}')
+            self.logger.error(f'process_device_event: {err}', exc_info=True)
 
 
     def get_next_event(self):
