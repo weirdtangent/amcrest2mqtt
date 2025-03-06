@@ -26,4 +26,3 @@ amcrest:
 
 timezone: America/New_York
 hide_ts: False
-debug: False
