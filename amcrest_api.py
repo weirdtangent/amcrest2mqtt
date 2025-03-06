@@ -147,6 +147,8 @@ class AmcrestAPI(object):
                 pass
             elif code == "NTPAdjustTime":
                 pass
+            elif code == "RtspSessionDisconnect":
+                pass
             else:
                 self.events.append({ 'device_id': device_id, 'event': code , 'payload': payload['action'] })
         except Exception as err:

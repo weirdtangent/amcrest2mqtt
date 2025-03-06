@@ -110,11 +110,14 @@ class AmcrestMqtt(object):
                 self.handle_service_message(components[-1], payload)
             else:
                 if components[-1] == 'set':
-                    device_id = components[-2].split('-')[1]
+                    vendor, device_id = components[-2].split('-')
                 elif components[-2] == 'set':
-                    device_id = components[-3].split('-')[1]
+                    vendor, device_id = components[-3].split('-')
                 else:
                     self.logger.error(f'UNKNOWN MQTT MESSAGE STRUCTURE: {topic}')
+                    return
+                # of course, we only care about our 'amcrest-<serial>' messages
+                if vendor != 'amcrest':
                     return
                 # ok, lets format the device_id and send to amcrest
                 # for Amcrest devices, we use the string as-is (after the vendor name)
@@ -577,12 +580,13 @@ class AmcrestMqtt(object):
             payload = device_event['payload']
             device = self.devices[device_id]
 
-            self.logger.info(f'Got event for {device_id}: {event} {payload}')
             # if one of our known sensors
             if event in ['motion','human','doorbell','recording']:
+                self.logger.info(f'Got event for {device_id}: {event}')
                 device[event] = payload
             # otherwise, just store generically
             else:
+                self.logger.info(f'Got generic event for {device_id}: {event} {payload}')
                 device['event'] = f'{event}: {payload}'
 
             self.refresh_device(device_id)
