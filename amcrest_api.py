@@ -39,7 +39,7 @@ class AmcrestAPI(object):
 
     def reset_connection(self, device_id):
         device = self.devices[device_id]
-        device['camera'] = get_camera(device['config']['host'])
+        device['camera'] = self.get_camera(device['config']['host'])
 
     def get_camera(self, host):
         return AmcrestCamera(
@@ -123,7 +123,8 @@ class AmcrestAPI(object):
             async for code, payload in self.devices[device_id]["camera"].async_event_actions("All"):
                 await self.process_device_event(device_id, code, payload)
         except Exception as err:
-            self.logger.error(f'Failed to get events from device ({device_id}): {err}')
+            self.logger.error(f'Failed to get events from device ({device_id}), sleeping 60 sec: {err}')
+            await asyncio.sleep(60)
             self.reset_connection(device_id)
 
     async def process_device_event(self, device_id, code, payload):
