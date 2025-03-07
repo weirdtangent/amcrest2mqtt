@@ -51,13 +51,14 @@ class AmcrestMqtt(object):
                 self.devices[device_id]['availability'] = 'offline'
                 if 'state' not in self.devices[device_id]:
                     self.devices[device_id]['state'] = {}
-                self.publish_device(device_id)
+                self.publish_device_state(device_id)
 
             self.mqttc.disconnect()
         else:
             self.logger.info('Lost connection to MQTT')
 
-    # MQTT Functions
+    # MQTT Functions ------------------------------------------------------------------------------
+
     def mqtt_on_connect(self, client, userdata, flags, rc, properties):
         if rc != 0:
             self.logger.error(f'MQTT CONNECTION ISSUE ({rc})')
@@ -130,7 +131,8 @@ class AmcrestMqtt(object):
         rc_list = map(lambda x: x.getName(), reason_code_list)
         self.logger.debug(f'MQTT SUBSCRIBED: reason_codes - {'; '.join(rc_list)}')
 
-    # MQTT Helpers
+    # MQTT Helpers --------------------------------------------------------------------------------
+
     def mqttc_create(self):
         self.mqttc = mqtt.Client(
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
@@ -177,7 +179,8 @@ class AmcrestMqtt(object):
             self.logger.error(f'COULD NOT CONNECT TO MQTT {self.mqtt_config.get("host")}: {error}')
             exit(1)
 
-    # MQTT Topics
+    # MQTT Topics ---------------------------------------------------------------------------------
+
     def get_new_client_id(self):
         return self.mqtt_config['prefix'] + '-' + ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
 
@@ -212,7 +215,25 @@ class AmcrestMqtt(object):
             return f"{self.mqtt_config['prefix']}/{self.get_component_slug(device_id)}/{topic}"
         return f"{self.mqtt_config['discovery_prefix']}/device/{self.get_component_slug(device_id)}/{topic}"
 
-    # Service Device
+    # Service Device ------------------------------------------------------------------------------
+
+    def publish_service_state(self):
+        self.mqttc.publish(
+            self.get_discovery_topic('service','availability'),
+            'online',
+            qos=self.mqtt_config['qos'],
+            retain=True
+        )
+        self.mqttc.publish(
+            self.get_discovery_topic('service','state'),
+            json.dumps({
+                'status': 'online',
+                'device_refresh': self.device_update_interval,
+            }),
+            qos=self.mqtt_config['qos'],
+            retain=True
+        )
+
     def publish_service_device(self):
         state_topic = self.get_discovery_topic('service', 'state')
         command_topic = self.get_discovery_topic('service', 'set')
@@ -267,26 +288,11 @@ class AmcrestMqtt(object):
             qos=self.mqtt_config['qos'],
             retain=True
         )
-        self.update_service_device()
 
-    def update_service_device(self):
-        self.mqttc.publish(
-            self.get_discovery_topic('service','availability'),
-            'online',
-            qos=self.mqtt_config['qos'],
-            retain=True
-        )
-        self.mqttc.publish(
-            self.get_discovery_topic('service','state'),
-            json.dumps({
-                'status': 'online',
-                'device_refresh': self.device_update_interval,
-            }),
-            qos=self.mqtt_config['qos'],
-            retain=True
-        )
+    # Amcrest Helpers -----------------------------------------------------------------------------
 
-    # amcrest Helpers
+    # setup devices -------------------------------------------------------------------------------
+
     async def setup_devices(self):
         self.logger.info(f'Setup devices')
 
@@ -350,7 +356,7 @@ class AmcrestMqtt(object):
                 
                 if first:
                     self.logger.info(f'Adding device: "{config['device_name']}" [Amcrest {config["device_type"]}] ({device_id})')
-                    self.send_device_discovery(device_id)
+                    self.publish_device_discovery(device_id)
                 else:
                     self.logger.debug(f'Updated device: {self.devices[device_id]['device']['name']}')
                 
@@ -496,11 +502,17 @@ class AmcrestMqtt(object):
             'unique_id': self.get_slug(device_id, 'last_update'),
         }
 
-        # since we always add at least `motion`, this should always be true
-        if len(components) > 0:
-            device['components'] = components
+        device['components'] = components
 
-    def send_device_discovery(self, device_id):
+    def publish_device_state(self, device_id):
+        device = self.devices[device_id]
+
+        for topic in ['state','availability','storage','motion','human','doorbell','event','recording']:
+            if topic in device:
+                payload = json.dumps(device[topic]) if isinstance(device[topic], dict) else device[topic] 
+                self.mqttc.publish(self.get_discovery_topic(device_id, topic), payload, qos=self.mqtt_config['qos'], retain=True)
+
+    def publish_device_discovery(self, device_id):
         device = self.devices[device_id]
         self.mqttc.publish(
             self.get_discovery_topic(device_id, 'config'),
@@ -512,7 +524,9 @@ class AmcrestMqtt(object):
         device['state'] = { 'state': 'ON' }
         device['availability'] = 'online'
 
-        self.publish_device(device_id)
+        self.publish_device_state(device_id)
+
+    # refresh all devices -------------------------------------------------------------------------
 
     def refresh_all_devices(self):
         self.logger.info(f'Refreshing storage info for all devices (every {self.device_update_interval} sec)')
@@ -525,6 +539,8 @@ class AmcrestMqtt(object):
                 break
             self.refresh_device(device_id)
 
+    # other helpers -------------------------------------------------------------------------------
+
     def refresh_device(self, device_id):
         device = self.devices[device_id]
         config = self.configs[device_id]
@@ -534,20 +550,21 @@ class AmcrestMqtt(object):
         device['state']['last_update'] = storage.pop('last_update', None)
         device['storage'] = storage
 
-        self.update_service_device()
-        self.publish_device(device_id)
+        self.publish_service_state()
+        self.publish_device_state(device_id)
 
-    def publish_device(self, device_id):
+    # send command to Amcrest  --------------------------------------------------------------------
+
+    def send_command(self, device_id, data):
         device = self.devices[device_id]
+        config = self.configs[device_id]
 
-        for topic in ['state','availability','storage','motion','human','doorbell','event','recording']:
-            if topic in device:
-                self.mqttc.publish(
-                    self.get_discovery_topic(device_id, topic),
-                    json.dumps(device[topic]) if isinstance(device[topic], dict) else device[topic],
-                    qos=self.mqtt_config['qos'],
-                    retain=True
-                )
+        self.logger.info(f'COMMAND {config["device_name"]} = {data}')
+
+        if data == 'PRESS':
+            pass
+        else:
+            self.logger.error(f'We got a command ({data}), but do not know what to do')
 
     def handle_service_message(self, attribute, message):
         match attribute:
@@ -558,17 +575,9 @@ class AmcrestMqtt(object):
                 self.logger.info(f'IGNORED UNRECOGNIZED amcrest-service MESSAGE for {attribute}: {message}')
                 return
 
-        self.update_service_device()
+        self.publish_service_state()
 
-    def send_command(self, device_id, data):
-        device = self.devices[device_id]
-        self.logger.info(f'COMMAND {device_id} = {data}')
-
-        if data == 'PRESS':
-            pass
-        else:
-            self.logger.error(f'We got a command ({data}), but do not know what to do')
-
+    # check for events ----------------------------------------------------------------------------
 
     def check_for_events(self):
         while device_event := self.amcrestc.get_next_event():
@@ -579,17 +588,20 @@ class AmcrestMqtt(object):
             event = device_event['event']
             payload = device_event['payload']
             device = self.devices[device_id]
+            config = self.configs[device_id]
 
             # if one of our known sensors
             if event in ['motion','human','doorbell','recording']:
-                self.logger.info(f'Got event for {device_id}: {event}')
+                self.logger.info(f'Got event for {config["device_name"]}: {event}')
                 device[event] = payload
             # otherwise, just store generically
             else:
-                self.logger.info(f'Got generic event for {device_id}: {event} {payload}')
+                self.logger.info(f'Got generic event for {config["device_name"]}: {event} {payload}')
                 device['event'] = f'{event}: {payload}'
 
             self.refresh_device(device_id)
+
+    # async functions -----------------------------------------------------------------------------
 
     async def _handle_signals(self, signame, loop, tasks):
         self.running = False
@@ -621,7 +633,6 @@ class AmcrestMqtt(object):
         await self.setup_devices()
 
         loop = asyncio.get_running_loop()
-
         tasks = [
             asyncio.create_task(self.device_loop()),
             asyncio.create_task(self.collect_events()),
