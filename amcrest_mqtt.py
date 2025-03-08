@@ -443,10 +443,11 @@ class AmcrestMqtt(object):
         if 'webrtc' in self.amcrest_config:
             webrtc_config = self.amcrest_config['webrtc']
             rtc_host = webrtc_config['host']
-            rtc_port = webrtc_config['port'] if 'port' in webrtc_config else 1984
+            rtc_port = webrtc_config['port']
+            rtc_link = webrtc_config['link']
             rtc_source = webrtc_config['sources'].pop(0)
-            rtc_url = f'http://{rtc_host}:{rtc_port}/api/frame.jpeg?src={rtc_source}'
-            components[self.get_slug(device_id, 'camera')]['entity_picture'] = rtc_url
+            rtc_url = f'http://{rtc_host}:{rtc_port}/{rtc_link}?src={rtc_source}'
+            device['device']['configuration_url'] = rtc_url
 
         components[self.get_slug(device_id, 'motion')] = {
             'name': 'Motion',

@@ -56,6 +56,12 @@ except:
             'password': os.getenv("AMCREST_PASSWORD"),
             'storage_update_interval': int(os.getenv("STORAGE_UPDATE_INTERVAL") or 900),
             'snapshot_update_interval': int(os.getenv("SNAPSHOT_UPDATE_INTERVAL") or 300),
+            'webrtc': {
+                'host': os.getenv("AMCREST_WEBRTC_HOST"),
+                'port': int(os.getenv("AMCREST_WEBRTC_PORT") or 1984),
+                'link': os.getenv("AMCREST_WEBRTC_LINK") or 'stream.html',
+                'sources': os.getenv("AMCREST_WEBRTC_SOURCES"),
+            },
         },
         'debug': True if os.getenv('DEBUG') else False,
         'hide_ts': True if os.getenv('HIDE_TS') else False,
@@ -107,6 +113,8 @@ if 'webrtc' in config['amcrest']:
     if config['amcrest']['host_count'] != config['amcrest']['webrtc_sources_count']:
         logger.error('The AMCREST_HOSTS and AMCREST_WEBRTC_SOURCES must have the same number of space-delimited hosts/names')
         exit(1)
+    if 'port' not in webrtc: webrtc['port'] = 1984
+    if 'link' not in webrtc: webrtc['link'] = 'stream.html'
 
 if config['amcrest']['password'] is None:
     logger.error('Please set the AMCREST_PASSWORD environment variable')

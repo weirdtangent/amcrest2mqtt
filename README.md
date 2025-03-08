@@ -16,6 +16,10 @@ Or, we support the following environment variables and defaults:
 -   `AMCREST_PORT` (optional, default = 80)
 -   `AMCREST_USERNAME` (optional, default = admin)
 -   `AMCREST_PASSWORD` (required)
+-   `AMCREST_WEBRTC_HOST` (optional, webrtc hostname for link, along with...)
+-   `AMCREST_WEBRTC_PORT` (webrtc port, default = 1984)
+-   `AMCREST_WEBRTC_LINK` (webrtc stream link, default = 'stream.html')
+-   `AMCREST_WEBRTC_SOURCES` (webrtc "Source" param for each camera, same count and order of AMCREST_HOSTS above)
 
 -   `MQTT_USERNAME` (required)
 -   `MQTT_PASSWORD` (optional, default = empty password)
@@ -29,9 +33,6 @@ Or, we support the following environment variables and defaults:
 -   `MQTT_PREFIX` (optional, default = amgrest2mqtt)
 -   `MQTT_HOMEASSISTANT` (optional, default = true)
 -   `MQTT_DISCOVERY_PREFIX` (optional, default = 'homeassistant')
--   `MQTT_WEBRTC_HOST` (optional, webrtc hostname for link, along with...)
--   `MQTT_WEBRTC_PORT` (webrtc port, default = 1984)
--   `MQTT_WEBRTC_SOURCES` (webrtc "Source" param for each camera, same count and order of AMCREST_HOSTS above)
 
 -   `TZ` (required, timezone identifier, see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List)
 -   `STORAGE_UPDATE_INTERVAL` (optional, default = 900) - how often to fetch storage stats (in seconds)
@@ -49,6 +50,10 @@ It exposes through device discovery a `service` and a `device` with components f
 -    `motion`   - motion events (if supported)
 -    `config`   - device configuration information
 -    `storage`  - storage stats
+
+## Snapshots, Area Cards, and WebRTC
+
+The `camera` snapshots work really well for the HomeAssistant `Area` cards on a dashboard - just make this MQTT camera device the only camera for an area and place an `Area` card for that location. The WebRTC option works very well with the <a href="https://github.com/AlexxIT/go2rtc">go2rtc</a> package which is a streaming server that works very well for (my) Amcrest cameras. If you setup the WebRTC config here, the `configuration_url` for the MQTT device will be the streaming RTC link instead of just a link to the hostname (which is arguably more correctly a "configuration" url, but I'd rather have a simple link from the device page to a live stream)
 
 ## Device Support
 
