@@ -29,9 +29,13 @@ Or, we support the following environment variables and defaults:
 -   `MQTT_PREFIX` (optional, default = amgrest2mqtt)
 -   `MQTT_HOMEASSISTANT` (optional, default = true)
 -   `MQTT_DISCOVERY_PREFIX` (optional, default = 'homeassistant')
+-   `MQTT_WEBRTC_HOST` (optional, webrtc hostname for link, along with...)
+-   `MQTT_WEBRTC_PORT` (webrtc port, default = 1984)
+-   `MQTT_WEBRTC_SOURCES` (webrtc "Source" param for each camera, same count and order of AMCREST_HOSTS above)
 
 -   `TZ` (required, timezone identifier, see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List)
--   `DEVICE_UPDATE_INTERVAL` (optional, default = 3600) - how often to fetch storage stats (in seconds)
+-   `STORAGE_UPDATE_INTERVAL` (optional, default = 900) - how often to fetch storage stats (in seconds)
+-   `SNAPSHOT_UPDATE_INTERVAL` (optional, default = 60) - how often to fetch camera snapshot (in seconds)
 
 It exposes through device discovery a `service` and a `device` with components for each camera:
 
@@ -39,6 +43,7 @@ It exposes through device discovery a `service` and a `device` with components f
 
 -   `homeassistant/device/amcrest-[SERIAL_NUMBER]` per camera, with components:
 -    `event`    - all events
+-    `camera`   - a snapshot is saved every SNAPSHOT_UPDATE_INTERVAL (also based on how often camera saves snapshot image)
 -    `doorbell` - doorbell status (if AD110 or AD410)
 -    `human`    - human detection (if AD410)
 -    `motion`   - motion events (if supported)

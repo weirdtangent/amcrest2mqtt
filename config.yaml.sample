@@ -25,7 +25,8 @@ amcrest:
   storage_update_interval: 900
   snapshot_update_interval: 60
   webrtc:
-    url: http://webrtc.local.com:1984/api/frame.jpeg?src=
+    host: webrtc.local
+    port: 1984
     sources:
       - FrontYard
       - Patio
