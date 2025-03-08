@@ -26,7 +26,8 @@ class AmcrestMqtt(object):
         self.timezone = config['timezone']
         self.version = config['version']
 
-        self.device_update_interval = config['amcrest'].get('device_update_interval', 600)
+        self.storage_update_interval = config['amcrest'].get('storage_update_interval', 900)
+        self.snapshot_update_interval = config['amcrest'].get('snapshot_update_interval', 300)
 
         self.client_id = self.get_new_client_id()
         self.service_name = self.mqtt_config['prefix'] + ' service'
@@ -87,38 +88,54 @@ class AmcrestMqtt(object):
             self.logger.error('Failed to understand MQTT message, ignoring')
             return
 
-        self.logger.info(f'Got MQTT message for {topic} - {payload}')
-
         # we might get:
-        # device/component/set
-        # device/component/set/attribute
-        # homeassistant/device/component/set
-        # homeassistant/device/component/set/attribute
+        #   */service/set
+        #   */service/set/attribute
+        #   */device/component/set
+        #   */device/component/set/attribute
         components = topic.split('/')
 
         # handle this message if it's for us, otherwise pass along to amcrest API
-        try:
-            if components[-2] == self.get_component_slug('service'):
-                self.handle_service_message(None, payload)
-            elif components[-3] == self.get_component_slug('service'):
-                self.handle_service_message(components[-1], payload)
+        if components[-2] == self.get_component_slug('service'):
+            self.handle_service_message(None, payload)
+        elif components[-3] == self.get_component_slug('service'):
+            self.handle_service_message(components[-1], payload)
+        else:
+            if components[-1] == 'set':
+                vendor, device_id = components[-2].split('-')
+            elif components[-2] == 'set':
+                vendor, device_id = components[-3].split('-')
             else:
-                if components[-1] == 'set':
-                    vendor, device_id = components[-2].split('-')
-                elif components[-2] == 'set':
-                    vendor, device_id = components[-3].split('-')
-                else:
-                    self.logger.error(f'UNKNOWN MQTT MESSAGE STRUCTURE: {topic}')
+                self.logger.error(f'UNKNOWN MQTT MESSAGE STRUCTURE: {topic}')
+                return
+
+            # of course, we only care about our 'amcrest-<serial>' messages
+            if vendor != 'amcrest':
+                return
+
+            # ok, it's for us, lets announce it
+            self.logger.debug(f'Incoming MQTT message for {topic} - {payload}')
+
+            # if we only got back a scalar value, lets turn it into a dict with
+            # the attribute name after `/set/` in the command topic
+            if not isinstance(payload, dict) and attribute:
+                payload = { attribute: payload }
+
+            # if we just started, we might get messages immediately, lets
+            # wait up to 3 min for devices to show up before we ignore the message
+            checks = 0
+            while device_id not in self.configs:
+                checks += 1
+                # we'll try for 3 min, and then give up
+                if checks > 36:
+                    self.logger.warn(f"Got MQTT message for a device we don't know: {device_id}")
                     return
-                # of course, we only care about our 'amcrest-<serial>' messages
-                if vendor != 'amcrest':
-                    return
-                # ok, lets format the device_id and send to amcrest
-                # for Amcrest devices, we use the string as-is (after the vendor name)
-                self.send_command(device_id, payload)
-        except Exception as err:
-            self.logger.error(f'Failed to understand MQTT message slug ({topic}): {err}, ignoring')
-            return
+                time.sleep(5)
+
+            self.logger.info(f'Got MQTT message for: {self.configs[device_id]["device"]["name"]} - {payload}')
+
+            # ok, lets format the device_id (not needed) and send to amcrest
+            self.send_command(device_id, payload)
 
     def mqtt_on_subscribe(self, client, userdata, mid, reason_code_list, properties):
         rc_list = map(lambda x: x.getName(), reason_code_list)
@@ -204,24 +221,41 @@ class AmcrestMqtt(object):
             return f"{self.mqtt_config['prefix']}/{self.get_component_slug(device_id)}/{topic}"
         return f"{self.mqtt_config['discovery_prefix']}/device/{self.get_component_slug(device_id)}/{topic}"
 
+    def get_discovery_topic(self, device_id, topic):
+        if 'homeassistant' not in self.mqtt_config or self.mqtt_config['homeassistant'] == False:
+            return f"{self.mqtt_config['prefix']}/{self.get_component_slug(device_id)}/{topic}"
+        return f"{self.mqtt_config['discovery_prefix']}/device/{self.get_component_slug(device_id)}/{topic}"
+
+    def get_discovery_subtopic(self, device_id, topic, subtopic):
+        if 'homeassistant' not in self.mqtt_config or self.mqtt_config['homeassistant'] == False:
+            return f"{self.mqtt_config['prefix']}/{self.get_component_slug(device_id)}/{topic}/{subtopic}"
+        return f"{self.mqtt_config['discovery_prefix']}/device/{self.get_component_slug(device_id)}/{topic}/{subtopic}"
+
     # Service Device ------------------------------------------------------------------------------
 
     def publish_service_state(self):
-        self.mqttc.publish(
-            self.get_discovery_topic('service','availability'),
-            'online',
-            qos=self.mqtt_config['qos'],
-            retain=True
-        )
-        self.mqttc.publish(
-            self.get_discovery_topic('service','state'),
-            json.dumps({
-                'status': 'online',
-                'device_refresh': self.device_update_interval,
-            }),
-            qos=self.mqtt_config['qos'],
-            retain=True
-        )
+        if 'service' not in self.configs:
+            self.configs['service'] = {
+                'availability': 'online',
+                'state': { 'state': 'ON' },
+                'intervals': {},
+            }
+
+        service_states = self.configs['service']
+
+        # update states
+        service_states['state'] = {
+            'state': 'ON',
+        }
+        service_states['intervals'] = {
+            'storage_refresh': self.storage_update_interval,
+            'snapshot_refresh': self.snapshot_update_interval,
+        }
+
+        for topic in ['state','availability','intervals']:
+            if topic in service_states:
+                payload = json.dumps(service_states[topic]) if isinstance(service_states[topic], dict) else service_states[topic]
+                self.mqttc.publish(self.get_discovery_topic('service', topic), payload, qos=self.mqtt_config['qos'], retain=True)
 
     def publish_service_device(self):
         state_topic = self.get_discovery_topic('service', 'state')
@@ -251,26 +285,36 @@ class AmcrestMqtt(object):
                         'name': 'Service',
                         'platform': 'binary_sensor',
                         'schema': 'json',
-                        'payload_on': 'online',
-                        'payload_off': 'offline',
+                        'payload_on': 'ON',
+                        'payload_off': 'OFF',
                         'icon': 'mdi:language-python',
                         'state_topic': state_topic,
-                        'availability_topic': availability_topic,
-                        'value_template': '{{ value_json.status }}',
+                        'value_template': '{{ value_json.state }}',
                         'unique_id': 'amcrest_service_status',
                     },
-                    self.service_slug + '_device_refresh': {
-                        'name': 'Device Refresh Interval',
+                    self.service_slug + '_storage_refresh': {
+                        'name': 'Storage Refresh Interval',
                         'platform': 'number',
                         'schema': 'json',
                         'icon': 'mdi:numeric',
                         'min': 10,
                         'max': 3600,
-                        'state_topic': state_topic,
-                        'command_topic': self.get_command_topic('service', 'device_refresh'),
-                        'availability_topic': availability_topic,
-                        'value_template': '{{ value_json.device_refresh }}',
-                        'unique_id': 'amcrest_service_device_refresh',
+                        'state_topic': self.get_discovery_topic('service', 'intervals'),
+                        'command_topic': self.get_command_topic('service', 'storage_refresh'),
+                        'value_template': '{{ value_json.storage_refresh }}',
+                        'unique_id': 'amcrest_service_storage_refresh',
+                    },
+                    self.service_slug + '_snapshot_refresh': {
+                        'name': 'Snapshot Refresh Interval',
+                        'platform': 'number',
+                        'schema': 'json',
+                        'icon': 'mdi:numeric',
+                        'min': 10,
+                        'max': 3600,
+                        'state_topic': self.get_discovery_topic('service', 'intervals'),
+                        'command_topic': self.get_command_topic('service', 'snapshot_refresh'),
+                        'value_template': '{{ value_json.snapshot_refresh }}',
+                        'unique_id': 'amcrest_service_snapshot_refresh',
                     },
                 },
             }),
@@ -324,13 +368,13 @@ class AmcrestMqtt(object):
                     'support_url': 'https://github.com/weirdtangent/amcrest2mqtt',
                 }
                 self.add_components_to_device(device_id)
-                
+
                 if first:
                     self.logger.info(f'Adding device: "{config['device_name']}" [Amcrest {config["device_type"]}] ({device_id})')
                     self.publish_device_discovery(device_id)
                 else:
                     self.logger.debug(f'Updated device: {self.devices[device_id]['device']['name']}')
-                
+
                 # device discovery sent, now it is save to add these to the
                 # dict (so they aren't included in device discovery object itself)
                 self.devices[device_id]['state'] = {
@@ -339,7 +383,6 @@ class AmcrestMqtt(object):
                     'serial_number': config['serial_number'],
                     'sw_version': config['software_version'],
                 }
-                self.devices[device_id]['motion'] = 'off'
             else:
                 if first_time_through:
                     self.logger.info(f'Saw device, but not supported yet: "{config["device_name"]}" [amcrest {config["device_type"]}] ({device_id})')
@@ -387,6 +430,23 @@ class AmcrestMqtt(object):
                 qos=self.mqtt_config['qos'],
                 retain=True
             )
+
+        components[self.get_slug(device_id, 'camera')] = {
+            'name': 'Camera',
+            'platform': 'camera',
+            'topic': self.get_discovery_subtopic(device_id, 'camera','snapshot'),
+            'image_encoding': 'b64',
+            'state_topic': device['state_topic'],
+            'value_template': '{{ value_json.state }}',
+            'unique_id': self.get_slug(device_id, 'camera'),
+        }
+        if 'webrtc' in self.amcrest_config:
+            webrtc_config = self.amcrest_config['webrtc']
+            rtc_host = webrtc_config['host']
+            rtc_port = webrtc_config['port'] if 'port' in webrtc_config else 1984
+            rtc_source = webrtc_config['sources'].pop(0)
+            rtc_url = f'http://{rtc_host}:{rtc_port}/api/frame.jpeg?src={rtc_source}'
+            components[self.get_slug(device_id, 'camera')]['entity_picture'] = rtc_url
 
         components[self.get_slug(device_id, 'motion')] = {
             'name': 'Motion',
@@ -476,11 +536,17 @@ class AmcrestMqtt(object):
 
     def publish_device_state(self, device_id):
         device = self.devices[device_id]
+        config = self.configs[device_id]
 
         for topic in ['state','storage','motion','human','doorbell','event','recording']:
             if topic in device:
-                payload = json.dumps(device[topic]) if isinstance(device[topic], dict) else device[topic] 
+                payload = json.dumps(device[topic]) if isinstance(device[topic], dict) else device[topic]
                 self.mqttc.publish(self.get_discovery_topic(device_id, topic), payload, qos=self.mqtt_config['qos'], retain=True)
+
+        if 'snapshot' in device['camera'] and device['camera']['snapshot'] is not None:
+            self.logger.info(f'Refreshing snapshot for {config["device_name"]}')
+            payload = device['camera']['snapshot']
+            result = self.mqttc.publish(self.get_discovery_subtopic(device_id, 'camera','snapshot'), payload, qos=self.mqtt_config['qos'], retain=True)
 
     def publish_device_discovery(self, device_id):
         device = self.devices[device_id]
@@ -491,36 +557,43 @@ class AmcrestMqtt(object):
             retain=True
         )
 
+        # setup initial states
         device['state'] = { 'state': 'ON' }
+        device['motion'] = 'off'
+        device['camera'] = { 'snapshot': None }
 
-        self.publish_device_state(device_id)
+     # refresh * all devices -----------------------------------------------------------------------
 
-    # refresh all devices -------------------------------------------------------------------------
+    def refresh_storage_all_devices(self):
+        self.logger.info(f'Refreshing storage info for all devices (every {self.storage_update_interval} sec)')
 
-    def refresh_all_devices(self):
-        self.logger.info(f'Refreshing storage info for all devices (every {self.device_update_interval} sec)')
-
-        # refresh devices starting with the device updated the longest time ago
-        # sorted = sorted(self.devices.items(), key=lambda dt: (dt is None, dt)):
         for device_id in self.devices:
-            # break loop if we are ending
-            if not self.running:
-                break
-            self.refresh_device(device_id)
+            if not self.running: break
 
-    # other helpers -------------------------------------------------------------------------------
+            device = self.devices[device_id]
+            config = self.configs[device_id]
 
-    def refresh_device(self, device_id):
-        device = self.devices[device_id]
-        config = self.configs[device_id]
+            # get the storage info, pull out last_update and save that to the device state
+            storage = self.amcrestc.get_device_storage_stats(device_id)
+            device['state']['last_update'] = storage.pop('last_update', None)
+            device['storage'] = storage
 
-        # get the storage info, pull out last_update and save that to the device state
-        storage = self.amcrestc.get_device_storage_stats(device_id)
-        device['state']['last_update'] = storage.pop('last_update', None)
-        device['storage'] = storage
+            self.publish_service_state()
+            self.publish_device_state(device_id)
 
-        self.publish_service_state()
-        self.publish_device_state(device_id)
+    def refresh_snapshot_all_devices(self):
+        self.logger.info(f'Collecting snapshots for all devices (every {self.snapshot_update_interval} sec)')
+
+        for device_id in self.devices:
+            if not self.running: break
+
+            device = self.devices[device_id]
+            config = self.configs[device_id]
+
+            device['camera']['snapshot'] = self.amcrestc.get_snapshot(device_id)
+
+            self.publish_service_state()
+            self.publish_device_state(device_id)
 
     # send command to Amcrest  --------------------------------------------------------------------
 
@@ -537,9 +610,12 @@ class AmcrestMqtt(object):
 
     def handle_service_message(self, attribute, message):
         match attribute:
-            case 'device_refresh':
-                self.device_update_interval = message
-                self.logger.info(f'Updated UPDATE_INTERVAL to be {message}')
+            case 'storage_refresh':
+                self.storage_update_interval = message
+                self.logger.info(f'Updated STORAGE_REFRESH_INTERVAL to be {message}')
+            case 'snapshot_refresh':
+                self.snapshot_update_interval = message
+                self.logger.info(f'Updated SNAPSHOT_REFRESH_INTERVAL to be {message}')
             case _:
                 self.logger.info(f'IGNORED UNRECOGNIZED amcrest-service MESSAGE for {attribute}: {message}')
                 return
@@ -563,10 +639,9 @@ class AmcrestMqtt(object):
             if event in ['motion','human','doorbell','recording']:
                 self.logger.info(f'Got event for {config["device_name"]}: {event}')
                 device[event] = payload
-            # otherwise, just store generically
             else:
-                self.logger.info(f'Got generic event for {config["device_name"]}: {event} {payload}')
-                device['event'] = f'{event}: {payload}'
+                self.logger.debug(f'Got "other" event for {config["device_name"]}: {event} {payload}')
+            device['event'] = event
 
             self.refresh_device(device_id)
 
@@ -579,19 +654,22 @@ class AmcrestMqtt(object):
         for task in asyncio.all_tasks():
             if not task.done(): task.cancel(f'{signame} received')
 
-    async def device_loop(self):
+    async def collect_storage_info(self):
         while self.running == True:
-            self.refresh_all_devices()
-            await asyncio.sleep(self.device_update_interval)
+            self.refresh_storage_all_devices()
+            await asyncio.sleep(self.storage_update_interval)
 
     async def collect_events(self):
         while self.running == True:
             await self.amcrestc.collect_all_device_events()
-
-    async def process_events(self):
-        while self.running == True:
             self.check_for_events()
             await asyncio.sleep(1)
+
+    async def collect_snapshots(self):
+        while self.running == True:
+            await self.amcrestc.collect_all_device_snapshots()
+            self.refresh_snapshot_all_devices()
+            await asyncio.sleep(self.snapshot_update_interval)
 
     # main loop
     async def main_loop(self):
@@ -599,9 +677,9 @@ class AmcrestMqtt(object):
 
         loop = asyncio.get_running_loop()
         tasks = [
-            asyncio.create_task(self.device_loop()),
+            asyncio.create_task(self.collect_storage_info()),
             asyncio.create_task(self.collect_events()),
-            asyncio.create_task(self.process_events()),
+            asyncio.create_task(self.collect_snapshots()),
         ]
 
         # setup signal handling for tasks

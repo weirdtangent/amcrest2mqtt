@@ -11,6 +11,8 @@ dist/
 # Environments
 venv/
 
-# Config testing
+# Config testing and notes
+config
+config/
 config.yaml
-
+NOTES

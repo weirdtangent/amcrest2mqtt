@@ -76,4 +76,6 @@ useful to myself and others, not for any financial gain - but any token of appre
 
 <a href="https://buymeacoffee.com/weirdtangent">Buy Me A Coffee</a>
 
+### How Happy am I?
+
 <img src="https://github.com/weirdtangent/amcrest2mqtt/actions/workflows/deploy.yaml/badge.svg" />

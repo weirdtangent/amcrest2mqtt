@@ -22,7 +22,13 @@ amcrest:
   port: 80
   username: admin
   password: password
-  storage_poll_interval: 60
+  storage_update_interval: 900
+  snapshot_update_interval: 60
+  webrtc:
+    url: http://webrtc.local.com:1984/api/frame.jpeg?src=
+    sources:
+      - FrontYard
+      - Patio
 
 timezone: America/New_York
 hide_ts: False

@@ -1,6 +1,7 @@
 from amcrest import AmcrestCamera, AmcrestError
 import asyncio
 from asyncio import timeout
+import base64
 from datetime import datetime
 import httpx
 import logging
@@ -14,6 +15,7 @@ class AmcrestAPI(object):
 
         # we don't want to get the .info HTTP Request logs from Amcrest
         logging.getLogger("httpx").setLevel(logging.WARNING)
+        logging.getLogger("amcrest.http").setLevel(logging.ERROR)
 
         self.last_call_date = ''
         self.timezone = config['timezone']
@@ -97,6 +99,8 @@ class AmcrestAPI(object):
             },
         }
 
+    # Storage stats -------------------------------------------------------------------------------
+
     def get_device_storage_stats(self, device_id):
         try:
             storage = self.devices[device_id]["camera"].storage_all
@@ -104,19 +108,36 @@ class AmcrestAPI(object):
             self.logger.error(f'Problem connecting with camera to get storage stats: {err}')
             return {}
 
-        return { 
+        return {
             'last_update': str(datetime.now(ZoneInfo(self.timezone))),
             'used_percent': str(storage['used_percent']),
             'used': to_gb(storage['used']),
             'total': to_gb(storage['total']),
         }
 
-    async def collect_all_device_events(self):
+    # Snapshots -----------------------------------------------------------------------------------
+
+    async def collect_all_device_snapshots(self):
+        tasks = [self.get_snapshot_from_device(device_id) for device_id in self.devices]
+        await asyncio.gather(*tasks)
+
+    async def get_snapshot_from_device(self, device_id):
         try:
-            tasks = [self.get_events_from_device(device_id) for device_id in self.devices]
-            await asyncio.gather(*tasks)
+            image = await self.devices[device_id]["camera"].async_snapshot()
+            self.devices[device_id]['snapshot'] = base64.b64encode(image)
+            self.logger.debug(f'Processed snapshot from ({device_id}) {len(image)} bytes raw, and {len(self.devices[device_id]['snapshot'])} bytes base64')
         except Exception as err:
-            self.logger.error(f'collect_all_device_events: {err}')
+            self.logger.error(f'Failed to get snapshot from device ({device_id})')
+            pass
+
+    def get_snapshot(self, device_id):
+        return self.devices[device_id]['snapshot'] if 'snapshot' in self.devices[device_id] else None
+
+    # Events --------------------------------------------------------------------------------------
+
+    async def collect_all_device_events(self):
+        tasks = [self.get_events_from_device(device_id) for device_id in self.devices]
+        await asyncio.gather(*tasks)
 
     async def get_events_from_device(self, device_id):
         try:
@@ -128,38 +149,34 @@ class AmcrestAPI(object):
             self.reset_connection(device_id)
 
     async def process_device_event(self, device_id, code, payload):
-        try:
-            config = self.devices[device_id]['config']
+        config = self.devices[device_id]['config']
 
-            self.logger.debug(f'Event on {config["host"]} - {code}: {payload}')
+        self.logger.debug(f'Event on {config["host"]} - {code}: {payload}')
 
-            if ((code == "ProfileAlarmTransmit" and config["is_ad110"])
-            or (code == "VideoMotion" and not config["is_ad110"])):
-                motion_payload = "on" if payload["action"] == "Start" else "off"
-                self.events.append({ 'device_id': device_id, 'event': 'motion', 'payload': motion_payload })
-            elif code == "CrossRegionDetection" and payload["data"]["ObjectType"] == "Human":
-                human_payload = "on" if payload["action"] == "Start" else "off"
-                self.events.append({ 'device_id': device_id, 'event': 'human', 'payload': human_payload })
-            elif code == "_DoTalkAction_":
-                doorbell_payload = "on" if payload["data"]["Action"] == "Invite" else "off"
-                self.events.append({ 'device_id': device_id, 'event': 'doorbell', 'payload': doorbell_payload })
-            elif code == "NewFile":
-                file_payload = { 'file': payload["data"]["File"], 'size': payload["data"]["Size"] }
-                self.events.append({ 'device_id': device_id, 'event': 'recording', 'payload': file_payload })
-            # lets ignore the event codes we don't care about (for now)
-            elif code == "VideoMotionInfo":
-                pass
-            elif code == "TimeChange":
-                pass
-            elif code == "NTPAdjustTime":
-                pass
-            elif code == "RtspSessionDisconnect":
-                pass
-            else:
-                self.events.append({ 'device_id': device_id, 'event': code , 'payload': payload['action'] })
-        except Exception as err:
-            self.logger.error(f'process_device_event: {err}', exc_info=True)
-
+        if ((code == "ProfileAlarmTransmit" and config["is_ad110"])
+        or (code == "VideoMotion" and not config["is_ad110"])):
+            motion_payload = "on" if payload["action"] == "Start" else "off"
+            self.events.append({ 'device_id': device_id, 'event': 'motion', 'payload': motion_payload })
+        elif code == "CrossRegionDetection" and payload["data"]["ObjectType"] == "Human":
+            human_payload = "on" if payload["action"] == "Start" else "off"
+            self.events.append({ 'device_id': device_id, 'event': 'human', 'payload': human_payload })
+        elif code == "_DoTalkAction_":
+            doorbell_payload = "on" if payload["data"]["Action"] == "Invite" else "off"
+            self.events.append({ 'device_id': device_id, 'event': 'doorbell', 'payload': doorbell_payload })
+        elif code == "NewFile":
+            file_payload = { 'file': payload["data"]["File"], 'size': payload["data"]["Size"] }
+            self.events.append({ 'device_id': device_id, 'event': 'recording', 'payload': file_payload })
+        # lets ignore the event codes we don't care about (for now)
+        elif code == "VideoMotionInfo":
+            pass
+        elif code == "TimeChange":
+            pass
+        elif code == "NTPAdjustTime":
+            pass
+        elif code == "RtspSessionDisconnect":
+            pass
+        else:
+            self.events.append({ 'device_id': device_id, 'event': code , 'payload': payload['action'] })
 
     def get_next_event(self):
         return self.events.pop(0) if len(self.events) > 0 else None

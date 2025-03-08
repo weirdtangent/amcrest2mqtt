@@ -54,7 +54,8 @@ except:
             'port': int(os.getenv("AMCREST_PORT") or 80),
             'username': os.getenv("AMCREST_USERNAME") or "admin",
             'password': os.getenv("AMCREST_PASSWORD"),
-            'device_update_interval': int(os.getenv("DEVICE_UPDATE_INTERVAL") or 600),
+            'storage_update_interval': int(os.getenv("STORAGE_UPDATE_INTERVAL") or 900),
+            'snapshot_update_interval': int(os.getenv("SNAPSHOT_UPDATE_INTERVAL") or 300),
         },
         'debug': True if os.getenv('DEBUG') else False,
         'hide_ts': True if os.getenv('HIDE_TS') else False,
@@ -63,6 +64,9 @@ except:
     }
 config['version'] = version
 config['configpath'] = os.path.dirname(configpath)
+if 'username' not in config['mqtt']: config['mqtt']['username'] = ''
+if 'password' not in config['mqtt']: config['mqtt']['password'] = ''
+if 'qos' not in config['mqtt']: config['mqtt']['qos'] = 0
 if 'timezone' not in config: config['timezone'] = 'UTC'
 if 'debug' not in config: config['debug'] = os.getenv('DEBUG') or False
 
@@ -90,6 +94,19 @@ if config['amcrest']['host_count'] != config['amcrest']['name_count']:
     logger.error('The AMCREST_HOSTS and AMCREST_NAMES must have the same number of space-delimited hosts/names')
     exit(1)
 logger.info(f'Found {config["amcrest"]["host_count"]} host(s) defined to monitor')
+
+if 'webrtc' in config['amcrest']:
+    webrtc = config['amcrest']['webrtc']
+    if 'host' not in webrtc:
+        logger.error('Missing HOST in webrtc config')
+        exit(1)
+    if 'sources' not in webrtc:
+        logger.error('Missing SOURCES in webrtc config')
+        exit(1)
+    config['amcrest']['webrtc_sources_count'] = len(config['amcrest']['webrtc']['sources'])
+    if config['amcrest']['host_count'] != config['amcrest']['webrtc_sources_count']:
+        logger.error('The AMCREST_HOSTS and AMCREST_WEBRTC_SOURCES must have the same number of space-delimited hosts/names')
+        exit(1)
 
 if config['amcrest']['password'] is None:
     logger.error('Please set the AMCREST_PASSWORD environment variable')
