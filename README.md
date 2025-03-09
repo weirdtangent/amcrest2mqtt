@@ -9,14 +9,15 @@ Forked from [dchesterton/amcrest2mqtt](https://github.com/dchesterton/amcrest2mq
 You can define config in config.yaml and pass `-c path/to/config.yaml`. See the
 `config.yaml.sample` file for an example.
 
-Or, we support the following environment variables and defaults:
+Or, we support the following environment variables and defaults (though, this is becoming unwieldy):
 
 -   `AMCREST_HOSTS` (required, 1+ space-separated list of hostnames/ips)
 -   `AMCREST_NAMES` (required, 1+ space-separated list of device names - must match count of AMCREST_HOSTS)
 -   `AMCREST_PORT` (optional, default = 80)
 -   `AMCREST_USERNAME` (optional, default = admin)
 -   `AMCREST_PASSWORD` (required)
--   `AMCREST_WEBRTC_HOST` (optional, webrtc hostname for link, along with...)
+
+-   `AMCREST_WEBRTC_HOST` (optional, webrtc hostname for link, but then link/sources below become required:)
 -   `AMCREST_WEBRTC_PORT` (webrtc port, default = 1984)
 -   `AMCREST_WEBRTC_LINK` (webrtc stream link, default = 'stream.html')
 -   `AMCREST_WEBRTC_SOURCES` (webrtc "Source" param for each camera, same count and order of AMCREST_HOSTS above)

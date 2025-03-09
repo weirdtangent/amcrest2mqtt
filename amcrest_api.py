@@ -13,9 +13,13 @@ class AmcrestAPI(object):
     def __init__(self, config):
         self.logger = logging.getLogger(__name__)
 
-        # we don't want to get the .info HTTP Request logs from Amcrest
+        # we don't want to get this mess of deeper-level logging
         logging.getLogger("httpx").setLevel(logging.WARNING)
+        logging.getLogger("httpcore.http11").setLevel(logging.WARNING)
+        logging.getLogger("httpcore.connection").setLevel(logging.WARNING)
         logging.getLogger("amcrest.http").setLevel(logging.ERROR)
+        logging.getLogger("amcrest.event").setLevel(logging.WARNING)
+        logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 
         self.last_call_date = ''
         self.timezone = config['timezone']
@@ -136,8 +140,11 @@ class AmcrestAPI(object):
     # Events --------------------------------------------------------------------------------------
 
     async def collect_all_device_events(self):
-        tasks = [self.get_events_from_device(device_id) for device_id in self.devices]
-        await asyncio.gather(*tasks)
+        try:
+            tasks = [self.get_events_from_device(device_id) for device_id in self.devices]
+            await asyncio.gather(*tasks)
+        except Exception as err:
+            self.logger.error(err, exc_info=True)
 
     async def get_events_from_device(self, device_id):
         try:
@@ -149,34 +156,42 @@ class AmcrestAPI(object):
             self.reset_connection(device_id)
 
     async def process_device_event(self, device_id, code, payload):
-        config = self.devices[device_id]['config']
+        try:
+            config = self.devices[device_id]['config']
 
-        self.logger.debug(f'Event on {config["host"]} - {code}: {payload}')
+            self.logger.debug(f'Event on {config["host"]} - {code}: {payload}')
 
-        if ((code == "ProfileAlarmTransmit" and config["is_ad110"])
-        or (code == "VideoMotion" and not config["is_ad110"])):
-            motion_payload = "on" if payload["action"] == "Start" else "off"
-            self.events.append({ 'device_id': device_id, 'event': 'motion', 'payload': motion_payload })
-        elif code == "CrossRegionDetection" and payload["data"]["ObjectType"] == "Human":
-            human_payload = "on" if payload["action"] == "Start" else "off"
-            self.events.append({ 'device_id': device_id, 'event': 'human', 'payload': human_payload })
-        elif code == "_DoTalkAction_":
-            doorbell_payload = "on" if payload["data"]["Action"] == "Invite" else "off"
-            self.events.append({ 'device_id': device_id, 'event': 'doorbell', 'payload': doorbell_payload })
-        elif code == "NewFile":
-            file_payload = { 'file': payload["data"]["File"], 'size': payload["data"]["Size"] }
-            self.events.append({ 'device_id': device_id, 'event': 'recording', 'payload': file_payload })
-        # lets ignore the event codes we don't care about (for now)
-        elif code == "VideoMotionInfo":
-            pass
-        elif code == "TimeChange":
-            pass
-        elif code == "NTPAdjustTime":
-            pass
-        elif code == "RtspSessionDisconnect":
-            pass
-        else:
-            self.events.append({ 'device_id': device_id, 'event': code , 'payload': payload['action'] })
+            # VideoMotion: motion detection event
+            # VideoLoss: video loss detection event
+            # VideoBlind: video blind detection event
+            # AlarmLocal: alarm detection event
+            # StorageNotExist: storage not exist event
+            # StorageFailure: storage failure event
+            # StorageLowSpace: storage low space event
+            # AlarmOutput: alarm output event
+            # SmartMotionHuman: human detection event
+            # SmartMotionVehicle: vehicle detection event
+
+            if ((code == "ProfileAlarmTransmit" and config["is_ad110"])
+            or (code == "VideoMotion" and not config["is_ad110"])):
+                motion_payload = "on" if payload["action"] == "Start" else "off"
+                self.events.append({ 'device_id': device_id, 'event': 'motion', 'payload': motion_payload })
+            elif code == "CrossRegionDetection" and payload["data"]["ObjectType"] == "Human":
+                human_payload = "on" if payload["action"] == "Start" else "off"
+                self.events.append({ 'device_id': device_id, 'event': 'human', 'payload': human_payload })
+            elif code == "_DoTalkAction_":
+                doorbell_payload = "on" if payload["data"]["Action"] == "Invite" else "off"
+                self.events.append({ 'device_id': device_id, 'event': 'doorbell', 'payload': doorbell_payload })
+            elif code == "NewFile":
+                # we don't care about recording events for snapshots being recorded every 1+ seconds!
+                if not payload["data"]["File"].endswith('.jpg'):
+                    self.logger.info(payload["data"])
+                    file_payload = { 'file': payload["data"]["File"], 'size': payload["data"]["Size"] }
+                    self.events.append({ 'device_id': device_id, 'event': 'recording', 'payload': file_payload })
+            else:
+                self.events.append({ 'device_id': device_id, 'event': code , 'payload': payload['action'] })
+        except Exception as err:
+            self.logger.error(err, exc_info=True)
 
     def get_next_event(self):
         return self.events.pop(0) if len(self.events) > 0 else None

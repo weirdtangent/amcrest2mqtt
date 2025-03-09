@@ -79,7 +79,7 @@ if 'debug' not in config: config['debug'] = os.getenv('DEBUG') or False
 logging.basicConfig(
     format = '%(asctime)s.%(msecs)03d [%(levelname)s] %(name)s: %(message)s' if config['hide_ts'] == False else '[%(levelname)s] %(name)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
-    level=logging.INFO
+    level=logging.INFO if config['debug'] == False else logging.DEBUG
 )
 logger = logging.getLogger(__name__)
 logger.info(f'Starting: amcrest2mqtt v{version}')
@@ -119,6 +119,8 @@ if 'webrtc' in config['amcrest']:
 if config['amcrest']['password'] is None:
     logger.error('Please set the AMCREST_PASSWORD environment variable')
     exit(1)
+
+logger.debug("DEBUG logging is ON")
 
 # Go!
 with AmcrestMqtt(config) as mqtt:
