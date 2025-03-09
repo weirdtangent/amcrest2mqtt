@@ -185,7 +185,6 @@ class AmcrestAPI(object):
             elif code == "NewFile":
                 # we don't care about recording events for snapshots being recorded every 1+ seconds!
                 if not payload["data"]["File"].endswith('.jpg'):
-                    self.logger.info(payload["data"])
                     file_payload = { 'file': payload["data"]["File"], 'size': payload["data"]["Size"] }
                     self.events.append({ 'device_id': device_id, 'event': 'recording', 'payload': file_payload })
             else:
