@@ -44,14 +44,15 @@ It exposes through device discovery a `service` and a `device` with components f
 -   `homeassistant/device/amcrest-service` - service config
 
 -   `homeassistant/device/amcrest-[SERIAL_NUMBER]` per camera, with components:
--    `event`        - most all "other" events, not exposed below
--    `camera`       - a snapshot is saved every SNAPSHOT_UPDATE_INTERVAL (also based on how often camera saves snapshot image), also an "eventshot" is stored at the time an "event" is triggered in the camera. This is collected by filename, when the Amcrest camera logs a snapshot was saved because of an event (rather than just a routine timed snapshot)
--    `doorbell`     - doorbell status (if AD110 or AD410)
--    `human`        - human detection (if AD410)
--    `motion`       - motion events (if supported)
--    `config`       - device configuration information
--    `storage`      - storage stats
--    `privacy_mode` - see (and set) the privacy mode of the camere
+-    `event`            - most all "other" events, not exposed below
+-    `camera`           - a snapshot is saved every SNAPSHOT_UPDATE_INTERVAL (also based on how often camera saves snapshot image), also an "eventshot" is stored at the time an "event" is triggered in the camera. This is collected by filename, when the Amcrest camera logs a snapshot was saved because of an event (rather than just a routine timed snapshot)
+-    `doorbell`         - doorbell status (if AD110 or AD410)
+-    `human`            - human detection (if AD410)
+-    `motion`           - motion events (if supported)
+-    `config`           - device configuration information
+-    `storage`          - storage stats
+-    `privacy_mode`     - get (and set) the privacy mode switch of the camera
+-    `motion_detection` - get (and set) the motion detection switch of the camera
 
 ## Snapshots/Eventshots plus Home Assistant Area Cards
 

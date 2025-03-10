@@ -139,7 +139,7 @@ class AmcrestAPI(object):
 
             return privacy_mode
         except CommError as err:
-            self.logger.error(f'Failed to communicate with device ({device_id}) for privacy mode')
+            self.logger.error(f'Failed to communicate with device ({device_id}) to get privacy mode')
 
     def set_privacy_mode(self, device_id, switch):
         device = self.devices[device_id]
@@ -147,7 +147,27 @@ class AmcrestAPI(object):
         try:
             return device["camera"].set_privacy(switch).strip()
         except CommError as err:
-            self.logger.error(f'Failed to communicate with device ({device_id})')
+            self.logger.error(f'Failed to communicate with device ({device_id}) to set privacy mode')
+
+    # Motion detection config ---------------------------------------------------------------------
+
+    def get_motion_detection(self, device_id):
+        device = self.devices[device_id]
+
+        try:
+            motion_detection = device["camera"].is_motion_detector_on()
+
+            return motion_detection
+        except CommError as err:
+            self.logger.error(f'Failed to communicate with device ({device_id}) to get motion detection')
+
+    def set_motion_detection(self, device_id, switch):
+        device = self.devices[device_id]
+
+        try:
+            return device["camera"].set_motion_detection(switch)
+        except CommError as err:
+            self.logger.error(f'Failed to communicate with device ({device_id}) to set motion detections')
 
     # Snapshots -----------------------------------------------------------------------------------
 
@@ -166,7 +186,7 @@ class AmcrestAPI(object):
             else:
                 self.logger.info(f'Skipped snapshot from ({device_id}) because "privacy mode" is ON')
         except CommError as err:
-            self.logger.error(f'Failed to communicate with device ({device_id})')
+            self.logger.error(f'Failed to communicate with device ({device_id}) to get snapshot')
 
     def get_snapshot(self, device_id):
         return self.devices[device_id]['snapshot'] if 'snapshot' in self.devices[device_id] else None

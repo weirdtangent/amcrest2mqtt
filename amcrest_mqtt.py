@@ -481,6 +481,19 @@ class AmcrestMqtt(object):
         }
         device_states['privacy_mode'] = None
 
+        components[self.get_slug(device_id, 'motion_detection')] = {
+            'name': 'Motion detection',
+            'platform': 'switch',
+            'payload_on': 'on',
+            'payload_off': 'off',
+            'device_class': 'switch',
+            'icon': 'mdi:motion-sensor',
+            'state_topic': self.get_discovery_topic(device_id, 'motion_detection'),
+            'command_topic': self.get_command_topic(device_id, 'motion_detection'),
+            'unique_id': self.get_slug(device_id, 'motion_detection'),
+        }
+        device_states['motion_detection'] = None
+
         components[self.get_slug(device_id, 'motion')] = {
             'name': 'Motion',
             'platform': 'binary_sensor',
@@ -576,7 +589,7 @@ class AmcrestMqtt(object):
         device_states = self.states[device_id]
         device_states['state']['last_update'] = str(datetime.now(ZoneInfo(self.timezone)))
 
-        for topic in ['state','storage','motion','human','doorbell','event','recording','privacy_mode']:
+        for topic in ['state','storage','motion','human','doorbell','event','recording','privacy_mode','motion_detection']:
             if topic in device_states:
                 payload = json.dumps(device_states[topic]) if isinstance(device_states[topic], dict) else device_states[topic]
                 self.mqttc.publish(self.get_discovery_topic(device_id, topic), payload, qos=self.mqtt_config['qos'], retain=True)
@@ -601,18 +614,22 @@ class AmcrestMqtt(object):
             if not self.running: break
             device_states = self.states[device_id]
 
-            # update the privacy mode setting
+            # update the privacy mode switch
             # we don't need to verify this often since events should let us know
             privacy_mode = self.amcrestc.get_privacy_mode(device_id)
             if privacy_mode is not None:
                 device_states['privacy_mode'] = 'on' if privacy_mode == True else 'off'
 
+            # update the motion detection switch
+            motion_detection = self.amcrestc.get_motion_detection(device_id)
+            device_states['motion_detection'] = 'on' if motion_detection == True else 'off'
+
             storage = self.amcrestc.get_storage_stats(device_id)
             if storage is not None:
                 device_states['storage'] = storage
 
-                self.publish_service_state()
-                self.publish_device_state(device_id)
+            self.publish_service_state()
+            self.publish_device_state(device_id)
 
     def refresh_snapshot_all_devices(self):
         self.logger.info(f'Collecting snapshots for all devices (every {self.snapshot_update_interval} sec)')
@@ -675,6 +692,18 @@ class AmcrestMqtt(object):
                 self.publish_device_state(device_id)
             else:
                 self.logger.error(f'Setting PRIVACY_MODE failed: {repr(response)}')
+        elif 'motion_detection' in data:
+            set_motion_detection_to = False if data['motion_detection'] == 'off' else True
+            self.logger.info(f'Setting MOTION_DETECTION to {set_motion_detection_to} for {self.get_device_name(device_id)}')
+
+            response = self.amcrestc.set_motion_detection(device_id, set_motion_detection_to)
+
+            # if Amcrest device was good with that command, lets update state and then MQTT
+            if response == True:
+                device_states['motion_detection'] = data['motion_detection']
+                self.publish_device_state(device_id)
+            else:
+                self.logger.error(f'Setting MOTION_DETECTION failed: {repr(response)}')
         else:
             self.logger.error(f'We got a command ({data}), but do not know what to do')
 
