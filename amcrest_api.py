@@ -119,10 +119,9 @@ class AmcrestAPI(object):
         try:
             storage = self.devices[device_id]["camera"].storage_all
         except CommError as err:
-            self.logger.error(f'Failed to communicate with device ({device_id}): No SD card?')
+            self.logger.error(f'Failed to communicate with device ({device_id}) for storage stats')
 
         return {
-            'last_update': str(datetime.now(ZoneInfo(self.timezone))),
             'used_percent': str(storage['used_percent']),
             'used': to_gb(storage['used']),
             'total': to_gb(storage['total']),
@@ -140,7 +139,7 @@ class AmcrestAPI(object):
 
             return privacy_mode
         except CommError as err:
-            self.logger.error(f'Failed to communicate with device ({device_id}): {err}')
+            self.logger.error(f'Failed to communicate with device ({device_id}) for privacy mode')
 
     def set_privacy_mode(self, device_id, switch):
         device = self.devices[device_id]
@@ -167,7 +166,7 @@ class AmcrestAPI(object):
             else:
                 self.logger.info(f'Skipped snapshot from ({device_id}) because "privacy mode" is ON')
         except CommError as err:
-            self.logger.error(f'Failed to communicate with device ({device_id}), maybe "Privacy Mode" is on? {err}')
+            self.logger.error(f'Failed to communicate with device ({device_id})')
 
     def get_snapshot(self, device_id):
         return self.devices[device_id]['snapshot'] if 'snapshot' in self.devices[device_id] else None
@@ -176,17 +175,21 @@ class AmcrestAPI(object):
     def get_recorded_file(self, device_id, file):
         device = self.devices[device_id]
 
-        data_raw = device["camera"].download_file(file)
-        if data_raw:
-            data_base64 = base64.b64encode(data_raw)
-            self.logger.debug(f'Processed recording from ({device_id}) {len(data_raw)} bytes raw, and {len(data_base64)} bytes base64')
-            if data_base64 < 100 * 1024 * 1024 * 1024:
-                return data_base64
-            else:
-                self.logger.error(f'Processed recording is too large')
-                return None
+        try:
+            data_raw = device["camera"].download_file(file)
+            if data_raw:
+                data_base64 = base64.b64encode(data_raw)
+                self.logger.info(f'Processed recording from ({device_id}) {len(data_raw)} bytes raw, and {len(data_base64)} bytes base64')
+                if len(data_base64) < 100 * 1024 * 1024 * 1024:
+                    return data_base64
+                else:
+                    self.logger.error(f'Processed recording is too large')
+                    return None
 
-        return None
+            return None
+        except CommError as err:
+            self.logger.error(f'Failed to download recorded file for device ({device_id}): {err}')
+            return None
 
     # Events --------------------------------------------------------------------------------------
 
@@ -204,7 +207,7 @@ class AmcrestAPI(object):
             async for code, payload in device["camera"].async_event_actions("All"):
                 await self.process_device_event(device_id, code, payload)
         except CommError as err:
-            self.logger.error(f'Failed to communicate with device ({device_id}): {err}')
+            self.logger.error(f'Failed to cmmunicate with device ({device_id})')
         except Exception as err:
             self.logger.error(f'generic Failed to get events from device({device_id}: {err}', exc_info=True)
 
@@ -213,7 +216,7 @@ class AmcrestAPI(object):
             device = self.devices[device_id]
             config = device['config']
 
-            # self.logger.debug(f'Event on {device_id} - {code}: {payload}')
+            # self.logger.info(f'Event on {device_id} - {code}: {payload}')
 
             # VideoMotion: motion detection event
             # VideoLoss: video loss detection event
@@ -237,9 +240,9 @@ class AmcrestAPI(object):
                 doorbell_payload = 'on' if payload['data']['Action'] == 'Invite' else 'off'
                 self.events.append({ 'device_id': device_id, 'event': 'doorbell', 'payload': doorbell_payload })
             elif code == 'NewFile':
-                # we don't care about recording events for general (non-saved) snapshots
-                if not payload['data']['StoragePoint'] == 'NULL':
-                    file_payload = { 'file': payload['data']['File'], 'size': payload['data']['Size'], 'event': payload['data']['Event'] }
+                if ('File' in payload['data'] and '[R]' not in payload['data']['File']
+                and ('StoragePoint' not in payload['data'] or payload['data']['StoragePoint'] != 'Temporary')):
+                    file_payload = { 'file': payload['data']['File'], 'size': payload['data']['Size'] }
                     self.events.append({ 'device_id': device_id, 'event': 'recording', 'payload': file_payload })
             elif code == 'LensMaskOpen':
                 device['privacy_mode'] = True
@@ -247,6 +250,13 @@ class AmcrestAPI(object):
             elif code == 'LensMaskClose':
                 device['privacy_mode'] = False
                 self.events.append({ 'device_id': device_id, 'event': 'privacy_mode', 'payload': 'off' })
+            # lets send these but not bother logging them here
+            elif code == 'TimeChange':
+                self.events.append({ 'device_id': device_id, 'event': code , 'payload': payload['action'] })
+            elif code == 'NTPAdjustTime':
+                self.events.append({ 'device_id': device_id, 'event': code , 'payload': payload['action'] })
+            elif code == 'RtspSessionDisconnect':
+                self.events.append({ 'device_id': device_id, 'event': code , 'payload': payload['action'] })
             # lets just ignore these
             elif code == 'InterVideoAccess': # I think this is US, accessing the API of the camera, lets not inception!
                 pass
@@ -254,6 +264,7 @@ class AmcrestAPI(object):
                 pass
             # save everything else as a 'generic' event
             else:
+                self.logger.info(f'Event on {device_id} - {code}: {payload}')
                 self.events.append({ 'device_id': device_id, 'event': code , 'payload': payload })
 
         except Exception as err:

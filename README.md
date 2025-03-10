@@ -44,17 +44,24 @@ It exposes through device discovery a `service` and a `device` with components f
 -   `homeassistant/device/amcrest-service` - service config
 
 -   `homeassistant/device/amcrest-[SERIAL_NUMBER]` per camera, with components:
--    `event`    - all events
--    `camera`   - a snapshot is saved every SNAPSHOT_UPDATE_INTERVAL (also based on how often camera saves snapshot image)
--    `doorbell` - doorbell status (if AD110 or AD410)
--    `human`    - human detection (if AD410)
--    `motion`   - motion events (if supported)
--    `config`   - device configuration information
--    `storage`  - storage stats
+-    `event`        - most all "other" events, not exposed below
+-    `camera`       - a snapshot is saved every SNAPSHOT_UPDATE_INTERVAL (also based on how often camera saves snapshot image), also an "eventshot" is stored at the time an "event" is triggered in the camera. This is collected by filename, when the Amcrest camera logs a snapshot was saved because of an event (rather than just a routine timed snapshot)
+-    `doorbell`     - doorbell status (if AD110 or AD410)
+-    `human`        - human detection (if AD410)
+-    `motion`       - motion events (if supported)
+-    `config`       - device configuration information
+-    `storage`      - storage stats
+-    `privacy_mode` - see (and set) the privacy mode of the camere
 
-## Snapshots, Area Cards, and WebRTC
+## Snapshots/Eventshots plus Home Assistant Area Cards
 
-The `camera` snapshots work really well for the HomeAssistant `Area` cards on a dashboard - just make this MQTT camera device the only camera for an area and place an `Area` card for that location. The WebRTC option works very well with the <a href="https://github.com/AlexxIT/go2rtc">go2rtc</a> package which is a streaming server that works very well for (my) Amcrest cameras. If you setup the WebRTC config here, the `configuration_url` for the MQTT device will be the streaming RTC link instead of just a link to the hostname (which is arguably more correctly a "configuration" url, but I'd rather have a simple link from the device page to a live stream)
+The `camera` snapshots work really well for the HomeAssistant `Area` cards on a dashboard - just make this MQTT camera device the only camera for an area and place an `Area` card for that location.
+
+An "event snapshot" (`eventshot`) is separately (and specifically, by filename) collected when the camera automatically records a snapshot because of an event. Note, that if the Amcrest camera is configured to record 3 or 5 snapshots on an event - each of those will be updated by `amcrest2mqtt` and you will very quickly end up with (only) the last snapshot stored. This might alter you decision on how to configure your camera for this setting. (Or perhaps I can turn the snapshots-for-an-event into an animated image on the HA-side, thought that seems like overkill.)
+
+## WebRTC
+
+The WebRTC option works very well with the <a href="https://github.com/AlexxIT/go2rtc">go2rtc</a> package which is a streaming server that works very well for (my) Amcrest cameras. If you setup the WebRTC config here, the `configuration_url` for the MQTT device will be the streaming RTC link instead of just a link to the hostname (which is arguably a more correct "configuration" url, but I'd rather have a simple link from the device page to jump to a live stream).
 
 ## Device Support
 

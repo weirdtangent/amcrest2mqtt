@@ -384,7 +384,7 @@ class AmcrestMqtt(object):
                 # setup initial satte
                 self.states[device_id]['state'] = {
                     'state': 'ON',
-                    'last_update': None,
+                    'last_update': str(datetime.now(ZoneInfo(self.timezone))),
                     'host': config['host'],
                     'serial_number': config['serial_number'],
                     'sw_version': config['software_version'],
@@ -574,6 +574,7 @@ class AmcrestMqtt(object):
 
     def publish_device_state(self, device_id):
         device_states = self.states[device_id]
+        device_states['state']['last_update'] = str(datetime.now(ZoneInfo(self.timezone)))
 
         for topic in ['state','storage','motion','human','doorbell','event','recording','privacy_mode']:
             if topic in device_states:
@@ -606,10 +607,8 @@ class AmcrestMqtt(object):
             if privacy_mode is not None:
                 device_states['privacy_mode'] = 'on' if privacy_mode == True else 'off'
 
-            # get the storage info, pull out last_update and save that to the device state
             storage = self.amcrestc.get_storage_stats(device_id)
             if storage is not None:
-                device_states['state']['last_update'] = storage.pop('last_update', None)
                 device_states['storage'] = storage
 
                 self.publish_service_state()
@@ -640,12 +639,14 @@ class AmcrestMqtt(object):
     def get_recorded_file(self, device_id, file, type):
         device_states = self.states[device_id]
 
-        self.logger.info(f'Getting recorded file {file}')
+        self.logger.info(f'Getting recorded file "{file}"')
         image = self.amcrestc.get_recorded_file(device_id, file)
-        self.logger.info(f'Got back base64 image of {len(image)} bytes')
 
         if image is None:
+            self.logger.info(f'Failed to get recorded file from {self.get_device_name(device_id)}')
             return
+
+        self.logger.info(f'Got back base64 image of {len(image)} bytes')
 
         # only store and send to MQTT if the image has changed
         if device_states['camera'][type] is None or device_states['camera'][type] != image:
@@ -697,41 +698,40 @@ class AmcrestMqtt(object):
         await self.amcrestc.collect_all_device_events()
 
     def check_for_events(self):
-        while device_event := self.amcrestc.get_next_event():
-            if device_event is None:
-                break
-            if 'device_id' not in device_event:
-                self.logger(f'Got event, but missing device_id: {device_event}')
-                continue
+        try:
+            while device_event := self.amcrestc.get_next_event():
+                if device_event is None:
+                    break
+                if 'device_id' not in device_event:
+                    self.logger(f'Got event, but missing device_id: {device_event}')
+                    continue
 
-            device_id = device_event['device_id']
-            event = device_event['event']
-            payload = device_event['payload']
+                device_id = device_event['device_id']
+                event = device_event['event']
+                payload = device_event['payload']
 
-            device_states = self.states[device_id]
+                device_states = self.states[device_id]
 
-            # if one of our known sensors
-            if event in ['motion','human','doorbell','recording','privacy_mode']:
-                if event == 'recording' and payload['file'].endswith('.jpg'):
-                    self.logger.info(f'{event} - {payload}')
-                    self.get_recorded_file(device_id, payload['file'], 'eventshot')
+                # if one of our known sensors
+                if event in ['motion','human','doorbell','recording','privacy_mode']:
+                    if event == 'recording' and payload['file'].endswith('.jpg'):
+                        self.get_recorded_file(device_id, payload['file'], 'eventshot')
+                    else:
+                        # only log details if not a recording
+                        if event != 'recording':
+                            self.logger.info(f'Got event for {self.get_device_name(device_id)}: {event} - {payload}')
+                        device_states[event] = payload
+
+                    # other ways to infer "privacy mode" is off and needs updating
+                    if event in ['motion','human','doorbell'] and device_states['privacy_mode'] == 'on':
+                        device_states['privacy_mode'] = 'off'
                 else:
-                    # only log details if not a recording
-                    if event != 'recording':
-                        self.logger.info(f'Got event for {self.get_device_name(device_id)}: {event} - {payload}')
-                    device_states[event] = payload
+                    self.logger.info(f'Got "other" event for "{self.get_device_name(device_id)}": {event} - {payload}')
+                    device_states['event'] = f'{event} - {payload}'
 
-                # other ways to infer "privacy mode" is off and needs updating
-                if event in ['motion','human','doorbell'] and device_states['privacy_mode'] == 'on':
-                    device_states['privacy_mode'] = 'off'
-            # these, we don't are to log
-            elif event in ['TimeChange','NTPAdjustTime','RtspSessionDisconnect']:
-                pass
-            else:
-                self.logger.info(f'Got "other" event for "{self.get_device_name(device_id)}": {event} - {payload}')
-                device_states['event'] = event
-
-            self.publish_device_state(device_id)
+                self.publish_device_state(device_id)
+        except Exception as err:
+            self.logger.error(err, exc_info=True)
 
     # async loops and main loop -------------------------------------------------------------------
 
@@ -787,4 +787,4 @@ class AmcrestMqtt(object):
             exit(1)
         except Exception as err:
             self.running = False
-            self.log.error(f'Caught exception: {err}')
+            self.logger.error(f'Caught exception: {err}')
