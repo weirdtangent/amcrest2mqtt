@@ -442,7 +442,7 @@ class AmcrestMqtt(object):
             device_states['human'] = 'off'
 
         components[self.get_slug(device_id, 'snapshot_camera')] = {
-            'name': 'Latest Snapshot',
+            'name': 'Latest snapshot',
             'platform': 'camera',
             'topic': self.get_discovery_subtopic(device_id, 'camera','snapshot'),
             'image_encoding': 'b64',
@@ -462,7 +462,7 @@ class AmcrestMqtt(object):
         # copy the snapshot camera for the eventshot camera, with a couple of changes
         components[self.get_slug(device_id, 'event_camera')] = \
           components[self.get_slug(device_id, 'snapshot_camera')] | {
-            'name': 'Motion Snapshot',
+            'name': 'Motion snapshot',
             'topic': self.get_discovery_subtopic(device_id, 'camera','eventshot'),
             'unique_id': self.get_slug(device_id, 'eventshot_camera'),
           }
@@ -501,9 +501,17 @@ class AmcrestMqtt(object):
             'payload_off': 'off',
             'device_class': 'motion',
             'state_topic': self.get_discovery_topic(device_id, 'motion'),
+            'value_template': '{{ value_json.state }}',
             'unique_id': self.get_slug(device_id, 'motion'),
         }
-        device_states['motion'] = 'off'
+        components[self.get_slug(device_id, 'motion_region')] = {
+            'name': 'Motion region',
+            'platform': 'sensor',
+            'state_topic': self.get_discovery_topic(device_id, 'motion'),
+            'value_template': '{{ value_json.region }}',
+            'unique_id': self.get_slug(device_id, 'motion_region'),
+        }
+        device_states['motion'] = { 'state': 'off', 'region': None }
 
         components[self.get_slug(device_id, 'version')] = {
             'name': 'Version',
@@ -536,7 +544,7 @@ class AmcrestMqtt(object):
         }
 
         components[self.get_slug(device_id, 'event')] = {
-            'name': 'Last Non-motion Event',
+            'name': 'Last event',
             'platform': 'sensor',
             'state_topic': self.get_discovery_topic(device_id, 'event'),
             'unique_id': self.get_slug(device_id, 'event'),
@@ -545,7 +553,7 @@ class AmcrestMqtt(object):
         device_states['recording'] = {}
 
         components[self.get_slug(device_id, 'storage_used_percent')] = {
-            'name': 'Storage Used %',
+            'name': 'Storage used %',
             'platform': 'sensor',
             'icon': 'mdi:micro-sd',
             'unit_of_measurement': '%',
@@ -554,7 +562,7 @@ class AmcrestMqtt(object):
             'unique_id': self.get_slug(device_id, 'storage_used_percent'),
         }
         components[self.get_slug(device_id, 'storage_total')] = {
-            'name': 'Storage Total',
+            'name': 'Storage total',
             'platform': 'sensor',
             'icon': 'mdi:micro-sd',
             'unit_of_measurement': 'GB',
@@ -563,7 +571,7 @@ class AmcrestMqtt(object):
             'unique_id': self.get_slug(device_id, 'storage_total'),
         }
         components[self.get_slug(device_id, 'storage_used')] = {
-            'name': 'Storage Used',
+            'name': 'Storage used',
             'platform': 'sensor',
             'icon': 'mdi:micro-sd',
             'unit_of_measurement': 'GB',

@@ -236,22 +236,15 @@ class AmcrestAPI(object):
             device = self.devices[device_id]
             config = device['config']
 
-            # self.logger.info(f'Event on {device_id} - {code}: {payload}')
-
-            # VideoMotion: motion detection event
-            # VideoLoss: video loss detection event
-            # VideoBlind: video blind detection event
-            # AlarmLocal: alarm detection event
-            # StorageNotExist: storage not exist event
-            # StorageFailure: storage failure event
-            # StorageLowSpace: storage low space event
-            # AlarmOutput: alarm output event
-            # SmartMotionHuman: human detection event
-            # SmartMotionVehicle: vehicle detection event
+            # if code != 'NewFile' and code != 'InterVideoAccess':
+            #     self.logger.info(f'Event on {device_id} - {code}: {payload}')
 
             if ((code == 'ProfileAlarmTransmit' and config['is_ad110'])
             or (code == 'VideoMotion' and not config['is_ad110'])):
-                motion_payload = 'on' if payload['action'] == 'Start' else 'off'
+                motion_payload = {
+                    'state': 'on' if payload['action'] == 'Start' else 'off',
+                    'region': ', '.join(payload['data']['RegionName'])
+                }
                 self.events.append({ 'device_id': device_id, 'event': 'motion', 'payload': motion_payload })
             elif code == 'CrossRegionDetection' and payload['data']['ObjectType'] == 'Human':
                 human_payload = 'on' if payload['action'] == 'Start' else 'off'
