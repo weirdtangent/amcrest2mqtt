@@ -1,3 +1,10 @@
+# This software is licensed under the MIT License, which allows you to use,
+# copy, modify, merge, publish, distribute, and sell copies of the software,
+# with the requirement to include the original copyright notice and this
+# permission notice in all copies or substantial portions of the software.
+#
+# The software is provided 'as is', without any warranty.
+
 import os
 
 # Helper functions and callbacks

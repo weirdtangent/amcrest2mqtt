@@ -1,3 +1,10 @@
+# This software is licensed under the MIT License, which allows you to use,
+# copy, modify, merge, publish, distribute, and sell copies of the software,
+# with the requirement to include the original copyright notice and this
+# permission notice in all copies or substantial portions of the software.
+#
+# The software is provided 'as is', without any warranty.
+
 import asyncio
 from datetime import datetime
 import amcrest_api
@@ -106,6 +113,7 @@ class AmcrestMqtt(object):
                 vendor, device_id = components[-2].split('-')
             elif components[-2] == 'set':
                 vendor, device_id = components[-3].split('-')
+                attribute = components[-1]
             else:
                 self.logger.error(f'UNKNOWN MQTT MESSAGE STRUCTURE: {topic}')
                 return
@@ -133,7 +141,7 @@ class AmcrestMqtt(object):
                     return
                 time.sleep(5)
 
-            self.logger.info(f'Got MQTT message for: {self.states[device_id]["device"]["name"]} - {payload}')
+            self.logger.info(f'Got MQTT message for: {self.get_device_name(device_id)} - {payload}')
 
             # ok, lets format the device_id (not needed) and send to amcrest
             self.send_command(device_id, payload)
@@ -190,6 +198,11 @@ class AmcrestMqtt(object):
 
     def get_new_client_id(self):
         return self.mqtt_config['prefix'] + '-' + ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+
+    def get_device_name(self, device_id):
+        if device_id not in self.configs or 'device' not in self.configs[device_id] or 'name' not in self.configs[device_id]['device']:
+            return f'<{device_id}>'
+        return self.configs[device_id]['device']['name']
 
     def get_slug(self, device_id, type):
         return f"amcrest_{device_id.replace(':','')}_{type}"
@@ -331,7 +344,6 @@ class AmcrestMqtt(object):
         self.logger.info(f'Setup devices')
 
         devices = await self.amcrestc.connect_to_devices()
-        self.logger.info(f'Connected to: {list(devices.keys())}')
 
         self.publish_service_device()
         for device_id in devices:
@@ -427,16 +439,16 @@ class AmcrestMqtt(object):
                 'value_template': '{{ value_json.human }}',
                 'unique_id': self.get_slug(device_id, 'human'),
             }
-            device_states['human'] = {}
+            device_states['human'] = 'off'
 
-        components[self.get_slug(device_id, 'camera')] = {
-            'name': 'Camera',
+        components[self.get_slug(device_id, 'snapshot_camera')] = {
+            'name': 'Latest Snapshot',
             'platform': 'camera',
             'topic': self.get_discovery_subtopic(device_id, 'camera','snapshot'),
             'image_encoding': 'b64',
             'state_topic': device_config['state_topic'],
             'value_template': '{{ value_json.state }}',
-            'unique_id': self.get_slug(device_id, 'camera'),
+            'unique_id': self.get_slug(device_id, 'snapshot_camera'),
         }
         if 'webrtc' in self.amcrest_config:
             webrtc_config = self.amcrest_config['webrtc']
@@ -446,7 +458,28 @@ class AmcrestMqtt(object):
             rtc_source = webrtc_config['sources'].pop(0)
             rtc_url = f'http://{rtc_host}:{rtc_port}/{rtc_link}?src={rtc_source}'
             device_config['device']['configuration_url'] = rtc_url
-        device_states['camera'] = {'snapshot': None}
+
+        # copy the snapshot camera for the eventshot camera, with a couple of changes
+        components[self.get_slug(device_id, 'event_camera')] = \
+          components[self.get_slug(device_id, 'snapshot_camera')] | {
+            'name': 'Motion Snapshot',
+            'topic': self.get_discovery_subtopic(device_id, 'camera','eventshot'),
+            'unique_id': self.get_slug(device_id, 'eventshot_camera'),
+          }
+        device_states['camera'] = {'snapshot': None, 'eventshot': None}
+
+        components[self.get_slug(device_id, 'privacy_mode')] = {
+            'name': 'Privacy mode',
+            'platform': 'switch',
+            'payload_on': 'on',
+            'payload_off': 'off',
+            'device_class': 'switch',
+            'icon': 'mdi:camera-off',
+            'state_topic': self.get_discovery_topic(device_id, 'privacy_mode'),
+            'command_topic': self.get_command_topic(device_id, 'privacy_mode'),
+            'unique_id': self.get_slug(device_id, 'privacy_mode'),
+        }
+        device_states['privacy_mode'] = None
 
         components[self.get_slug(device_id, 'motion')] = {
             'name': 'Motion',
@@ -457,7 +490,7 @@ class AmcrestMqtt(object):
             'state_topic': self.get_discovery_topic(device_id, 'motion'),
             'unique_id': self.get_slug(device_id, 'motion'),
         }
-        device_states['motion'] = {}
+        device_states['motion'] = 'off'
 
         components[self.get_slug(device_id, 'version')] = {
             'name': 'Version',
@@ -490,12 +523,12 @@ class AmcrestMqtt(object):
         }
 
         components[self.get_slug(device_id, 'event')] = {
-            'name': 'Event',
+            'name': 'Last Non-motion Event',
             'platform': 'sensor',
             'state_topic': self.get_discovery_topic(device_id, 'event'),
             'unique_id': self.get_slug(device_id, 'event'),
         }
-        device_states['event'] = {}
+        device_states['event'] = None
         device_states['recording'] = {}
 
         components[self.get_slug(device_id, 'storage_used_percent')] = {
@@ -542,14 +575,15 @@ class AmcrestMqtt(object):
     def publish_device_state(self, device_id):
         device_states = self.states[device_id]
 
-        for topic in ['state','storage','motion','human','doorbell','event','recording']:
+        for topic in ['state','storage','motion','human','doorbell','event','recording','privacy_mode']:
             if topic in device_states:
                 payload = json.dumps(device_states[topic]) if isinstance(device_states[topic], dict) else device_states[topic]
                 self.mqttc.publish(self.get_discovery_topic(device_id, topic), payload, qos=self.mqtt_config['qos'], retain=True)
 
-        if 'snapshot' in device_states['camera'] and device_states['camera']['snapshot'] is not None:
-            payload = device_states['camera']['snapshot']
-            result = self.mqttc.publish(self.get_discovery_subtopic(device_id, 'camera','snapshot'), payload, qos=self.mqtt_config['qos'], retain=True)
+        for shot_type in ['snapshot','eventshot']:
+            if shot_type in device_states['camera'] and device_states['camera'][shot_type] is not None:
+                payload = device_states['camera'][shot_type]
+                result = self.mqttc.publish(self.get_discovery_subtopic(device_id, 'camera',shot_type), payload, qos=self.mqtt_config['qos'], retain=True)
 
     def publish_device_discovery(self, device_id):
         device_config = self.configs[device_id]
@@ -566,28 +600,56 @@ class AmcrestMqtt(object):
             if not self.running: break
             device_states = self.states[device_id]
 
-            # get the storage info, pull out last_update and save that to the device state
-            storage = self.amcrestc.get_device_storage_stats(device_id)
-            device_states['state']['last_update'] = storage.pop('last_update', None)
-            device_states['storage'] = storage
+            # update the privacy mode setting
+            # we don't need to verify this often since events should let us know
+            privacy_mode = self.amcrestc.get_privacy_mode(device_id)
+            if privacy_mode is not None:
+                device_states['privacy_mode'] = 'on' if privacy_mode == True else 'off'
 
-            self.publish_service_state()
-            self.publish_device_state(device_id)
+            # get the storage info, pull out last_update and save that to the device state
+            storage = self.amcrestc.get_storage_stats(device_id)
+            if storage is not None:
+                device_states['state']['last_update'] = storage.pop('last_update', None)
+                device_states['storage'] = storage
+
+                self.publish_service_state()
+                self.publish_device_state(device_id)
 
     def refresh_snapshot_all_devices(self):
         self.logger.info(f'Collecting snapshots for all devices (every {self.snapshot_update_interval} sec)')
 
         for device_id in self.configs:
             if not self.running: break
-            self.refresh_snapshot(device_id)
+            self.refresh_snapshot(device_id,'snapshot')
 
-    def refresh_snapshot(self, device_id):
+    # type is 'snapshot' for normal, or 'eventshot' for capturing an image immediately after a "movement" event
+    def refresh_snapshot(self, device_id, type):
         device_states = self.states[device_id]
+
         image = self.amcrestc.get_snapshot(device_id)
 
+        if image is None:
+            return
+
         # only store and send to MQTT if the image has changed
-        if device_states['camera']['snapshot'] is None or device_states['camera']['snapshot'] != image:
-            device_states['camera']['snapshot'] = image
+        if device_states['camera'][type] is None or device_states['camera'][type] != image:
+            device_states['camera'][type] = image
+            self.publish_service_state()
+            self.publish_device_state(device_id)
+
+    def get_recorded_file(self, device_id, file, type):
+        device_states = self.states[device_id]
+
+        self.logger.info(f'Getting recorded file {file}')
+        image = self.amcrestc.get_recorded_file(device_id, file)
+        self.logger.info(f'Got back base64 image of {len(image)} bytes')
+
+        if image is None:
+            return
+
+        # only store and send to MQTT if the image has changed
+        if device_states['camera'][type] is None or device_states['camera'][type] != image:
+            device_states['camera'][type] = image
             self.publish_service_state()
             self.publish_device_state(device_id)
 
@@ -597,10 +659,21 @@ class AmcrestMqtt(object):
         device_config = self.configs[device_id]
         device_states = self.states[device_id]
 
-        self.logger.info(f'COMMAND {device_states["device_name"]} = {data}')
-
         if data == 'PRESS':
+            self.logger.info(f'We got a PRESS command for {self.get_device_name(device_id)}')
             pass
+        elif 'privacy_mode' in data:
+            set_privacy_to = False if data['privacy_mode'] == 'off' else True
+            self.logger.info(f'Setting PRIVACY_MODE to {set_privacy_to} for {self.get_device_name(device_id)}')
+
+            response = self.amcrestc.set_privacy_mode(device_id, set_privacy_to)
+
+            # if Amcrest device was good with that command, lets update state and then MQTT
+            if response == 'OK':
+                device_states['privacy_mode'] = data['privacy_mode']
+                self.publish_device_state(device_id)
+            else:
+                self.logger.error(f'Setting PRIVACY_MODE failed: {repr(response)}')
         else:
             self.logger.error(f'We got a command ({data}), but do not know what to do')
 
@@ -638,15 +711,24 @@ class AmcrestMqtt(object):
             device_states = self.states[device_id]
 
             # if one of our known sensors
-            if event in ['motion','human','doorbell','recording']:
-                self.logger.info(f'Got event for {device_states["device_name"]}: {event}')
-                device_states[event] = payload
+            if event in ['motion','human','doorbell','recording','privacy_mode']:
+                if event == 'recording' and payload['file'].endswith('.jpg'):
+                    self.logger.info(f'{event} - {payload}')
+                    self.get_recorded_file(device_id, payload['file'], 'eventshot')
+                else:
+                    # only log details if not a recording
+                    if event != 'recording':
+                        self.logger.info(f'Got event for {self.get_device_name(device_id)}: {event} - {payload}')
+                    device_states[event] = payload
 
-                # any of these could mean a new snapshot is available early, lets try to grab it
-                self.logger.debug(f'Refreshing snapshot for "{device_states["device_name"]}" early because of event')
-                self.refresh_snapshot(device_id)
+                # other ways to infer "privacy mode" is off and needs updating
+                if event in ['motion','human','doorbell'] and device_states['privacy_mode'] == 'on':
+                    device_states['privacy_mode'] = 'off'
+            # these, we don't are to log
+            elif event in ['TimeChange','NTPAdjustTime','RtspSessionDisconnect']:
+                pass
             else:
-                self.logger.info(f'Got "other" event for "{device_states["device_name"]}": {event} {payload}')
+                self.logger.info(f'Got "other" event for "{self.get_device_name(device_id)}": {event} - {payload}')
                 device_states['event'] = event
 
             self.publish_device_state(device_id)
