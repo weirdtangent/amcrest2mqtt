@@ -120,6 +120,8 @@ class AmcrestAPI(object):
             storage = self.devices[device_id]["camera"].storage_all
         except CommError as err:
             self.logger.error(f'Failed to communicate with device ({device_id}) for storage stats')
+        except LoginError as err:
+            self.logger.error(f'Failed to authenticate with device ({device_id}) for storage stats')
 
         return {
             'used_percent': str(storage['used_percent']),
@@ -140,6 +142,9 @@ class AmcrestAPI(object):
             return privacy_mode
         except CommError as err:
             self.logger.error(f'Failed to communicate with device ({device_id}) to get privacy mode')
+        except LoginError as err:
+            self.logger.error(f'Failed to authenticate with device ({device_id}) to get privacy mode')
+
 
     def set_privacy_mode(self, device_id, switch):
         device = self.devices[device_id]
@@ -148,6 +153,8 @@ class AmcrestAPI(object):
             return device["camera"].set_privacy(switch).strip()
         except CommError as err:
             self.logger.error(f'Failed to communicate with device ({device_id}) to set privacy mode')
+        except LoginError as err:
+            self.logger.error(f'Failed to authenticate with device ({device_id}) to set privacy mode')
 
     # Motion detection config ---------------------------------------------------------------------
 
@@ -160,6 +167,8 @@ class AmcrestAPI(object):
             return motion_detection
         except CommError as err:
             self.logger.error(f'Failed to communicate with device ({device_id}) to get motion detection')
+        except LoginError as err:
+            self.logger.error(f'Failed to authenticate with device ({device_id}) to get motion detection')
 
     def set_motion_detection(self, device_id, switch):
         device = self.devices[device_id]
@@ -168,6 +177,8 @@ class AmcrestAPI(object):
             return device["camera"].set_motion_detection(switch)
         except CommError as err:
             self.logger.error(f'Failed to communicate with device ({device_id}) to set motion detections')
+        except LoginError as err:
+            self.logger.error(f'Failed to authenticate with device ({device_id}) to set motion detections')
 
     # Snapshots -----------------------------------------------------------------------------------
 
@@ -187,6 +198,8 @@ class AmcrestAPI(object):
                 self.logger.info(f'Skipped snapshot from ({device_id}) because "privacy mode" is ON')
         except CommError as err:
             self.logger.error(f'Failed to communicate with device ({device_id}) to get snapshot')
+        except LoginError as err:
+            self.logger.error(f'Failed to authenticate with device ({device_id}) to get snapshot')
 
     def get_snapshot(self, device_id):
         return self.devices[device_id]['snapshot'] if 'snapshot' in self.devices[device_id] else None
@@ -204,21 +217,17 @@ class AmcrestAPI(object):
                     return data_base64
                 else:
                     self.logger.error(f'Processed recording is too large')
-                    return None
-
-            return None
+                    return
         except CommError as err:
-            self.logger.error(f'Failed to download recorded file for device ({device_id}): {err}')
-            return None
+            self.logger.error(f'Failed to download recorded file for device ({device_id})')
+        except LoginError as err:
+            self.logger.error(f'Failed to authenticate for recorded file for device ({device_id})')
 
     # Events --------------------------------------------------------------------------------------
 
     async def collect_all_device_events(self):
-        try:
-            tasks = [self.get_events_from_device(device_id) for device_id in self.devices]
-            await asyncio.gather(*tasks)
-        except Exception as err:
-            self.logger.error(err, exc_info=True)
+        tasks = [self.get_events_from_device(device_id) for device_id in self.devices]
+        await asyncio.gather(*tasks)
 
     async def get_events_from_device(self, device_id):
         device = self.devices[device_id]
@@ -227,9 +236,9 @@ class AmcrestAPI(object):
             async for code, payload in device["camera"].async_event_actions("All"):
                 await self.process_device_event(device_id, code, payload)
         except CommError as err:
-            self.logger.error(f'Failed to cmmunicate with device ({device_id})')
-        except Exception as err:
-            self.logger.error(f'generic Failed to get events from device({device_id}: {err}', exc_info=True)
+            self.logger.error(f'Failed to communicate for events for device ({device_id})')
+        except LoginError as err:
+            self.logger.error(f'Failed to authenticate for events for device ({device_id})')
 
     async def process_device_event(self, device_id, code, payload):
         try:
@@ -279,9 +288,8 @@ class AmcrestAPI(object):
             else:
                 self.logger.info(f'Event on {device_id} - {code}: {payload}')
                 self.events.append({ 'device_id': device_id, 'event': code , 'payload': payload })
-
         except Exception as err:
-            self.logger.error(err, exc_info=True)
+            self.logger.error(f'Failed to process event from {device_id}: {err}', exc_info=True)
 
     def get_next_event(self):
         return self.events.pop(0) if len(self.events) > 0 else None

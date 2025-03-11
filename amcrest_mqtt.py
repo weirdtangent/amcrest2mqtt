@@ -114,12 +114,9 @@ class AmcrestMqtt(object):
             elif components[-2] == 'set':
                 vendor, device_id = components[-3].split('-')
                 attribute = components[-1]
-            else:
-                self.logger.error(f'UNKNOWN MQTT MESSAGE STRUCTURE: {topic}')
-                return
 
             # of course, we only care about our 'amcrest-<serial>' messages
-            if vendor != 'amcrest':
+            if not vendor or vendor != 'amcrest':
                 return
 
             # ok, it's for us, lets announce it
@@ -463,7 +460,8 @@ class AmcrestMqtt(object):
         components[self.get_slug(device_id, 'event_camera')] = \
           components[self.get_slug(device_id, 'snapshot_camera')] | {
             'name': 'Motion snapshot',
-            'topic': self.get_discovery_subtopic(device_id, 'camera','eventshot'),
+            'platform': 'image',
+            'image_topic': self.get_discovery_subtopic(device_id, 'camera','eventshot'),
             'unique_id': self.get_slug(device_id, 'eventshot_camera'),
           }
         device_states['camera'] = {'snapshot': None, 'eventshot': None}
@@ -599,13 +597,15 @@ class AmcrestMqtt(object):
 
         for topic in ['state','storage','motion','human','doorbell','event','recording','privacy_mode','motion_detection']:
             if topic in device_states:
+                publish_topic = self.get_discovery_topic(device_id, topic)
                 payload = json.dumps(device_states[topic]) if isinstance(device_states[topic], dict) else device_states[topic]
-                self.mqttc.publish(self.get_discovery_topic(device_id, topic), payload, qos=self.mqtt_config['qos'], retain=True)
+                self.mqttc.publish(publish_topic, payload, qos=self.mqtt_config['qos'], retain=True)
 
         for shot_type in ['snapshot','eventshot']:
             if shot_type in device_states['camera'] and device_states['camera'][shot_type] is not None:
+                publish_topic = self.get_discovery_subtopic(device_id, 'camera',shot_type)
                 payload = device_states['camera'][shot_type]
-                result = self.mqttc.publish(self.get_discovery_subtopic(device_id, 'camera',shot_type), payload, qos=self.mqtt_config['qos'], retain=True)
+                result = self.mqttc.publish(publish_topic, payload, qos=self.mqtt_config['qos'], retain=True)
 
     def publish_device_discovery(self, device_id):
         device_config = self.configs[device_id]
@@ -763,8 +763,8 @@ class AmcrestMqtt(object):
                     if event in ['motion','human','doorbell'] and device_states['privacy_mode'] == 'on':
                         device_states['privacy_mode'] = 'off'
                 else:
-                    self.logger.info(f'Got "other" event for "{self.get_device_name(device_id)}": {event} - {payload}')
-                    device_states['event'] = f'{event} - {payload}'
+                    self.logger.info(f'Got {{{event}: {payload}}} for "{self.get_device_name(device_id)}"')
+                    device_states['event'] = f'{event}: {payload}'
 
                 self.publish_device_state(device_id)
         except Exception as err:
@@ -782,23 +782,23 @@ class AmcrestMqtt(object):
     async def collect_storage_info(self):
         while self.running == True:
             self.refresh_storage_all_devices()
-            await asyncio.sleep(self.storage_update_interval)
+            if self.running: await asyncio.sleep(self.storage_update_interval)
 
     async def collect_events(self):
         while self.running == True:
             await self.collect_all_device_events()
-            await asyncio.sleep(1)
+            if self.running: await asyncio.sleep(1)
 
     async def check_event_queue(self):
         while self.running == True:
             self.check_for_events()
-            await asyncio.sleep(1)
+            if self.running: await asyncio.sleep(1)
 
     async def collect_snapshots(self):
         while self.running == True:
             await self.amcrestc.collect_all_device_snapshots()
             self.refresh_snapshot_all_devices()
-            await asyncio.sleep(self.snapshot_update_interval)
+            if self.running: await asyncio.sleep(self.snapshot_update_interval)
 
     # main loop
     async def main_loop(self):
@@ -819,7 +819,11 @@ class AmcrestMqtt(object):
             )
 
         try:
-            await asyncio.gather(*tasks, return_exceptions=True)
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, Exception):
+                    self.running = False
+                    self.logger.error(f'Caught exception: {err}', exc_info=True)
         except asyncio.CancelledError:
             exit(1)
         except Exception as err:
