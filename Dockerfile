@@ -1,4 +1,4 @@
-FROM python:3-slim
+FROM python:3-alpine
 
 RUN python -m venv /usr/src/app
 # Enable venv
