@@ -22,6 +22,7 @@ from zoneinfo import ZoneInfo
 class AmcrestMqtt(object):
     def __init__(self, config):
         self.running = False
+        self.paused = False
         self.logger = logging.getLogger(__name__)
 
         self.mqttc = None
@@ -64,20 +65,28 @@ class AmcrestMqtt(object):
 
     def mqtt_on_connect(self, client, userdata, flags, rc, properties):
         if rc != 0:
-            self.logger.error(f'MQTT CONNECTION ISSUE ({rc})')
+            self.logger.error(f'MQTT connection issue ({rc})')
             exit()
+
         self.logger.info(f'MQTT connected as {self.client_id}')
         client.subscribe(self.get_device_sub_topic())
         client.subscribe(self.get_attribute_sub_topic())
 
     def mqtt_on_disconnect(self, client, userdata, flags, rc, properties):
         self.logger.info('MQTT connection closed')
+        self.mqttc.loop_stop()
 
         if self.running and time.time() > self.mqtt_connect_time + 10:
+            self.paused = True
+            self.logger.info('Sleeping for 30 seconds to give MQTT time to relax')
+            time.sleep(30)
+
             # lets use a new client_id for a reconnect
             self.client_id = self.get_new_client_id()
             self.mqttc_create()
+            self.paused = False
         else:
+            self.running = False
             exit()
 
     def mqtt_on_log(self, client, userdata, paho_log_level, msg):
@@ -154,6 +163,7 @@ class AmcrestMqtt(object):
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id=self.client_id,
             clean_session=False,
+            reconnect_on_failure=False,
         )
 
         if self.mqtt_config.get('tls_enabled'):
@@ -499,6 +509,7 @@ class AmcrestMqtt(object):
             'payload_off': 'off',
             'device_class': 'motion',
             'state_topic': self.get_discovery_topic(device_id, 'motion'),
+            'json_attributes_topic': self.get_discovery_topic(device_id, 'motion'),
             'value_template': '{{ value_json.state }}',
             'unique_id': self.get_slug(device_id, 'motion'),
         }
@@ -671,8 +682,6 @@ class AmcrestMqtt(object):
             self.logger.info(f'Failed to get recorded file from {self.get_device_name(device_id)}')
             return
 
-        self.logger.info(f'Got back base64 image of {len(image)} bytes')
-
         # only store and send to MQTT if the image has changed
         if device_states['camera'][type] is None or device_states['camera'][type] != image:
             device_states['camera'][type] = image
@@ -781,23 +790,23 @@ class AmcrestMqtt(object):
 
     async def collect_storage_info(self):
         while self.running == True:
-            self.refresh_storage_all_devices()
+            if not self.paused: self.refresh_storage_all_devices()
             if self.running: await asyncio.sleep(self.storage_update_interval)
 
     async def collect_events(self):
         while self.running == True:
-            await self.collect_all_device_events()
+            if not self.paused: await self.collect_all_device_events()
             if self.running: await asyncio.sleep(1)
 
     async def check_event_queue(self):
         while self.running == True:
-            self.check_for_events()
+            if not self.paused: self.check_for_events()
             if self.running: await asyncio.sleep(1)
 
     async def collect_snapshots(self):
         while self.running == True:
             await self.amcrestc.collect_all_device_snapshots()
-            self.refresh_snapshot_all_devices()
+            if not self.paused: self.refresh_snapshot_all_devices()
             if self.running: await asyncio.sleep(self.snapshot_update_interval)
 
     # main loop

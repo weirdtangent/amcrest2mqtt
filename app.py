@@ -77,12 +77,16 @@ except:
     }
 config['version'] = version
 config['configpath'] = os.path.dirname(configpath)
+
+# defaults
 if 'username' not in config['mqtt']: config['mqtt']['username'] = ''
 if 'password' not in config['mqtt']: config['mqtt']['password'] = ''
-if 'qos' not in config['mqtt']: config['mqtt']['qos'] = 0
-if 'timezone' not in config: config['timezone'] = 'UTC'
-if 'debug' not in config: config['debug'] = os.getenv('DEBUG') or False
+if 'qos'      not in config['mqtt']: config['mqtt']['qos'] = 0
+if 'timezone' not in config:         config['timezone'] = 'UTC'
+if 'debug'    not in config:         config['debug'] = os.getenv('DEBUG') or False
+if 'hide_ts'  not in config:         config['hide_ts'] = os.getenv('HIDE_TS') or False
 
+# init logging, based on config settings
 logging.basicConfig(
     format = '%(asctime)s.%(msecs)03d [%(levelname)s] %(name)s: %(message)s' if config['hide_ts'] == False else '[%(levelname)s] %(name)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
