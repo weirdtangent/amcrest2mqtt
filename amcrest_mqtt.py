@@ -467,10 +467,12 @@ class AmcrestMqtt(object):
             device_config['device']['configuration_url'] = rtc_url
 
         # copy the snapshot camera for the eventshot camera, with a couple of changes
-        components[self.get_slug(device_id, 'event_camera')] = \
-          components[self.get_slug(device_id, 'snapshot_camera')] | {
-            'name': 'Motion snapshot',
+        components[self.get_slug(device_id, 'event_camera')] = {
+            'name': 'Motion capture',
             'platform': 'image',
+            'image_encoding': 'b64',
+            'state_topic': device_config['state_topic'],
+            'value_template': '{{ value_json.state }}',
             'image_topic': self.get_discovery_subtopic(device_id, 'camera','eventshot'),
             'unique_id': self.get_slug(device_id, 'eventshot_camera'),
           }
@@ -612,10 +614,10 @@ class AmcrestMqtt(object):
                 payload = json.dumps(device_states[topic]) if isinstance(device_states[topic], dict) else device_states[topic]
                 self.mqttc.publish(publish_topic, payload, qos=self.mqtt_config['qos'], retain=True)
 
-        for shot_type in ['snapshot','eventshot']:
-            if shot_type in device_states['camera'] and device_states['camera'][shot_type] is not None:
-                publish_topic = self.get_discovery_subtopic(device_id, 'camera',shot_type)
-                payload = device_states['camera'][shot_type]
+        for image_type in ['snapshot','eventshot']:
+            if image_type in device_states['camera'] and device_states['camera'][image_type] is not None:
+                publish_topic = self.get_discovery_subtopic(device_id, 'camera',image_type)
+                payload = device_states['camera'][image_type]
                 result = self.mqttc.publish(publish_topic, payload, qos=self.mqtt_config['qos'], retain=True)
 
     def publish_device_discovery(self, device_id):
