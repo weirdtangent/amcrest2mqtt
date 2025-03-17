@@ -1,6 +1,8 @@
 services:
   amcrest2mqtt:
     image: weirdtangent/amcrest2mqtt:latest
+    context: .
+    target: production
     container_name: amcrest2mqtt
     restart: unless-stopped
     volumes:
