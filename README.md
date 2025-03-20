@@ -6,10 +6,12 @@ Uses the [`python-amcrest`](https://github.com/tchellomello/python-amcrest) libr
 
 Forked from [dchesterton/amcrest2mqtt](https://github.com/dchesterton/amcrest2mqtt)
 
-You can define config in config.yaml and pass `-c path/to/config.yaml`. See the
-`config.yaml.sample` file for an example.
+## Docker
+For `docker-compose`, use the [configuration included](https://github.com/weirdtangent/amcrest2mqtt/blob/master/docker-compose.yaml) in this repository.
 
-Or, we support the following environment variables and defaults (though, this is becoming unwieldy):
+An docker image is available at `graystorm/amcrest2mqtt:latest`. You can mount your configuration volume at `/config` (and see the included `config.yaml.sample` file) or use the ENV variables:
+
+It supports the following environment variables:
 
 -   `AMCREST_HOSTS` (required, 1+ space-separated list of hostnames/ips)
 -   `AMCREST_NAMES` (required, 1+ space-separated list of device names - must match count of AMCREST_HOSTS)
