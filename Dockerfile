@@ -2,6 +2,7 @@
 FROM python:3-slim AS builder
 
 RUN apt-get update && \
+    apt-get install -y apt-transport-https && \
     apt-get -y upgrade && \
     apt-get install --no-install-recommends -y build-essential && \
     apt-get clean && \
@@ -20,6 +21,7 @@ RUN .venv/bin/pip3 install --no-cache-dir --upgrade -r requirements.txt
 FROM python:3-slim AS production
 
 RUN apt-get update && \
+    apt-get install -y apt-transport-https && \
     apt-get -y upgrade && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*

@@ -87,6 +87,10 @@ CMD [ "python", "-u", "./app.py", "-c", "/config" ]
 
 Docker is the only supported way of deploying the application. The app should run directly via Python but this is not supported.
 
+## See also
+[govee2mqtt](https://github.com/weirdtangent/govee2mqtt)
+[blink2mqtt](https://github.com/weirdtangent/blink2mqtt)
+
 ## Buy Me A Coffee
 
 A few people have kindly requested a way to donate a small amount of money. If you feel so inclined I've set up a "Buy Me A Coffee"
