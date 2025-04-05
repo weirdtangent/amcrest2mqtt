@@ -22,15 +22,9 @@ FROM python:3-slim AS production
 
 RUN apt-get update && \
     apt-get install -y apt-transport-https && \
-    apt-get install -y --no-install-recommends dnsmasq && \
     apt-get -y upgrade && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-
-RUN echo '' >> /etc/dnsmasq.conf
-# See https://github.com/nicolasff/docker-cassandra/issues/8
-RUN echo 'user=root' >> /etc/dnsmasq.conf
-
 
 WORKDIR /usr/src/app
 
@@ -50,10 +44,9 @@ RUN chown -R appuser:appuser .
 RUN chown appuser:appuser /config/*
 RUN chmod 0664 /config/*    
 
-RUN echo ''%${GROUP_ID}' ALL=NOPASSWD:/usr/sbin/service dnsmasq *' >> /etc/sudoers
-
 USER appuser
 
 ENV PATH="/usr/src/app/.venv/bin:$PATH"
 
-CMD ["/bin/sh", "-c", "sudo service dnsmasq start && python3 ./app.py -c /config"]
+ENTRYPOINT [ "python3", "./app.py" ]
+CMD [ "-c", "/config" ]
