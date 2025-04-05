@@ -22,6 +22,7 @@ FROM python:3-slim AS production
 
 RUN apt-get update && \
     apt-get install -y apt-transport-https && \
+    apt-get install -y --no-install-recommends dnsmasq && \
     apt-get -y upgrade && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -48,5 +49,4 @@ USER appuser
 
 ENV PATH="/usr/src/app/.venv/bin:$PATH"
 
-ENTRYPOINT [ "python3", "./app.py" ]
-CMD [ "-c", "/config" ]
+CMD ["/bin/sh", "-c", "/usr/sbin/dnsmasq -k -d && python3 ./app.py -c /config"]
