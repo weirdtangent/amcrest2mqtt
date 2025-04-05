@@ -49,4 +49,4 @@ USER appuser
 
 ENV PATH="/usr/src/app/.venv/bin:$PATH"
 
-CMD ["/bin/sh", "-c", "/usr/sbin/dnsmasq -k -d && python3 ./app.py -c /config"]
+CMD ["/bin/sh", "-c", "/usr/sbin/dnsmasq && python3 ./app.py -c /config"]

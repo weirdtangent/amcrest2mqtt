@@ -1,7 +1,7 @@
 # weirdtangent/amcrest2mqtt
 
 Expose multiple Amcrest cameras and events to an MQTT broker, primarily
-designed to work with Home Assistant. A WIP, since I'm new to Python.
+designed to work with Home Assistant.
 Uses the [`python-amcrest`](https://github.com/tchellomello/python-amcrest) library.
 
 Forked from [dchesterton/amcrest2mqtt](https://github.com/dchesterton/amcrest2mqtt)
