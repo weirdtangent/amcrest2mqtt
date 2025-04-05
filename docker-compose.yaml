@@ -1,23 +1,9 @@
 services:
   amcrest2mqtt:
-    image: weirdtangent/amcrest2mqtt:latest
+    image: graystorm/amcrest2mqtt:latest
+    network_mode: host
     container_name: amcrest2mqtt
     restart: unless-stopped
-    environment:
-      MQTT_HOST: 10.10.10.1
-      MQTT_USERNAME: admin
-      MQTT_PASSWORD: password
-      MQTT_PREFIX: "amcrest2mqtt"
-      MQTT_HOMEASSISTANT: "homeassistant"
-      AMCREST_HOSTS: "10.10.10.20 camera2.local"
-      AMCREST_NAMES: "frontyard patio"
-      AMCREST_USERNAME: viewer
-      AMCREST_PASSWORD: password
-      HOME_ASSISTANT: true
-      DEVICE_UPDATE_INTERVAL: 600
-      DEBUG_MODE: false
-    healthcheck:
-      test: ["CMD", "pgrep", "-f", "[p]ython -u app.py"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    volumes:
+      - /volume1/docker/amcrest2mqtt/config:/config
+
