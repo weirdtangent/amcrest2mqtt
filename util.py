@@ -5,7 +5,9 @@
 #
 # The software is provided 'as is', without any warranty.
 
+import ipaddress
 import os
+import socket
 
 # Helper functions and callbacks
 def read_file(file_name):
@@ -22,3 +24,18 @@ def read_version():
 
 def to_gb(total):
     return str(round(float(total[0]) / 1024 / 1024 / 1024, 2))
+
+def is_ipv4(string):
+        try:
+            ipaddress.IPv4Network(string)
+            return True
+        except ValueError:
+            return False
+
+def get_ip_address(string):
+    if is_ipv4(string):
+        return string
+    for i in socket.getaddrinfo(string, 0):
+        if i[0] is socket.AddressFamily.AF_INET and i[1] is socket.SocketKind.SOCK_RAW:
+            return i[4][0]
+    raise Exception(f'failed to find ip address for {string}')

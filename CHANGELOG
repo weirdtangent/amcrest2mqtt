@@ -1,0 +1,7 @@
+1.0.1
+  - lookup camera hostnames to get ip at config, so we aren't don't
+    100k lookups every day (in my 4 camera setup)
+
+1.0.0
+  - initial release
+

@@ -61,7 +61,13 @@ class AmcrestAPI(object):
 
     async def get_device(self, host, device_name):
         try:
-            camera = self.get_camera(host)
+            # resolve host and setup camera by ip so we aren't making 100k DNS lookups per day
+            try:
+                host_ip = get_ip_address(host)
+                self.logger.info(f'nslookup {host} got us {host_ip}')
+                camera = self.get_camera(host_ip)
+            except Exception as err:
+                self.logger.error(f'Failed to resolve {host} to ip address: {err}')
 
             device_type = camera.device_type.replace('type=', '').strip()
             is_ad110 = device_type == 'AD110'
@@ -89,6 +95,7 @@ class AmcrestAPI(object):
                 'camera': camera,
                 'config': {
                     'host': host,
+                    'host_ip': host_ip,
                     'device_name': device_name,
                     'device_type': device_type,
                     'device_class': camera.device_class,
