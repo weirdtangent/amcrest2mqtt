@@ -5,7 +5,7 @@ mqtt:
   password: password
   qos: 0
   prefix: amcrest2mqtt
-  home_assistant: True
+  homeassistant: True
   discovery_prefix: homeassistant
   tls_enabled: False
   tls_ca_cert: filename
