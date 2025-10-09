@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/weirdtangent/amcrest2mqtt/compare/v1.0.0...v1.0.1) (2025-10-09)
+
+
+### Bug Fixes
+
+* tls_set call for ssl mqtt connections ([53ea515](https://github.com/weirdtangent/amcrest2mqtt/commit/53ea515f005e0830dcd45e9e8bca6f7859fdc760))
+
 # 1.0.0 (2025-10-09)
 
 
