@@ -167,7 +167,7 @@ class AmcrestMqtt(object):
         )
 
         if self.mqtt_config.get('tls_enabled'):
-            self.mqttcnt.tls_set(
+            self.mqttc.tls_set(
                 ca_certs=self.mqtt_config.get('tls_ca_cert'),
                 certfile=self.mqtt_config.get('tls_cert'),
                 keyfile=self.mqtt_config.get('tls_key'),

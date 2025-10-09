@@ -10,7 +10,7 @@ mqtt:
   tls_enabled: False
   tls_ca_cert: filename
   tls_cert: filename
-  tls_key: string
+  tls_key: filename
 
 amcrest:
   hosts:
