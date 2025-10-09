@@ -93,7 +93,7 @@ logging.basicConfig(
     level=logging.INFO if config['debug'] == False else logging.DEBUG
 )
 logger = logging.getLogger(__name__)
-logger.info(f'Starting: amcrest2mqtt v{version}')
+logger.info(f'Starting: amcrest2mqtt {version}')
 logger.info(f'Config loaded from {config["config_from"]}')
 
 # Check for required config properties
