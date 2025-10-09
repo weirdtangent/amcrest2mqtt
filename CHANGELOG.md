@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/weirdtangent/amcrest2mqtt/compare/v1.0.1...v1.0.2) (2025-10-09)
+
+
+### Bug Fixes
+
+* better dns lookup ([172e939](https://github.com/weirdtangent/amcrest2mqtt/commit/172e939ec0a76c4b4b64f70a1d6d84d20b20e2fa))
+
 ## [1.0.1](https://github.com/weirdtangent/amcrest2mqtt/compare/v1.0.0...v1.0.1) (2025-10-09)
 
 
