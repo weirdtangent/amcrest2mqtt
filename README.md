@@ -6,6 +6,9 @@ Uses the [`python-amcrest`](https://github.com/tchellomello/python-amcrest) libr
 
 Forked from [dchesterton/amcrest2mqtt](https://github.com/dchesterton/amcrest2mqtt)
 
+A few notes:
+* "Rediscover" button added to service - when pressed, device discovery is re-run so HA will rediscover deleted devices
+
 ## Docker
 For `docker-compose`, use the [configuration included](https://github.com/weirdtangent/amcrest2mqtt/blob/master/docker-compose.yaml) in this repository.
 

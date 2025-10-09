@@ -69,6 +69,7 @@ class AmcrestMqtt(object):
             exit()
 
         self.logger.info(f'MQTT connected as {self.client_id}')
+        client.subscribe("homeassistant/status")
         client.subscribe(self.get_device_sub_topic())
         client.subscribe(self.get_attribute_sub_topic())
 
@@ -106,11 +107,19 @@ class AmcrestMqtt(object):
             return
 
         # we might get:
+        #   homeassistant/status
+        # or one of ours:
         #   */service/set
         #   */service/set/attribute
         #   */device/component/set
         #   */device/component/set/attribute
         components = topic.split('/')
+
+        if topic == "homeassistant/status":
+            if payload == "online":
+                self.rediscover_all()
+                self.logger.info('HomeAssistant just came online, so resent all discovery messages')
+            return
 
         # handle this message if it's for us, otherwise pass along to amcrest API
         if components[-2] == self.get_component_slug('service'):
@@ -280,7 +289,6 @@ class AmcrestMqtt(object):
 
     def publish_service_device(self):
         state_topic = self.get_discovery_topic('service', 'state')
-        command_topic = self.get_discovery_topic('service', 'set')
         availability_topic = self.get_discovery_topic('service', 'availability')
 
         self.mqttc.publish(
@@ -337,6 +345,14 @@ class AmcrestMqtt(object):
                         'value_template': '{{ value_json.snapshot_refresh }}',
                         'unique_id': 'amcrest_service_snapshot_refresh',
                     },
+                    self.service_slug + '_rediscover': {
+                        'name': 'Rediscover Devices',
+                        'platform': 'button',
+                        'icon': 'mdi:refresh',
+                        'command_topic': self.get_command_topic('service', 'rediscover'),
+                        'payload_press': 'PRESS',
+                        'unique_id': f'{self.service_slug}_rediscover_button',
+                    },
                 },
             }),
             qos=self.mqtt_config['qos'],
@@ -350,6 +366,7 @@ class AmcrestMqtt(object):
     async def setup_devices(self):
         self.logger.info(f'Setup devices')
 
+        first_time_through = True if len(self.configs) == 0 else False
         devices = await self.amcrestc.connect_to_devices()
 
         self.publish_service_device()
@@ -618,7 +635,7 @@ class AmcrestMqtt(object):
             if image_type in device_states['camera'] and device_states['camera'][image_type] is not None:
                 publish_topic = self.get_discovery_subtopic(device_id, 'camera',image_type)
                 payload = device_states['camera'][image_type]
-                result = self.mqttc.publish(publish_topic, payload, qos=self.mqtt_config['qos'], retain=True)
+                self.mqttc.publish(publish_topic, payload, qos=self.mqtt_config['qos'], retain=True)
 
     def publish_device_discovery(self, device_id):
         device_config = self.configs[device_id]
@@ -693,7 +710,6 @@ class AmcrestMqtt(object):
     # send command to Amcrest  --------------------------------------------------------------------
 
     def send_command(self, device_id, data):
-        device_config = self.configs[device_id]
         device_states = self.states[device_id]
 
         if data == 'PRESS':
@@ -734,6 +750,9 @@ class AmcrestMqtt(object):
             case 'snapshot_refresh':
                 self.snapshot_update_interval = message
                 self.logger.info(f'Updated SNAPSHOT_REFRESH_INTERVAL to be {message}')
+            case 'rediscover':
+                self.rediscover_all()
+                self.logger.info('REDISCOVER button pressed - resent all discovery messages')
             case _:
                 self.logger.info(f'IGNORED UNRECOGNIZED amcrest-service MESSAGE for {attribute}: {message}')
                 return
@@ -780,6 +799,13 @@ class AmcrestMqtt(object):
                 self.publish_device_state(device_id)
         except Exception as err:
             self.logger.error(err, exc_info=True)
+
+    def rediscover_all(self):
+        self.publish_service_state()
+        for device_id in self.configs:
+            if device_id == 'service': continue
+            self.publish_device_state(device_id)
+            self.publish_device_discovery(device_id)
 
     # async loops and main loop -------------------------------------------------------------------
 
