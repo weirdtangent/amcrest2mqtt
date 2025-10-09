@@ -67,7 +67,7 @@ class AmcrestAPI(object):
                 self.logger.info(f'nslookup {host} got us {host_ip}')
                 camera = self.get_camera(host_ip)
             except Exception as err:
-                self.logger.error(f'Failed to resolve {host} to ip address: {err}')
+                self.logger.error(f'Error with {host}: {err}')
 
             device_type = camera.device_type.replace('type=', '').strip()
             is_ad110 = device_type == 'AD110'

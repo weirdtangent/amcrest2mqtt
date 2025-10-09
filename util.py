@@ -35,7 +35,10 @@ def is_ipv4(string):
 def get_ip_address(string):
     if is_ipv4(string):
         return string
-    for i in socket.getaddrinfo(string, 0):
-        if i[0] is socket.AddressFamily.AF_INET and i[1] is socket.SocketKind.SOCK_RAW:
-            return i[4][0]
-    raise Exception(f'failed to find ip address for {string}')
+    try:
+        for i in socket.getaddrinfo(string, None):
+            if i[0] == socket.AddressFamily.AF_INET:
+                return i[4][0]
+    except socket.gaierror as e:
+        raise Exception(f"Failed to resolve {string}: {e}")
+    raise Exception(f"Failed to find IP address for {string}")
