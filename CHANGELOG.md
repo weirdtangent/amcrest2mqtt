@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v1.0.2...v1.1.0) (2025-10-10)
+
+
+### Features
+
+* **core:** add async process pool, graceful signal handling, and safer config loading ([f025d60](https://github.com/weirdtangent/amcrest2mqtt/commit/f025d60f75913361a13047f886ee730a9a0579df))
+
 ## [1.0.2](https://github.com/weirdtangent/amcrest2mqtt/compare/v1.0.1...v1.0.2) (2025-10-09)
 
 
