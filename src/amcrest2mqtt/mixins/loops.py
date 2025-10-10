@@ -1,0 +1,84 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Jeff Culverhouse
+import asyncio
+import signal
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from amcrest2mqtt.core import Amcrest2Mqtt
+    from amcrest2mqtt.interface import AmcrestServiceProtocol
+
+
+class LoopsMixin:
+    if TYPE_CHECKING:
+        self: "AmcrestServiceProtocol"
+
+    async def device_loop(self: Amcrest2Mqtt):
+        while self.running:
+            await self.refresh_all_devices()
+            try:
+                await asyncio.sleep(self.device_interval)
+            except asyncio.CancelledError:
+                self.logger.debug("device_loop cancelled during sleep")
+                break
+
+    async def collect_events_loop(self: Amcrest2Mqtt):
+        while self.running:
+            await self.collect_all_device_events()
+            try:
+                await asyncio.sleep(1)
+            except asyncio.CancelledError:
+                self.logger.debug("collect_events_loop cancelled during sleep")
+                break
+
+    async def check_event_queue_loop(self: Amcrest2Mqtt):
+        while self.running:
+            await self.check_for_events()
+            try:
+                await asyncio.sleep(1)
+            except asyncio.CancelledError:
+                self.logger.debug("check_event_queue_loop cancelled during sleep")
+                break
+
+    async def collect_snapshots_loop(self: Amcrest2Mqtt):
+        while self.running:
+            await self.collect_all_device_snapshots()
+            try:
+                await asyncio.sleep(self.snapshot_update_interval)
+            except asyncio.CancelledError:
+                self.logger.debug("collect_snapshots_loop cancelled during sleep")
+                break
+
+    # main loop
+    async def main_loop(self: Amcrest2Mqtt):
+        await self.setup_device_list()
+
+        self.loop = asyncio.get_running_loop()
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            try:
+                signal.signal(sig, self._handle_signal)
+            except Exception:
+                self.logger.debug(f"Cannot install handler for {sig}")
+
+        self.running = True
+
+        tasks = [
+            asyncio.create_task(self.device_loop(), name="device_loop"),
+            asyncio.create_task(self.collect_events_loop(), name="collect events loop"),
+            asyncio.create_task(self.check_event_queue_loop(), name="check events queue loop"),
+            asyncio.create_task(self.collect_snapshots_loop(), name="collect snapshot loop"),
+        ]
+
+        try:
+            results = await asyncio.gather(*tasks)
+            for result in results:
+                if isinstance(result, Exception):
+                    self.logger.error(f"Task raised exception: {result}", exc_info=True)
+                    self.running = False
+        except asyncio.CancelledError:
+            self.logger.warning("Main loop cancelled — shutting down...")
+        except Exception as err:
+            self.logger.exception(f"Unhandled exception in main loop: {err}")
+            self.running = False
+        finally:
+            self.logger.info("All loops terminated — cleanup complete.")

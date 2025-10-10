@@ -1,52 +1,47 @@
-# builder stage -----------------------------------------------------------------------------------
-FROM python:3-slim AS builder
+# syntax=docker/dockerfile:1.7-labs
+FROM python:3-slim
+WORKDIR /app
 
-RUN apt-get update && \
-    apt-get install -y apt-transport-https && \
-    apt-get -y upgrade && \
-    apt-get install --no-install-recommends -y build-essential && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+COPY pyproject.toml uv.lock ./
 
-RUN python3 -m ensurepip
-RUN pip3 install --upgrade pip setuptools
+# ---- Version injection support ----
+ARG VERSION
+ENV AMCREST2MQTT_VERSION=${VERSION}
+ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AMCREST2MQTT=${VERSION}
 
-WORKDIR /usr/src/app
+# Install uv
+RUN pip install uv
 
-COPY requirements.txt .
-RUN python3 -m venv .venv
-RUN .venv/bin/pip3 install --no-cache-dir --upgrade -r requirements.txt
+# copy source
+COPY --exclude=.git . .
 
-# production stage --------------------------------------------------------------------------------
-FROM python:3-slim AS production
+# Install dependencies (uses setup info, now src exists)
+RUN uv sync --frozen --no-dev
 
-RUN apt-get update && \
-    apt-get install -y apt-transport-https && \
-    apt-get -y upgrade && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Install the package (if needed)
+RUN uv pip install .
 
-WORKDIR /usr/src/app
-
-COPY . .
-COPY --from=builder /usr/src/app/.venv .venv
-
-RUN mkdir /config
-RUN touch /config/config.yaml
-
+# Default build arguments (can be overridden at build time)
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 
-RUN addgroup --gid $GROUP_ID appuser && \
-    adduser --uid $USER_ID --gid $GROUP_ID --disabled-password --gecos "" appuser
+# Create the app user and group
+RUN groupadd --gid "${GROUP_ID}" appuser && \
+    useradd --uid "${USER_ID}" --gid "${GROUP_ID}" --create-home --shell /bin/bash appuser
 
-RUN chown -R appuser:appuser .
-RUN chown appuser:appuser /config/*
-RUN chmod 0664 /config/*    
+# Ensure /config exists and is writable
+RUN mkdir -p /config && chown -R appuser:appuser /config
 
+# Optional: fix perms if files already copied there (won’t break if empty)
+RUN find /config -type f -exec chmod 0664 {} + || true
+
+# Ensure /app is owned by the app user
+RUN chown -R appuser:appuser /app
+
+# Drop privileges
 USER appuser
 
-ENV PATH="/usr/src/app/.venv/bin:$PATH"
-
-ENTRYPOINT [ "python3", "./app.py" ]
-CMD [ "-c", "/config" ]
+# ---- Runtime ----
+ENV SERVICE=amcrest2mqtt
+ENTRYPOINT ["/app/.venv/bin/amcrest2mqtt"]
+CMD ["-c", "/config"]

@@ -19,7 +19,6 @@ venv/
 config
 config/
 config.yaml
-govee2mqtt.dat
 npm-debug.log
 NOTES
 coverage/
