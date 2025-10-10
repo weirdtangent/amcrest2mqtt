@@ -1,9 +1,23 @@
+version: "3.8"
+
 services:
   amcrest2mqtt:
     image: graystorm/amcrest2mqtt:latest
-    network_mode: host
     container_name: amcrest2mqtt
     restart: unless-stopped
+    network_mode: host
     volumes:
-      - /volume1/docker/amcrest2mqtt/config:/config
+      - ./config:/config
+    environment:
+      - TZ=${TZ:-UTC}
+      - CONFIG_PATH=/config/config.yaml
+    labels:
+      org.opencontainers.image.title: "amcrest2mqtt"
+      org.opencontainers.image.description: "Publishes Amcrest camera events and states via MQTT"
+      org.opencontainers.image.source: "https://github.com/weirdtangent/amcrest2mqtt"
+      org.opencontainers.image.documentation: "https://github.com/weirdtangent/amcrest2mqtt#readme"
+      org.opencontainers.image.licenses: "MIT"
+      org.opencontainers.image.version: "${AMCREST2MQTT_TAG:-latest}"
+      org.opencontainers.image.authors: "weirdTangent <jeff@weirdtangent.com>"
+      org.opencontainers.image.url: "https://www.graystorm.com"
 
