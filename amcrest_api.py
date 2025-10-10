@@ -5,23 +5,20 @@
 #
 # The software is provided 'as is', without any warranty.
 
-from amcrest import AmcrestCamera, AmcrestError, CommError, LoginError, exceptions
+from amcrest import AmcrestCamera, AmcrestError, CommError, LoginError
 import asyncio
-from asyncio import timeout
+from concurrent.futures import ProcessPoolExecutor
 import base64
-from datetime import datetime
-import httpx
 import logging
-import os
-import time
-from util import *
-from zoneinfo import ZoneInfo
+import signal
+from util import get_ip_address, to_gb
 
-class AmcrestAPI(object):
+
+class AmcrestAPI:
     def __init__(self, config):
         self.logger = logging.getLogger(__name__)
 
-        # we don't want to get this mess of deeper-level logging
+        # Quiet down noisy loggers
         logging.getLogger("httpx").setLevel(logging.WARNING)
         logging.getLogger("httpcore.http11").setLevel(logging.WARNING)
         logging.getLogger("httpcore.connection").setLevel(logging.WARNING)
@@ -29,96 +26,149 @@ class AmcrestAPI(object):
         logging.getLogger("amcrest.event").setLevel(logging.WARNING)
         logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 
-        self.last_call_date = ''
-        self.timezone = config['timezone']
-
-        self.amcrest_config = config['amcrest']
-
-        self.count = len(self.amcrest_config['hosts'])
+        self.timezone = config["timezone"]
+        self.amcrest_config = config["amcrest"]
         self.devices = {}
         self.events = []
 
-    async def connect_to_devices(self):
-        self.logger.info(f'Connecting to: {self.amcrest_config["hosts"]}')
+        self.executor = ProcessPoolExecutor(
+            max_workers=min(8, len(self.amcrest_config["hosts"]))
+        )
+        # handle signals gracefully
+        signal.signal(signal.SIGINT, self._sig_handler)
+        signal.signal(signal.SIGTERM, self._sig_handler)
+        self._shutting_down = False
 
-        tasks = []
-        for host in self.amcrest_config['hosts']:
-            device_name = self.amcrest_config['names'].pop(0)
-            task = asyncio.create_task(self.get_device(host, device_name))
-            tasks.append(task)
-        await asyncio.gather(*tasks, return_exceptions=True)
+    def _sig_handler(self, signum, frame):
+        if not self._shutting_down:
+            self._shutting_down = True
+            self.logger.warning("SIGINT received — shutting down process pool...")
+            self.shutdown()
 
-        if len(self.devices) == 0:
-            self.logger.error('Failed to connect to all devices, exiting')
-            exit(1)
-
-        # return just the config of each device, not the camera object
-        return {d: self.devices[d]['config'] for d in self.devices.keys()}
+    def shutdown(self):
+        """Instantly kill process pool workers."""
+        try:
+            if self.executor:
+                self.logger.debug("Force-terminating process pool workers...")
+                self.executor.shutdown(wait=False, cancel_futures=True)
+                self.executor = None
+        except Exception as e:
+            self.logger.warning(f"Error shutting down process pool: {e}")
 
     def get_camera(self, host):
-        config = self.amcrest_config
-        return AmcrestCamera(host, config['port'], config['username'], config['password'], verbose=False).camera
+        cfg = self.amcrest_config
+        return AmcrestCamera(
+            host, cfg["port"], cfg["username"], cfg["password"], verbose=False
+        ).camera
 
-    async def get_device(self, host, device_name):
+    # ----------------------------------------------------------------------------------------------
+
+    async def connect_to_devices(self):
+        self.logger.info(f"Connecting to: {self.amcrest_config['hosts']}")
+
+        # Defensive guard against shutdown signals
+        if getattr(self, "shutting_down", False):
+            self.logger.warning("Connect aborted: shutdown already in progress.")
+            return {}
+
+        tasks = [
+            asyncio.create_task(self._connect_device_threaded(host, name))
+            for host, name in zip(
+                self.amcrest_config["hosts"], self.amcrest_config["names"]
+            )
+        ]
+
         try:
-            # resolve host and setup camera by ip so we aren't making 100k DNS lookups per day
-            try:
-                host_ip = get_ip_address(host)
-                self.logger.info(f'nslookup {host} got us {host_ip}')
-                camera = self.get_camera(host_ip)
-            except Exception as err:
-                self.logger.error(f'Error with {host}: {err}')
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+        except asyncio.CancelledError:
+            self.logger.warning("Device connection cancelled by signal.")
+            return {}
+        except Exception as e:
+            self.logger.error(f"Device connection failed: {e}", exc_info=True)
+            return {}
 
-            device_type = camera.device_type.replace('type=', '').strip()
-            is_ad110 = device_type == 'AD110'
-            is_ad410 = device_type == 'AD410'
+        successes = [r for r in results if isinstance(r, dict) and "config" in r]
+        failures = [r for r in results if isinstance(r, dict) and "error" in r]
+
+        self.logger.info(
+            f"Device connection summary: {len(successes)} succeeded, {len(failures)} failed"
+        )
+
+        if not successes and not getattr(self, "shutting_down", False):
+            self.logger.error("Failed to connect to any devices, exiting")
+            exit(1)
+
+        # Recreate cameras in parent process
+        for info in successes:
+            cfg = info["config"]
+            serial = cfg["serial_number"]
+            cam = self.get_camera(cfg["host_ip"])
+            self.devices[serial] = {"camera": cam, "config": cfg}
+
+        return {d: self.devices[d]["config"] for d in self.devices.keys()}
+
+    async def _connect_device_threaded(self, host, device_name):
+        """Run the blocking camera connection logic in a separate process."""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            self.executor, _connect_device_worker, (host, device_name, self.amcrest_config)
+        )
+
+    def _connect_device_sync(self, host, device_name):
+        """Blocking version of connect logic that runs in a separate process."""
+        try:
+            import multiprocessing
+            p_name = multiprocessing.current_process().name
+
+            host_ip = get_ip_address(host)
+            camera = self.get_camera(host_ip)
+
+            device_type = camera.device_type.replace("type=", "").strip()
+            is_ad110 = device_type == "AD110"
+            is_ad410 = device_type == "AD410"
             is_doorbell = is_ad110 or is_ad410
 
             serial_number = camera.serial_number
-            if not isinstance(serial_number, str):
-                self.logger.error(f'Error fetching serial number for {host}: {camera.serial_number}')
-                exit(1)
-
-            version = camera.software_information[0].replace('version=', '').strip()
+            version = camera.software_information[0].replace("version=", "").strip()
             build = camera.software_information[1].strip()
-            sw_version = f'{version} ({build})'
+            sw_version = f"{version} ({build})"
 
-            network_config = dict(item.split('=') for item in camera.network_config.splitlines())
-            interface = network_config['table.Network.DefaultInterface']
-            ip_address = network_config[f'table.Network.{interface}.IPAddress']
-            mac_address = network_config[f'table.Network.{interface}.PhysicalAddress'].upper()
+            network_config = dict(
+                item.split("=") for item in camera.network_config.splitlines()
+            )
+            iface = network_config["table.Network.DefaultInterface"]
+            ip_address = network_config[f"table.Network.{iface}.IPAddress"]
+            mac_address = network_config[f"table.Network.{iface}.PhysicalAddress"].upper()
 
-            action = 'Connected' if camera.serial_number not in self.devices else 'Reconnected'
-            self.logger.info(f'{action} to {host} as {camera.serial_number}')
+            print(f"[{p_name}] Connected to {host} ({ip_address}) as {serial_number}")
 
-            self.devices[serial_number] = {
-                'camera': camera,
-                'config': {
-                    'host': host,
-                    'host_ip': host_ip,
-                    'device_name': device_name,
-                    'device_type': device_type,
-                    'device_class': camera.device_class,
-                    'is_ad110': is_ad110,
-                    'is_ad410': is_ad410,
-                    'is_doorbell': is_doorbell,
-                    'serial_number': serial_number,
-                    'software_version': sw_version,
-                    'hardware_version': camera.hardware_version,
-                    'vendor': camera.vendor_information,
-                    'network': {
-                        'interface': interface,
-                        'ip_address': ip_address,
-                        'mac': mac_address,
-                    }
-                },
+            return {
+                "config": {
+                    "host": host,
+                    "host_ip": host_ip,
+                    "device_name": device_name,
+                    "device_type": device_type,
+                    "device_class": camera.device_class,
+                    "is_ad110": is_ad110,
+                    "is_ad410": is_ad410,
+                    "is_doorbell": is_doorbell,
+                    "serial_number": serial_number,
+                    "software_version": sw_version,
+                    "hardware_version": camera.hardware_version,
+                    "vendor": camera.vendor_information,
+                    "network": {
+                        "interface": iface,
+                        "ip_address": ip_address,
+                        "mac": mac_address,
+                    },
+                }
             }
-            self.get_privacy_mode(serial_number)
 
-        except LoginError as err:
-            self.logger.error(f'Invalid username/password to connect to device "{host}", fix in config.yaml')
-        except AmcrestError as err:
-            self.logger.error(f'Failed to connect to device "{host}", check config.yaml and restart to try again: {err}')
+        except Exception as e:
+            import traceback
+            err_trace = traceback.format_exc()
+            print(f"[child] Error connecting to {host}: {e}\n{err_trace}")
+            return {"error": f"{e}", "host": host}
 
     # Storage stats -------------------------------------------------------------------------------
 
@@ -151,7 +201,6 @@ class AmcrestAPI(object):
             self.logger.error(f'Failed to authenticate with device ({device_id}) to get privacy mode')
 
         return privacy_mode
-
 
     def set_privacy_mode(self, device_id, switch):
         device = self.devices[device_id]
@@ -245,7 +294,6 @@ class AmcrestAPI(object):
         if tries == 3:
             self.logger.error(f'Failed to communicate with device ({device_id}) to get recorded file')
 
-
     # Events --------------------------------------------------------------------------------------
 
     async def collect_all_device_events(self):
@@ -321,3 +369,69 @@ class AmcrestAPI(object):
 
     def get_next_event(self):
         return self.events.pop(0) if len(self.events) > 0 else None
+
+
+def _connect_device_worker(args):
+    """Top-level helper so it can be pickled by ProcessPoolExecutor."""
+
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+    host, device_name, amcrest_cfg = args
+
+    try:
+        host_ip = get_ip_address(host)
+        camera = AmcrestCamera(
+            host_ip,
+            amcrest_cfg["port"],
+            amcrest_cfg["username"],
+            amcrest_cfg["password"],
+            verbose=False,
+        ).camera
+
+        device_type = camera.device_type.replace("type=", "").strip()
+        is_ad110 = device_type == "AD110"
+        is_ad410 = device_type == "AD410"
+        is_doorbell = is_ad110 or is_ad410
+
+        serial_number = camera.serial_number
+        version = camera.software_information[0].replace("version=", "").strip()
+        build = camera.software_information[1].strip()
+        sw_version = f"{version} ({build})"
+
+        network_config = dict(
+            item.split("=") for item in camera.network_config.splitlines()
+        )
+        iface = network_config["table.Network.DefaultInterface"]
+        ip_address = network_config[f"table.Network.{iface}.IPAddress"]
+        mac_address = network_config[f"table.Network.{iface}.PhysicalAddress"].upper()
+
+        print(f"[worker] Connected to {host} ({ip_address}) as {serial_number}")
+
+        return {
+            "config": {
+                "host": host,
+                "host_ip": host_ip,
+                "device_name": device_name,
+                "device_type": device_type,
+                "device_class": camera.device_class,
+                "is_ad110": is_ad110,
+                "is_ad410": is_ad410,
+                "is_doorbell": is_doorbell,
+                "serial_number": serial_number,
+                "software_version": sw_version,
+                "hardware_version": camera.hardware_version,
+                "vendor": camera.vendor_information,
+                "network": {
+                    "interface": iface,
+                    "ip_address": ip_address,
+                    "mac": mac_address,
+                },
+            }
+        }
+
+    except Exception as e:
+        import traceback
+
+        err_trace = traceback.format_exc()
+        print(f"[worker] Error connecting to {host}: {e}\n{err_trace}")
+        return {"error": str(e), "host": host}

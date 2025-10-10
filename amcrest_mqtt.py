@@ -63,18 +63,19 @@ class AmcrestMqtt(object):
 
     # MQTT Functions ------------------------------------------------------------------------------
 
-    def mqtt_on_connect(self, client, userdata, flags, rc, properties):
-        if rc != 0:
-            self.logger.error(f'MQTT connection issue ({rc})')
-            exit()
+    def mqtt_on_connect(self, client, userdata, flags, reason_code, properties):
+        if reason_code.value != 0:
+            self.logger.error(f'MQTT connection issue ({reason_code.getName()})')
+            self.running = False
+            return
 
         self.logger.info(f'MQTT connected as {self.client_id}')
         client.subscribe("homeassistant/status")
         client.subscribe(self.get_device_sub_topic())
         client.subscribe(self.get_attribute_sub_topic())
 
-    def mqtt_on_disconnect(self, client, userdata, flags, rc, properties):
-        self.logger.info('MQTT connection closed')
+    def mqtt_on_disconnect(self, client, userdata, disconnect_flags, reason_code, properties):
+        self.logger.warning(f'MQTT disconnected: {reason_code.getName()} (flags={disconnect_flags})')
         self.mqttc.loop_stop()
 
         if self.running and time.time() > self.mqtt_connect_time + 10:
@@ -88,7 +89,6 @@ class AmcrestMqtt(object):
             self.paused = False
         else:
             self.running = False
-            exit()
 
     def mqtt_on_log(self, client, userdata, paho_log_level, msg):
         if paho_log_level == mqtt.LogLevel.MQTT_LOG_ERR:
@@ -169,10 +169,10 @@ class AmcrestMqtt(object):
 
     def mqttc_create(self):
         self.mqttc = mqtt.Client(
-            callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id=self.client_id,
-            clean_session=False,
+            callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             reconnect_on_failure=False,
+            protocol=mqtt.MQTTv5,
         )
 
         if self.mqtt_config.get('tls_enabled'):
@@ -183,7 +183,8 @@ class AmcrestMqtt(object):
                 cert_reqs=ssl.CERT_REQUIRED,
                 tls_version=ssl.PROTOCOL_TLS,
             )
-        else:
+            self.mqttc.tls_insecure_set(self.mqtt_config.get("tls_insecure", False))
+        if self.mqtt_config.get('username'):
             self.mqttc.username_pw_set(
                 username=self.mqtt_config.get('username'),
                 password=self.mqtt_config.get('password'),
@@ -199,16 +200,24 @@ class AmcrestMqtt(object):
         self.mqttc.will_set(self.get_discovery_topic('service', 'availability'), payload="offline", qos=self.mqtt_config['qos'], retain=True)
 
         try:
+            self.logger.info(
+                f"Connecting to MQTT broker at {self.mqtt_config.get('host')}:{self.mqtt_config.get('port')} "
+                f"as {self.client_id}"
+            )
             self.mqttc.connect(
-                self.mqtt_config.get('host'),
+                host=self.mqtt_config.get('host'),
                 port=self.mqtt_config.get('port'),
                 keepalive=60,
             )
             self.mqtt_connect_time = time.time()
             self.mqttc.loop_start()
-        except ConnectionError as error:
-            self.logger.error(f'COULD NOT CONNECT TO MQTT {self.mqtt_config.get("host")}: {error}')
-            exit(1)
+        except Exception as error:
+            self.logger.error(
+                f"Failed to connect to MQTT broker {self.mqtt_config.get('host')}:{self.mqtt_config.get('port')} "
+                f"({type(error).__name__}: {error})",
+                exc_info=True,
+            )
+            self.running = False
 
     # MQTT Topics ---------------------------------------------------------------------------------
 
@@ -260,6 +269,18 @@ class AmcrestMqtt(object):
         if 'homeassistant' not in self.mqtt_config or self.mqtt_config['homeassistant'] == False:
             return f"{self.mqtt_config['prefix']}/{self.get_component_slug(device_id)}/{topic}/{subtopic}"
         return f"{self.mqtt_config['discovery_prefix']}/device/{self.get_component_slug(device_id)}/{topic}/{subtopic}"
+
+    def ha_cfg_topic(self, domain: str, object_id: str) -> str:
+        dp = self.mqtt_config.get('discovery_prefix', 'homeassistant')
+        return f"{dp}/{domain}/{object_id}/config"
+
+    def service_oid(self, suffix: str) -> str:
+        return f"{self.service_slug}_{suffix}"
+
+    def svc_topic(self, sub: str) -> str:
+        # Runtime topics (your own prefix), e.g. govee2mqtt/govee-service/state
+        pfx = self.mqtt_config.get('prefix', 'govee2mqtt')
+        return f"{pfx}/amcrest-service/{sub}"
 
     # Service Device ------------------------------------------------------------------------------
 
@@ -474,14 +495,33 @@ class AmcrestMqtt(object):
             'value_template': '{{ value_json.state }}',
             'unique_id': self.get_slug(device_id, 'snapshot_camera'),
         }
-        if 'webrtc' in self.amcrest_config:
-            webrtc_config = self.amcrest_config['webrtc']
-            rtc_host = webrtc_config['host']
-            rtc_port = webrtc_config['port']
-            rtc_link = webrtc_config['link']
-            rtc_source = webrtc_config['sources'].pop(0)
-            rtc_url = f'http://{rtc_host}:{rtc_port}/{rtc_link}?src={rtc_source}'
-            device_config['device']['configuration_url'] = rtc_url
+        # --- Safe WebRTC config handling ----------------------------------------
+        webrtc_config = self.amcrest_config.get("webrtc")
+
+        # Handle missing, boolean, or incomplete configs gracefully
+        if isinstance(webrtc_config, bool) or not webrtc_config:
+            self.logger.debug("No valid WebRTC config found; skipping WebRTC setup.")
+        else:
+            try:
+                rtc_host = webrtc_config.get("host")
+                rtc_port = webrtc_config.get("port")
+                rtc_link = webrtc_config.get("link")
+                rtc_sources = webrtc_config.get("sources", [])
+                rtc_source = rtc_sources[0] if rtc_sources else None
+
+                if rtc_host and rtc_port and rtc_link and rtc_source:
+                    rtc_url = f"http://{rtc_host}:{rtc_port}/{rtc_link}?src={rtc_source}"
+                    device_config["device"]["configuration_url"] = rtc_url
+                    self.logger.debug(f"Added WebRTC config URL for {device_id}: {rtc_url}")
+                else:
+                    self.logger.warning(
+                        f"Incomplete WebRTC config for {device_id}: {webrtc_config}"
+                    )
+
+            except Exception as e:
+                self.logger.warning(
+                    f"Failed to apply WebRTC config for {device_id}: {e}", exc_info=True
+                )
 
         # copy the snapshot camera for the eventshot camera, with a couple of changes
         components[self.get_slug(device_id, 'event_camera')] = {
@@ -643,7 +683,7 @@ class AmcrestMqtt(object):
 
         self.mqttc.publish(self.get_discovery_topic(device_id, 'config'), payload, qos=self.mqtt_config['qos'], retain=True)
 
-     # refresh * all devices -----------------------------------------------------------------------
+    # refresh * all devices -----------------------------------------------------------------------
 
     def refresh_storage_all_devices(self):
         self.logger.info(f'Refreshing storage info for all devices (every {self.storage_update_interval} sec)')
@@ -744,9 +784,9 @@ class AmcrestMqtt(object):
 
     def handle_service_message(self, attribute, message):
         match attribute:
-            case 'storage_refresh':
+            case "storage_refresh":
                 self.storage_update_interval = message
-                self.logger.info(f'Updated STORAGE_REFRESH_INTERVAL to be {message}')
+                self.logger.info(f"Updated STORAGE_REFRESH_INTERVAL to be {message}")
             case 'snapshot_refresh':
                 self.snapshot_update_interval = message
                 self.logger.info(f'Updated SNAPSHOT_REFRESH_INTERVAL to be {message}')
@@ -839,30 +879,85 @@ class AmcrestMqtt(object):
 
     # main loop
     async def main_loop(self):
+        """Main event loop for Amcrest MQTT service."""
         await self.setup_devices()
 
         loop = asyncio.get_running_loop()
+
+        # Create async tasks with descriptive names
         tasks = [
-            asyncio.create_task(self.collect_storage_info()),
-            asyncio.create_task(self.collect_events()),
-            asyncio.create_task(self.check_event_queue()),
-            asyncio.create_task(self.collect_snapshots()),
+            asyncio.create_task(
+                self.collect_storage_info(), name="collect_storage_info"
+            ),
+            asyncio.create_task(self.collect_events(), name="collect_events"),
+            asyncio.create_task(self.check_event_queue(), name="check_event_queue"),
+            asyncio.create_task(self.collect_snapshots(), name="collect_snapshots"),
         ]
 
-        # setup signal handling for tasks
+        # Graceful signal handler
+        def _signal_handler(signame):
+            """Immediate, aggressive shutdown handler for Ctrl+C or SIGTERM."""
+            self.logger.warning(f"{signame} received — initiating shutdown NOW...")
+
+            self.running = False
+
+            # Cancel *all* asyncio tasks, even those not tracked manually
+            loop = asyncio.get_event_loop()
+            for task in asyncio.all_tasks(loop):
+                if not task.done():
+                    task.cancel(f"{signame} received")
+
+            # Force-stop ProcessPoolExecutor if present
+            try:
+                if hasattr(self, "api") and hasattr(self.api, "executor"):
+                    self.logger.debug("Force-shutting down process pool...")
+                    self.api.executor.shutdown(wait=False, cancel_futures=True)
+            except Exception as e:
+                self.logger.debug(f"Error force-stopping process pool: {e}")
+
+            # Stop the loop immediately after a short delay
+            loop.call_later(0.05, loop.stop)
+
         for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.add_signal_handler(
-                sig, lambda: asyncio.create_task(self._handle_signals(sig.name, loop))
-            )
+            try:
+                loop.add_signal_handler(sig, _signal_handler, sig.name)
+            except NotImplementedError:
+                # Windows compatibility
+                self.logger.debug(f"Signal handling not supported on this platform.")
 
         try:
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            for result in results:
-                if isinstance(result, Exception):
+
+            # Handle task exceptions individually
+            for t, result in zip(tasks, results):
+                if isinstance(result, asyncio.CancelledError):
+                    self.logger.info(f"Task '{t.get_name()}' cancelled.")
+                elif isinstance(result, Exception):
+                    self.logger.error(
+                        f"Task '{t.get_name()}' raised an exception: {result}",
+                        exc_info=True,
+                    )
                     self.running = False
-                    self.logger.error(f'Caught exception: {err}', exc_info=True)
         except asyncio.CancelledError:
-            exit(1)
+            self.logger.info("Main loop cancelled; shutting down...")
         except Exception as err:
+            self.logger.exception(f"Unhandled exception in main loop: {err}")
             self.running = False
-            self.logger.error(f'Caught exception: {err}')
+        finally:
+            self.logger.info("All loops terminated, performing final cleanup...")
+
+            try:
+                # Save final state or cleanup hooks if needed
+                if hasattr(self, "save_state"):
+                    self.save_state()
+            except Exception as e:
+                self.logger.warning(f"Error during save_state: {e}")
+
+            # Disconnect MQTT cleanly
+            if self.mqttc and self.mqttc.is_connected():
+                try:
+                    self.mqttc.disconnect()
+                except Exception as e:
+                    self.logger.warning(f"Error during MQTT disconnect: {e}")
+
+            self.logger.info("Main loop complete.")

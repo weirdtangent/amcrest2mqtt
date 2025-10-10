@@ -1,138 +1,61 @@
-# This software is licensed under the MIT License, which allows you to use,
-# copy, modify, merge, publish, distribute, and sell copies of the software,
-# with the requirement to include the original copyright notice and this
-# permission notice in all copies or substantial portions of the software.
-#
-# The software is provided 'as is', without any warranty.
-
+#!/usr/bin/env python3
 import asyncio
 import argparse
-from amcrest_mqtt import AmcrestMqtt
 import logging
-import os
-import sys
-import time
-from util import *
-import yaml
+from amcrest_mqtt import AmcrestMqtt
+from util import load_config
 
-# Let's go!
-version = read_version()
+if __name__ == "__main__":
+    # Parse command-line arguments
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument(
+        "-c",
+        "--config",
+        required=False,
+        help="Directory or file path for config.yaml (defaults to /config/config.yaml)",
+    )
+    args = argparser.parse_args()
 
-# Cmd-line args
-argparser = argparse.ArgumentParser()
-argparser.add_argument(
-    '-c',
-    '--config',
-    required=False,
-    help='Directory holding config.yaml or full path to config file',
-)
-args = argparser.parse_args()
+    # Load configuration
+    config = load_config(args.config)
 
-# Setup config from yaml file or env
-configpath = args.config or '/config'
-try:
-    if not configpath.endswith('.yaml'):
-        if not configpath.endswith('/'):
-            configpath += '/'
-        configfile = configpath + 'config.yaml'
-    with open(configfile) as file:
-        config = yaml.safe_load(file)
-    config['config_path'] = configpath
-    config['config_from'] = 'file'
-except:
-    config = {
-        'mqtt': {
-            'host': os.getenv('MQTT_HOST') or 'localhost',
-            'qos': int(os.getenv('MQTT_QOS') or 0),
-            'port': int(os.getenv('MQTT_PORT') or 1883),
-            'username': os.getenv('MQTT_USERNAME'),
-            'password': os.getenv('MQTT_PASSWORD'),  # can be None
-            'tls_enabled': os.getenv('MQTT_TLS_ENABLED') == 'true',
-            'tls_ca_cert': os.getenv('MQTT_TLS_CA_CERT'),
-            'tls_cert': os.getenv('MQTT_TLS_CERT'),
-            'tls_key': os.getenv('MQTT_TLS_KEY'),
-            'prefix': os.getenv('MQTT_PREFIX') or 'amcrest2mqtt',
-            'homeassistant': os.getenv('MQTT_HOMEASSISTANT') == True,
-            'discovery_prefix': os.getenv('MQTT_DISCOVERY_PREFIX') or 'homeassistant',
-        },
-        'amcrest': {
-            'hosts': os.getenv("AMCREST_HOSTS"),
-            'names': os.getenv("AMCREST_NAMES"),
-            'port': int(os.getenv("AMCREST_PORT") or 80),
-            'username': os.getenv("AMCREST_USERNAME") or "admin",
-            'password': os.getenv("AMCREST_PASSWORD"),
-            'storage_update_interval': int(os.getenv("STORAGE_UPDATE_INTERVAL") or 900),
-            'snapshot_update_interval': int(os.getenv("SNAPSHOT_UPDATE_INTERVAL") or 300),
-            'webrtc': {
-                'host': os.getenv("AMCREST_WEBRTC_HOST"),
-                'port': int(os.getenv("AMCREST_WEBRTC_PORT") or 1984),
-                'link': os.getenv("AMCREST_WEBRTC_LINK") or 'stream.html',
-                'sources': os.getenv("AMCREST_WEBRTC_SOURCES"),
-            },
-        },
-        'debug': True if os.getenv('DEBUG') else False,
-        'hide_ts': True if os.getenv('HIDE_TS') else False,
-        'timezone': os.getenv('TZ'),
-        'config_from': 'env',
-    }
-config['version'] = version
-config['configpath'] = os.path.dirname(configpath)
+    # Setup logging
+    logging.basicConfig(
+        format=(
+            "%(asctime)s.%(msecs)03d [%(levelname)s] %(name)s: %(message)s"
+            if not config["hide_ts"]
+            else "[%(levelname)s] %(name)s: %(message)s"
+        ),
+        datefmt="%Y-%m-%d %H:%M:%S",
+        level=logging.DEBUG if config["debug"] else logging.INFO,
+    )
 
-# defaults
-if 'username' not in config['mqtt']: config['mqtt']['username'] = ''
-if 'password' not in config['mqtt']: config['mqtt']['password'] = ''
-if 'qos'      not in config['mqtt']: config['mqtt']['qos'] = 0
-if 'timezone' not in config:         config['timezone'] = 'UTC'
-if 'debug'    not in config:         config['debug'] = os.getenv('DEBUG') or False
-if 'hide_ts'  not in config:         config['hide_ts'] = os.getenv('HIDE_TS') or False
+    logger = logging.getLogger(__name__)
+    logger.info(f"Starting amcrest2mqtt {config['version']}")
+    logger.info(f"Config loaded from {config['config_from']} ({config['config_path']})")
 
-# init logging, based on config settings
-logging.basicConfig(
-    format = '%(asctime)s.%(msecs)03d [%(levelname)s] %(name)s: %(message)s' if config['hide_ts'] == False else '[%(levelname)s] %(name)s: %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    level=logging.INFO if config['debug'] == False else logging.DEBUG
-)
-logger = logging.getLogger(__name__)
-logger.info(f'Starting: amcrest2mqtt {version}')
-logger.info(f'Config loaded from {config["config_from"]}')
-
-# Check for required config properties
-if config['amcrest']['hosts'] is None:
-    logger.error('Missing env var: AMCREST_HOSTS or amcrest.hosts in config')
-    exit(1)
-config['amcrest']['host_count'] = len(config['amcrest']['hosts'])
-
-if config['amcrest']['names'] is None:
-    logger.error('Missing env var: AMCREST_NAMES or amcrest.names in config')
-    exit(1)
-config['amcrest']['name_count'] = len(config['amcrest']['names'])
-
-if config['amcrest']['host_count'] != config['amcrest']['name_count']:
-    logger.error('The AMCREST_HOSTS and AMCREST_NAMES must have the same number of space-delimited hosts/names')
-    exit(1)
-logger.info(f'Found {config["amcrest"]["host_count"]} host(s) defined to monitor')
-
-if 'webrtc' in config['amcrest']:
-    webrtc = config['amcrest']['webrtc']
-    if 'host' not in webrtc:
-        logger.error('Missing HOST in webrtc config')
-        exit(1)
-    if 'sources' not in webrtc:
-        logger.error('Missing SOURCES in webrtc config')
-        exit(1)
-    config['amcrest']['webrtc_sources_count'] = len(config['amcrest']['webrtc']['sources'])
-    if config['amcrest']['host_count'] != config['amcrest']['webrtc_sources_count']:
-        logger.error('The AMCREST_HOSTS and AMCREST_WEBRTC_SOURCES must have the same number of space-delimited hosts/names')
-        exit(1)
-    if 'port' not in webrtc: webrtc['port'] = 1984
-    if 'link' not in webrtc: webrtc['link'] = 'stream.html'
-
-if config['amcrest']['password'] is None:
-    logger.error('Please set the AMCREST_PASSWORD environment variable')
-    exit(1)
-
-logger.debug("DEBUG logging is ON")
-
-# Go!
-with AmcrestMqtt(config) as mqtt:
-    asyncio.run(mqtt.main_loop())
+    # Run main loop safely
+    try:
+        with AmcrestMqtt(config) as mqtt:
+            try:
+                # Prefer a clean async run, but handle nested event loops
+                asyncio.run(mqtt.main_loop())
+            except RuntimeError as e:
+                if "asyncio.run() cannot be called from a running event loop" in str(e):
+                    loop = asyncio.get_event_loop()
+                    loop.run_until_complete(mqtt.main_loop())
+                else:
+                    raise
+    except KeyboardInterrupt:
+        logger.info("Shutdown requested (Ctrl+C). Exiting gracefully...")
+    except asyncio.CancelledError:
+        logger.warning("Main loop cancelled.")
+    except Exception as e:
+        logger.exception(f"Unhandled exception in main loop: {e}")
+    finally:
+        try:
+            if "mqtt" in locals() and hasattr(mqtt, "api") and mqtt.api:
+                mqtt.api.shutdown()
+        except Exception as e:
+            logger.debug(f"Error during shutdown: {e}")
+        logger.info("amcrest2mqtt stopped.")
