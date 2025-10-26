@@ -34,19 +34,25 @@ class EventsMixin:
 
                 # if one of our known sensors
                 if event in ["motion", "human", "doorbell", "recording", "privacy_mode"]:
-                    if event == "recording" and payload["file"].endswith(".jpg"):
-                        image = self.get_recorded_file(device_id, payload["file"])
-                        if image:
-                            self.upsert_state(device_id, camera={"eventshot": image}, sensor={"event_time": datetime.now(timezone.utc).isoformat()})
+                    if event == "recording":
+                        if payload["file"].endswith(".jpg"):
+                            image = self.get_recorded_file(device_id, payload["file"])
+                            if image:
+                                self.upsert_state(
+                                    device_id,
+                                    camera={"eventshot": image},
+                                    sensor={"event_time": datetime.now(timezone.utc).isoformat()},
+                                )
                     else:
-                        # only log details if not a recording
-                        if event != "recording":
-                            self.logger.info(f"Got event for {self.get_device_name(device_id)}: {event} - {payload}")
+                        self.logger.info(f"Got event for {self.get_device_name(device_id)}: {event} - {payload}")
                         if event == "motion":
                             self.upsert_state(
                                 device_id,
                                 binary_sensor={"motion": payload["state"]},
-                                sensor={"motion_region": payload["region"], "event_time": datetime.now(timezone.utc).isoformat()},
+                                sensor={
+                                    "motion_region": payload["region"] if payload["state"] != "off" else "",
+                                    "event_time": datetime.now(timezone.utc).isoformat(),
+                                },
                             )
                         else:
                             self.upsert_state(device_id, sensor={event: payload})
