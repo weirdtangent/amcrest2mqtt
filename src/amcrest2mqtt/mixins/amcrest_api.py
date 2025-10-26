@@ -213,7 +213,7 @@ class AmcrestAPIMixin(object):
                 encoded = encoded_b.decode("ascii")
                 self.upsert_state(
                     device_id,
-                    camera={"snapshot": encoded},
+                    image={"snapshot": encoded},
                     sensor={
                         "event_text": "Got snapshot",
                         "event_time": datetime.now(timezone.utc).isoformat(),

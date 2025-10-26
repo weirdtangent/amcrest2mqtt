@@ -78,6 +78,14 @@ class AmcrestMixin:
                 "serial_number": device["serial_number"],
             },
         }
+        if "webrtc" in self.amcrest_config:
+            webrtc_config = self.amcrest_config["webrtc"]
+            rtc_host = webrtc_config["host"]
+            rtc_port = webrtc_config["port"]
+            rtc_link = webrtc_config["link"]
+            rtc_source = webrtc_config["sources"].pop(0)
+            rtc_url = f"http://{rtc_host}:{rtc_port}/{rtc_link}?src={rtc_source}"
+            component["url_topic"] = rtc_url
         modes = {}
 
         device_block = self.get_device_block(
@@ -87,20 +95,14 @@ class AmcrestMixin:
             device["device_type"],
         )
 
-        if "webrtc" in self.amcrest_config:
-            webrtc_config = self.amcrest_config["webrtc"]
-            rtc_host = webrtc_config["host"]
-            rtc_port = webrtc_config["port"]
-            rtc_link = webrtc_config["link"]
-            rtc_source = webrtc_config["sources"].pop(0)
-            rtc_url = f"http://{rtc_host}:{rtc_port}/{rtc_link}?src={rtc_source}"
 
         modes["snapshot"] = {
-            "component_type": "camera",
+            "component_type": "image",
             "name": "Snapshot",
             "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'snapshot')}",
             "topic": self.get_state_topic(device_id, "snapshot"),
             "image_encoding": "b64",
+            "content_type": "image/jpeg",
             "avty_t": self.get_state_topic(device_id, "attributes"),
             "avty_tpl": "{{ value_json.camera }}",
             "json_attributes_topic": self.get_state_topic(device_id, "attributes"),
@@ -108,8 +110,6 @@ class AmcrestMixin:
             "via_device": self.get_service_device(),
             "device": device_block,
         }
-        if rtc_url:
-            modes["snapshot"]["url_topic"] = rtc_url
         self.upsert_state(device_id, image={"snapshot": None})
 
         modes["privacy"] = {
@@ -278,7 +278,8 @@ class AmcrestMixin:
         self.upsert_state(
             device_id,
             internal={"discovered": False},
-            camera={"video": None, "snapshot": None},
+            camera={"video": None},
+            image={"snapshot": None},
             binary_sensor={
                 "motion": False,
                 "doorbell": False,

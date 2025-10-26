@@ -94,8 +94,9 @@ class TopicsMixin:
 
     def get_device_state_topic(self: "Amcrest2Mqtt", device_id, mode_name=None):
         component = self.get_mode(device_id, mode_name) if mode_name else self.get_component(device_id)
+        component_type = component["component_type"]
 
-        if component["component_type"] == "camera":
+        if component_type in ["camera", "image"]:
             return component.get("topic", None)
         else:
             return component.get("stat_t", component.get("state_topic", None))
