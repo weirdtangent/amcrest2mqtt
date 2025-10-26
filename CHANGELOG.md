@@ -1,3 +1,14 @@
+# [2.0.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v1.1.0...v2.0.0) (2025-10-26)
+
+
+* feat!: complete MQTT and service refactor, add timestamp + event tracking, and new modular mixins ([e230a76](https://github.com/weirdtangent/amcrest2mqtt/commit/e230a7673f114a41e98d6f5a30999f4c336cab61))
+
+
+### BREAKING CHANGES
+
+* Project layout moved to `src/amcrest2mqtt/`, internal class and import paths changed.
+Users must update configs and volumes to the new structure before deploying.
+
 # [1.1.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v1.0.2...v1.1.0) (2025-10-10)
 
 
