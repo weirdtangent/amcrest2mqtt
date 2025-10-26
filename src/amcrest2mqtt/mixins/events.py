@@ -43,6 +43,9 @@ class EventsMixin:
                                     camera={"eventshot": image},
                                     sensor={"event_time": datetime.now(timezone.utc).isoformat()},
                                 )
+                        elif payload["file"].endswith(".mp4"):
+                            if "path" in self.config["media"] and self.states[device_id]["switch"]["save_recordings"] == "ON":
+                                await self.store_recording_in_media(device_id, payload["file"])
                     else:
                         self.logger.info(f"Got event for {self.get_device_name(device_id)}: {event} - {payload}")
                         if event == "motion":
@@ -50,7 +53,7 @@ class EventsMixin:
                                 device_id,
                                 binary_sensor={"motion": payload["state"]},
                                 sensor={
-                                    "motion_region": payload["region"] if payload["state"] != "off" else "",
+                                    "motion_region": payload["region"] if payload["state"] != "off" else "n/a",
                                     "event_time": datetime.now(timezone.utc).isoformat(),
                                 },
                             )

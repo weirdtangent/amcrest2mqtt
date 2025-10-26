@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
 import random
+import re
 import string
 from typing import TYPE_CHECKING, Optional
 
@@ -20,6 +21,9 @@ class TopicsMixin:
 
     def get_device_slug(self: Amcrest2Mqtt, device_id: str, type: Optional[str] = None) -> str:
         return "_".join(filter(None, [self.service_slug, device_id.replace(":", ""), type]))
+
+    def get_device_name_slug(self: Amcrest2Mqtt, device_id: str) -> str:
+        return re.sub(r"[^a-zA-Z0-9]+", "_", self.get_device_name(device_id))
 
     def get_vendor_device_slug(self: Amcrest2Mqtt, device_id):
         return f"{self.service_slug}-{device_id.replace(':', '')}"
@@ -58,15 +62,15 @@ class TopicsMixin:
         component = device_entry.get("component") or device_entry.get("component_type") or category
         return f"{self.mqtt_config['discovery_prefix']}/{component}/{self.get_device_slug(device_id)}/{item}/{attribute}"
 
-    def get_command_topic(self: Amcrest2Mqtt, device_id, category, command="set") -> str:
+    def get_command_topic(self: Amcrest2Mqtt, device_id, category, item=None, command="set") -> str:
         if device_id == "service":
-            return f"{self.service_slug}/service/{category}/{command}"
+            return f"{self.service_slug}/service/{category}/{item}"
 
         # if category is not passed in, device must exist already
         if not category:
             category = self.devices[device_id]["component"]["component_type"]
 
-        return f"{self.service_slug}/{category}/{self.get_device_slug(device_id)}/{command}"
+        return f"{self.service_slug}/{category}/{self.get_device_slug(device_id)}/{item}/{command}"
 
     # Device propertiesi --------------------------------------------------------------------------
 

@@ -6,8 +6,10 @@ Uses the [`python-amcrest`](https://github.com/tchellomello/python-amcrest) libr
 
 Forked from [dchesterton/amcrest2mqtt](https://github.com/dchesterton/amcrest2mqtt)
 
-A few notes:
-* "Rediscover" button added to service - when pressed, device discovery is re-run so HA will rediscover deleted devices
+UPDATES:
+* 10/2025 Added a "media" config where mp4 recordings of motions events can be stored
+* 10/2025 "Rediscover" button added to service - when pressed, device discovery is re-run so HA will rediscover deleted devices
+
 
 ## Docker
 For `docker-compose`, use the [configuration included](https://github.com/weirdtangent/amcrest2mqtt/blob/master/docker-compose.yaml) in this repository.
@@ -37,8 +39,10 @@ It supports the following environment variables:
 -   `MQTT_TLS_CERT` (required if using TLS) - path to the private cert
 -   `MQTT_TLS_KEY` (required if using TLS) - path to the private key
 -   `MQTT_PREFIX` (optional, default = amgrest2mqtt)
--   `MQTT_HOMEASSISTANT` (optional, default = true)
 -   `MQTT_DISCOVERY_PREFIX` (optional, default = 'homeassistant')
+
+-   `MEDIA_PATH` (optional) - path to store motion recordings (mp4) files
+-   `MEDIA_SOURCE` (optional) - HomeAssistant url for accessing those recordings (see config.yaml.sample)
 
 -   `TZ` (required, timezone identifier, see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List)
 -   `STORAGE_UPDATE_INTERVAL` (optional, default = 900) - how often to fetch storage stats (in seconds)

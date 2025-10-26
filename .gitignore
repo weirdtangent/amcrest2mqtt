@@ -18,7 +18,8 @@ venv/
 # Local testing and notes
 config
 config/
-config.yaml
+media
+media/
 npm-debug.log
 NOTES
 coverage/

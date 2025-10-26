@@ -91,9 +91,15 @@ class MqttMixin:
             self.logger.info("Closed MQTT connection")
 
         if self.running and (self.mqtt_connect_time is None or time.time() > self.mqtt_connect_time + 10):
-            # lets use a new client_id for a reconnect attempt
-            self.client_id = self.get_new_client_id()
-            self.mqttc_create()
+            # clear connect_time and try to restart
+            self.mqtt_connect_time = None
+            while not self.mqtt_connect_time:
+                try:
+                    self.client_id = self.get_new_client_id()
+                    self.mqttc_create()
+                except Exception as e:
+                    self.logger.error(f"Trouble reconnecting to MQTT (retry in 10 s): {e}")
+                    time.sleep(10)
         else:
             self.logger.info("MQTT disconnect — stopping service loop")
             self.running = False
@@ -114,7 +120,7 @@ class MqttMixin:
             return self._handle_homeassistant_message(payload)
 
         if components[0] == self.service_slug and components[1] == "service":
-            return self.handle_service_message(components[2], payload)
+            return self.handle_service_command(components[2], payload)
 
         if components[0] == self.service_slug:
             return self._handle_device_topic(components, payload)
@@ -122,7 +128,6 @@ class MqttMixin:
         # self.logger.debug(f"Ignoring unrelated MQTT topic: {topic}")
 
     def _decode_payload(self: Amcrest2Mqtt, raw):
-        """Try to decode MQTT payload as JSON, fallback to UTF-8 string, else None."""
         try:
             return json.loads(raw)
         except (json.JSONDecodeError, UnicodeDecodeError, TypeError, ValueError):
@@ -147,28 +152,26 @@ class MqttMixin:
             self.logger.warning(f"Got MQTT message for unknown device: {device_id}")
             return
 
-        self.logger.debug(f"Got message for {self.get_device_name(device_id)}: {payload}")
-        self.send_command(device_id, payload)
+        self.logger.debug(f"Got message for {self.get_device_name(device_id)}: {attribute} => {payload}")
+        self.handle_device_command(device_id, attribute, payload)
 
     def _parse_device_topic(self: Amcrest2Mqtt, components):
-        """Extract (vendor, device_id, attribute) from an MQTT topic components list (underscore-delimited)."""
         try:
             if components[-1] != "set":
                 return (None, None, None)
 
             # Example topics:
             # amcrest2mqtt/light/amcrest2mqtt_2BEFD0C907BB6BF2/set
-            # amcrest2mqtt/light/amcrest2mqtt_2BEFD0C907BB6BF2/brightness/set
+            # amcrest2mqtt/light/amcrest2mqtt_2BEFD0C907BB6BF2/save_recordings/set
 
-            # Case 1: .../<device>/set
-            if len(components) >= 4 and "_" in components[-2]:
-                vendor, device_id = components[-2].split("_", 1)
-                attribute = None
-
-            # Case 2: .../<device>/<attribute>/set
-            elif len(components) >= 5 and "_" in components[-3]:
+            # Case 1: .../<device>/<attribute>set
+            if len(components) >= 5 and "_" in components[-3]:
                 vendor, device_id = components[-3].split("_", 1)
                 attribute = components[-2]
+            # Case 2: .../<device>/<attribute>/set
+            elif len(components) >= 4 and "_" in components[-2]:
+                vendor, device_id = components[-2].split("_", 1)
+                attribute = None
 
             else:
                 raise ValueError(f"Malformed topic (expected underscore): {'/'.join(components)}")

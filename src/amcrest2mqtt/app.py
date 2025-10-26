@@ -12,10 +12,11 @@ from .core import Amcrest2Mqtt
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="govee2mqtt", exit_on_error=True)
+    p = argparse.ArgumentParser(prog="amcrest2mqtt", exit_on_error=True)
     p.add_argument(
         "-c",
         "--config",
+        default="/config",
         help="Directory or file path for config.yaml (defaults to /config/config.yaml)",
     )
     return p
@@ -39,15 +40,11 @@ def main(argv=None):
                     loop.run_until_complete(amcrest2mqtt.main_loop())
                 else:
                     raise
-    except TypeError as e:
-        logger.error(f"TypeError: {e}", exc_info=True)
-    except ValueError as e:
-        logger.error(f"ValueError: {e}", exc_info=True)
     except KeyboardInterrupt:
         logger.warning("Shutdown requested (Ctrl+C). Exiting gracefully...")
     except asyncio.CancelledError:
         logger.warning("Main loop cancelled.")
     except Exception as e:
-        logger.exception(f"Unhandled exception in main loop: {e}", exc_info=True)
+        logger.error(f"unhandled exception: {e}", exc_info=True)
     finally:
         logger.info("amcrest2mqtt stopped.")

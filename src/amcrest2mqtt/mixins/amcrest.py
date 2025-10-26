@@ -60,7 +60,7 @@ class AmcrestMixin:
             "avty_t": self.get_state_topic(device_id, "attributes"),
             "avty_tpl": "{{ value_json.camera }}",
             "json_attributes_topic": self.get_state_topic(device_id, "attributes"),
-            "icon": "mdi:camera",
+            "icon": "mdi:video",
             "via_device": self.get_service_device(),
             "device": {
                 "name": device["device_name"],
@@ -95,10 +95,9 @@ class AmcrestMixin:
             device["device_type"],
         )
 
-
         modes["snapshot"] = {
             "component_type": "image",
-            "name": "Snapshot",
+            "name": "Timed snapshot",
             "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'snapshot')}",
             "topic": self.get_state_topic(device_id, "snapshot"),
             "image_encoding": "b64",
@@ -110,7 +109,34 @@ class AmcrestMixin:
             "via_device": self.get_service_device(),
             "device": device_block,
         }
-        self.upsert_state(device_id, image={"snapshot": None})
+
+        modes["recording_time"] = {
+            "component_type": "sensor",
+            "name": "Recording time",
+            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'recording_time')}",
+            "stat_t": self.get_state_topic(device_id, "recording_time"),
+            "avty_t": self.get_state_topic(device_id, "attributes"),
+            "avty_tpl": "{{ value_json.camera }}",
+            "json_attributes_topic": self.get_state_topic(device_id, "attributes"),
+            "device_class": "timestamp",
+            "icon": "mdi:clock",
+            "via_device": self.get_service_device(),
+            "device": device_block,
+        }
+
+        modes["recording_url"] = {
+            "component_type": "sensor",
+            "name": "Recording url",
+            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'recording_url')}",
+            "stat_t": self.get_state_topic(device_id, "recording_url"),
+            "avty_t": self.get_state_topic(device_id, "attributes"),
+            "avty_tpl": "{{ value_json.camera }}",
+            "clip_url": f"media-source://media_source/local/Videos/amcrest/{device["device_name"]}-latest.mp4",
+            "json_attributes_topic": self.get_state_topic(device_id, "attributes"),
+            "icon": "mdi:web",
+            "via_device": self.get_service_device(),
+            "device": device_block,
+        }
 
         modes["privacy"] = {
             "component_type": "switch",
@@ -119,11 +145,11 @@ class AmcrestMixin:
             "stat_t": self.get_state_topic(device_id, "switch", "privacy"),
             "avty_t": self.get_state_topic(device_id, "attributes"),
             "avty_tpl": "{{ value_json.camera }}",
-            "cmd_t": self.get_command_topic(device_id, "switch"),
+            "cmd_t": self.get_command_topic(device_id, "switch", "privacy"),
             "payload_on": "ON",
             "payload_off": "OFF",
             "device_class": "switch",
-            "icon": "mdi:camera-off",
+            "icon": "mdi:camera-outline",
             "via_device": self.get_service_device(),
             "device": device_block,
         }
@@ -135,11 +161,27 @@ class AmcrestMixin:
             "stat_t": self.get_state_topic(device_id, "switch", "motion_detection"),
             "avty_t": self.get_state_topic(device_id, "attributes"),
             "avty_tpl": "{{ value_json.camera }}",
-            "cmd_t": self.get_command_topic(device_id, "switch"),
+            "cmd_t": self.get_command_topic(device_id, "switch", "motion_detection"),
             "payload_on": "ON",
             "payload_off": "OFF",
             "device_class": "switch",
             "icon": "mdi:motion-sensor",
+            "via_device": self.get_service_device(),
+            "device": device_block,
+        }
+
+        modes["save_recordings"] = {
+            "component_type": "switch",
+            "name": "Save recordings",
+            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'save_recordings')}",
+            "stat_t": self.get_state_topic(device_id, "switch", "save_recordings"),
+            "avty_t": self.get_state_topic(device_id, "internal"),
+            "avty_tpl": "{{ value_json.media_path }}",
+            "cmd_t": self.get_command_topic(device_id, "switch", "save_recordings"),
+            "payload_on": "ON",
+            "payload_off": "OFF",
+            "device_class": "switch",
+            "icon": "mdi:content-save-outline",
             "via_device": self.get_service_device(),
             "device": device_block,
         }
@@ -154,7 +196,7 @@ class AmcrestMixin:
             "payload_on": True,
             "payload_off": False,
             "device_class": "motion",
-            "icon": "mdi:motion-sensor-alarm",
+            "icon": "mdi:eye-outline",
             "via_device": self.get_service_device(),
             "device": device_block,
         }
@@ -166,7 +208,22 @@ class AmcrestMixin:
             "stat_t": self.get_state_topic(device_id, "sensor", "motion_region"),
             "avty_t": self.get_state_topic(device_id, "attributes"),
             "avty_tpl": "{{ value_json.camera }}",
-            "icon": "mdi:location",
+            "icon": "mdi:map-marker",
+            "via_device": self.get_service_device(),
+            "device": device_block,
+        }
+
+        modes["motion_snapshot"] = {
+            "component_type": "image",
+            "name": "Motion snapshot",
+            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'motion_snapshot')}",
+            "topic": self.get_state_topic(device_id, "motion_snapshot"),
+            "image_encoding": "b64",
+            "content_type": "image/jpeg",
+            "avty_t": self.get_state_topic(device_id, "attributes"),
+            "avty_tpl": "{{ value_json.camera }}",
+            "json_attributes_topic": self.get_state_topic(device_id, "attributes"),
+            "icon": "mdi:camera",
             "via_device": self.get_service_device(),
             "device": device_block,
         }
@@ -225,7 +282,6 @@ class AmcrestMixin:
             "stat_t": self.get_state_topic(device_id, "sensor", "event_text"),
             "avty_t": self.get_state_topic(device_id, "attributes"),
             "avty_tpl": "{{ value_json.camera }}",
-            "entity_category": "diagnostic",
             "icon": "mdi:note",
             "via_device": self.get_service_device(),
             "device": device_block,
@@ -238,8 +294,7 @@ class AmcrestMixin:
             "avty_t": self.get_state_topic(device_id, "attributes"),
             "avty_tpl": "{{ value_json.camera }}",
             "device_class": "timestamp",
-            "entity_category": "diagnostic",
-            "icon": "mdi:calendar",
+            "icon": "mdi:clock",
             "via_device": self.get_service_device(),
             "device": device_block,
         }
@@ -277,18 +332,21 @@ class AmcrestMixin:
         # defaults - which build_device_states doesn't update (events do)
         self.upsert_state(
             device_id,
-            internal={"discovered": False},
+            internal={"discovered": False, "media_path": True if "path" in self.config["media"] else False},
             camera={"video": None},
-            image={"snapshot": None},
+            image={"snapshot": None, "motion_snapshot": None},
+            switch={"save_recordings": "ON" if "path" in self.config["media"] else "OFF"},
             binary_sensor={
                 "motion": False,
                 "doorbell": False,
                 "human": False,
             },
             sensor={
-                "motion_region": None,
+                "motion_region": "n/a",
                 "event_text": None,
                 "event_time": None,
+                "recording_time": None,
+                "recording_url": None,
             },
         )
         self.upsert_device(device_id, component=component, modes=modes)

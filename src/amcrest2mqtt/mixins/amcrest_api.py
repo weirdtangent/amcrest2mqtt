@@ -123,11 +123,13 @@ class AmcrestAPIMixin(object):
             self.logger.error(f"Failed to communicate with device ({self.get_device_name(device_id)}) for storage stats")
         except LoginError:
             self.logger.error(f"Failed to authenticate with device ({self.get_device_name(device_id)}) for storage stats")
+        if not storage:
+            return
 
         return {
-            "used_percent": str(storage["used_percent"]),
-            "used": self.to_gb(storage["used"]),
-            "total": self.to_gb(storage["total"]),
+            "used_percent": storage.get("used_percent", "unknown"),
+            "used": self.b_to_gb(storage["used"][0]),
+            "total": self.b_to_gb(storage["total"][0]),
         }
 
     # Privacy config ------------------------------------------------------------------------------
@@ -252,7 +254,7 @@ class AmcrestAPIMixin(object):
 
     # Recorded file -------------------------------------------------------------------------------
 
-    def get_recorded_file(self, device_id: str, file: str) -> str | None:
+    def get_recorded_file(self, device_id: str, file: str, encode: bool = True) -> str | None:
         device = self.amcrest_devices[device_id]
 
         tries = 0
@@ -260,14 +262,20 @@ class AmcrestAPIMixin(object):
             try:
                 data_raw = device["camera"].download_file(file)
                 if data_raw:
+                    if not encode:
+                        if len(data_raw) < self.mb_to_b(100):
+                            return data_raw
+                        else:
+                            self.logger.error(f"Raw recording is too large: {self.b_to_mb(len(data_raw))} MB")
+                            return
                     data_base64 = base64.b64encode(data_raw)
                     self.logger.info(
                         f"Processed recording from ({self.get_device_name(device_id)}) {len(data_raw)} bytes raw, and {len(data_base64)} bytes base64"
                     )
-                    if len(data_base64) < 100 * 1024 * 1024 * 1024:
+                    if len(data_base64) < self.mb_to_b(100):
                         return data_base64
                     else:
-                        self.logger.error("Processed recording is too large")
+                        self.logger.error(f"Encoded recording is too large: {self.b_to_mb(len(data_base64))} MB")
                         return
             except CommError:
                 tries += 1

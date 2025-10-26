@@ -31,5 +31,9 @@ amcrest:
       - FrontYard
       - Patio
 
+media:
+  path: /media
+  media_source: media-source://media_source/local/videos
+
 timezone: America/New_York
 hide_ts: False
