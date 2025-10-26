@@ -163,11 +163,11 @@ jobs:
           build-args: |
             VERSION=${{ env.VERSION }}
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/arm64,linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
           labels: |
+            ${{ steps.meta.outputs.labels }}
             org.opencontainers.image.version=${{ env.RELEASE_TAG }}
             org.opencontainers.image.title=amcrest2mqtt
             org.opencontainers.image.source=${{ github.repository }}
