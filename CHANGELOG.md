@@ -1,3 +1,10 @@
+## [2.0.1](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.0...v2.0.1) (2025-10-27)
+
+
+### Bug Fixes
+
+* when motion goes idle, also clear region ([ec3f096](https://github.com/weirdtangent/amcrest2mqtt/commit/ec3f0962461cebde8735c675fdf847de7b06120c))
+
 # [2.0.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v1.1.0...v2.0.0) (2025-10-26)
 
 
