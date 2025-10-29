@@ -18,7 +18,7 @@ class PublishMixin:
         )
 
         self.logger.info("Publishing service entity")
-        self.mqtt_safe_publish(
+        self.mqtt_helper.safe_publish(
             topic=self.mqtt_helper.disc_t("binary_sensor", "service"),
             payload=json.dumps(
                 {
@@ -40,7 +40,7 @@ class PublishMixin:
             retain=True,
         )
 
-        self.mqtt_safe_publish(
+        self.mqtt_helper.safe_publish(
             topic=self.mqtt_helper.disc_t("sensor", "api_calls"),
             payload=json.dumps(
                 {
@@ -58,7 +58,7 @@ class PublishMixin:
             qos=self.mqtt_config["qos"],
             retain=True,
         )
-        self.mqtt_safe_publish(
+        self.mqtt_helper.safe_publish(
             topic=self.mqtt_helper.disc_t("binary_sensor", "rate_limited"),
             payload=json.dumps(
                 {
@@ -77,7 +77,7 @@ class PublishMixin:
             qos=self.mqtt_config["qos"],
             retain=True,
         )
-        self.mqtt_safe_publish(
+        self.mqtt_helper.safe_publish(
             topic=self.mqtt_helper.disc_t("number", "storage_refresh"),
             payload=json.dumps(
                 {
@@ -98,7 +98,7 @@ class PublishMixin:
             qos=self.mqtt_config["qos"],
             retain=True,
         )
-        self.mqtt_safe_publish(
+        self.mqtt_helper.safe_publish(
             topic=self.mqtt_helper.disc_t("number", "device_list_refresh"),
             payload=json.dumps(
                 {
@@ -119,7 +119,7 @@ class PublishMixin:
             qos=self.mqtt_config["qos"],
             retain=True,
         )
-        self.mqtt_safe_publish(
+        self.mqtt_helper.safe_publish(
             topic=self.mqtt_helper.disc_t("number", "snapshot_refresh"),
             payload=json.dumps(
                 {
@@ -140,7 +140,7 @@ class PublishMixin:
             qos=self.mqtt_config["qos"],
             retain=True,
         )
-        self.mqtt_safe_publish(
+        self.mqtt_helper.safe_publish(
             topic=self.mqtt_helper.disc_t("button", "refresh_device_list"),
             payload=json.dumps(
                 {
@@ -158,7 +158,7 @@ class PublishMixin:
         self.logger.debug(f"[HA] Discovery published for {self.service} ({self.mqtt_helper.service_slug})")
 
     def publish_service_availability(self: Amcrest2Mqtt, status: str = "online") -> None:
-        self.mqtt_safe_publish(self.mqtt_helper.avty_t("service"), status, qos=self.qos, retain=True)
+        self.mqtt_helper.safe_publish(self.mqtt_helper.avty_t("service"), status, qos=self.qos, retain=True)
 
     def publish_service_state(self: Amcrest2Mqtt) -> None:
         service = {
@@ -177,7 +177,7 @@ class PublishMixin:
             else:
                 payload = json.dumps(value)
 
-            self.mqtt_safe_publish(
+            self.mqtt_helper.safe_publish(
                 self.mqtt_helper.stat_t("service", "service", key),
                 payload,
                 qos=self.mqtt_config["qos"],
@@ -198,7 +198,7 @@ class PublishMixin:
             payload = {k: v for k, v in defn.items() if k != "component_type"}
 
             # Publish discovery
-            self.mqtt_safe_publish(topic, json.dumps(payload), retain=True)
+            self.mqtt_helper.safe_publish(topic, json.dumps(payload), retain=True)
 
             # Mark discovered in state (per published entity)
             self.states.setdefault(eff_device_id, {}).setdefault("internal", {})["discovered"] = 1
@@ -215,7 +215,7 @@ class PublishMixin:
         payload = "online" if online else "offline"
 
         avty_t = self.get_device_availability_topic(device_id)
-        self.mqtt_safe_publish(avty_t, payload, retain=True)
+        self.mqtt_helper.safe_publish(avty_t, payload, retain=True)
 
     def publish_device_state(self: Amcrest2Mqtt, device_id: str) -> None:
         def _publish_one(dev_id: str, defn: str | dict[str, Any], suffix: str = "") -> None:
@@ -230,9 +230,9 @@ class PublishMixin:
                 meta = self.states[dev_id].get("meta")
                 if isinstance(meta, dict) and "last_update" in meta:
                     flat["last_update"] = meta["last_update"]
-                self.mqtt_safe_publish(topic, json.dumps(flat), retain=True)
+                self.mqtt_helper.safe_publish(topic, json.dumps(flat), retain=True)
             else:
-                self.mqtt_safe_publish(topic, defn, retain=True)
+                self.mqtt_helper.safe_publish(topic, defn, retain=True)
 
         if not self.is_discovered(device_id):
             self.logger.debug(f"[device state] Discovery not complete for {device_id} yet, holding off on sending state")
