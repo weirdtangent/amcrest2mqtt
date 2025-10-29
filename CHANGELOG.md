@@ -1,3 +1,10 @@
+## [2.0.4](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.3...v2.0.4) (2025-10-29)
+
+
+### Bug Fixes
+
+* adjust server avty and states ([06e6ce2](https://github.com/weirdtangent/amcrest2mqtt/commit/06e6ce24bb7f802d4c118c7c2f85d31907be6338))
+
 ## [2.0.3](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.2...v2.0.3) (2025-10-29)
 
 
