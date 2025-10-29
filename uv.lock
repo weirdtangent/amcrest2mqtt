@@ -320,7 +320,7 @@ wheels = [
 [[package]]
 name = "mqtt-helper-graystorm"
 version = "0.1.0"
-source = { git = "https://github.com/weirdtangent/mqtt-helper.git?branch=main#914f89a54a637e56ef61d496adfb6501f87963b2" }
+source = { git = "https://github.com/weirdtangent/mqtt-helper.git?branch=main#8772e3b3aab4cefc1ace2fdc0f96911609f22eb3" }
 
 [[package]]
 name = "mypy"
