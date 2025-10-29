@@ -1,18 +1,15 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
 import asyncio
-from typing import TYPE_CHECKING
+import json
+from typing import TYPE_CHECKING, cast, Any
 from datetime import datetime, timezone
 
 if TYPE_CHECKING:
-    from amcrest2mqtt.core import Amcrest2Mqtt
-    from amcrest2mqtt.interface import AmcrestServiceProtocol
+    from amcrest2mqtt.interface import AmcrestServiceProtocol as Amcrest2Mqtt
 
 
 class EventsMixin:
-    if TYPE_CHECKING:
-        self: "AmcrestServiceProtocol"
-
     async def collect_all_device_events(self: Amcrest2Mqtt) -> None:
         tasks = [self.get_events_from_device(device_id) for device_id in self.amcrest_devices]
         await asyncio.gather(*tasks)
@@ -20,15 +17,13 @@ class EventsMixin:
     async def check_for_events(self: Amcrest2Mqtt) -> None:
         try:
             while device_event := self.get_next_event():
-                if device_event is None:
-                    break
                 if "device_id" not in device_event:
-                    self.logger(f"Got event, but missing device_id: {device_event}")
+                    self.logger.error(f"Got event, but missing device_id: {json.dumps(device_event)}")
                     continue
 
-                device_id = device_event["device_id"]
-                event = device_event["event"]
-                payload = device_event["payload"]
+                device_id = str(device_event["device_id"])
+                event = cast(str, device_event["event"])
+                payload = cast(dict[str, Any], device_event["payload"])
 
                 device_states = self.states[device_id]
 

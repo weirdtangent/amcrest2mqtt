@@ -5,15 +5,11 @@ import signal
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from amcrest2mqtt.core import Amcrest2Mqtt
-    from amcrest2mqtt.interface import AmcrestServiceProtocol
+    from amcrest2mqtt.interface import AmcrestServiceProtocol as Amcrest2Mqtt
 
 
 class LoopsMixin:
-    if TYPE_CHECKING:
-        self: "AmcrestServiceProtocol"
-
-    async def device_loop(self: Amcrest2Mqtt):
+    async def device_loop(self: Amcrest2Mqtt) -> None:
         while self.running:
             await self.refresh_all_devices()
             try:
@@ -22,7 +18,7 @@ class LoopsMixin:
                 self.logger.debug("device_loop cancelled during sleep")
                 break
 
-    async def collect_events_loop(self: Amcrest2Mqtt):
+    async def collect_events_loop(self: Amcrest2Mqtt) -> None:
         while self.running:
             await self.collect_all_device_events()
             try:
@@ -31,7 +27,7 @@ class LoopsMixin:
                 self.logger.debug("collect_events_loop cancelled during sleep")
                 break
 
-    async def check_event_queue_loop(self: Amcrest2Mqtt):
+    async def check_event_queue_loop(self: Amcrest2Mqtt) -> None:
         while self.running:
             await self.check_for_events()
             try:
@@ -40,17 +36,17 @@ class LoopsMixin:
                 self.logger.debug("check_event_queue_loop cancelled during sleep")
                 break
 
-    async def collect_snapshots_loop(self: Amcrest2Mqtt):
+    async def collect_snapshots_loop(self: Amcrest2Mqtt) -> None:
         while self.running:
             await self.collect_all_device_snapshots()
             try:
-                await asyncio.sleep(self.snapshot_update_interval)
+                await asyncio.sleep(self.snapshot_update_interval * 60)
             except asyncio.CancelledError:
                 self.logger.debug("collect_snapshots_loop cancelled during sleep")
                 break
 
     # main loop
-    async def main_loop(self: Amcrest2Mqtt):
+    async def main_loop(self: Amcrest2Mqtt) -> None:
         await self.setup_device_list()
 
         self.loop = asyncio.get_running_loop()
@@ -70,11 +66,7 @@ class LoopsMixin:
         ]
 
         try:
-            results = await asyncio.gather(*tasks)
-            for result in results:
-                if isinstance(result, Exception):
-                    self.logger.error(f"Task raised exception: {result}", exc_info=True)
-                    self.running = False
+            await asyncio.gather(*tasks)
         except asyncio.CancelledError:
             self.logger.warning("Main loop cancelled — shutting down...")
         except Exception as err:

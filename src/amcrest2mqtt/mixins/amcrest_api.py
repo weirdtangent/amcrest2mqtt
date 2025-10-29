@@ -1,32 +1,29 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
-from amcrest import AmcrestCamera, AmcrestError, CommError, LoginError
+from amcrest import AmcrestCamera
+from amcrest.exceptions import LoginError, AmcrestError, CommError
 import asyncio
 import base64
 from datetime import datetime, timezone
 import random
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
-    from amcrest2mqtt.core import Amcrest2Mqtt
-    from amcrest2mqtt.interface import AmcrestServiceProtocol
+    from amcrest2mqtt.interface import AmcrestServiceProtocol as Amcrest2Mqtt
 
 SNAPSHOT_TIMEOUT_S = 10
 SNAPSHOT_MAX_TRIES = 3
 SNAPSHOT_BASE_BACKOFF_S = 0.5
 
 
-class AmcrestAPIMixin(object):
-    if TYPE_CHECKING:
-        self: "AmcrestServiceProtocol"
-
-    def get_api_calls(self: Amcrest2Mqtt):
+class AmcrestAPIMixin:
+    def get_api_calls(self: Amcrest2Mqtt) -> int:
         return self.api_calls
 
-    def get_last_call_date(self: Amcrest2Mqtt):
+    def get_last_call_date(self: Amcrest2Mqtt) -> str:
         return self.last_call_date
 
-    def is_rate_limited(self: Amcrest2Mqtt):
+    def is_rate_limited(self: Amcrest2Mqtt) -> bool:
         return self.rate_limited
 
     # ----------------------------------------------------------------------------------------------
@@ -34,31 +31,34 @@ class AmcrestAPIMixin(object):
     async def connect_to_devices(self: Amcrest2Mqtt) -> dict[str, Any]:
         semaphore = asyncio.Semaphore(5)
 
-        async def _connect_device(host, name):
+        async def _connect_device(host: str, name: str, index: int) -> None:
             async with semaphore:
-                await asyncio.to_thread(self.get_device, host, name)
+                await asyncio.to_thread(self.get_device, host, name, index)
 
         self.logger.info(f'Connecting to: {self.amcrest_config["hosts"]}')
 
         tasks = []
-        for host, name in zip(self.amcrest_config["hosts"], self.amcrest_config["names"]):
-            tasks.append(_connect_device(host, name))
+        index = 0
+        for host, name in zip(cast(str, self.amcrest_config["hosts"]), cast(str, self.amcrest_config["names"])):
+            tasks.append(_connect_device(host, name, index))
+            index += 1
         await asyncio.gather(*tasks)
 
         self.logger.info("Connecting to hosts done.")
         return {d: self.amcrest_devices[d]["config"] for d in self.amcrest_devices.keys()}
 
-    def get_camera(self, host: str) -> AmcrestCamera:
+    def get_camera(self: Amcrest2Mqtt, host: str) -> AmcrestCamera:
         config = self.amcrest_config
-        return AmcrestCamera(host, config["port"], config["username"], config["password"], verbose=False).camera
+        return AmcrestCamera(host, config["port"], config["username"], config["password"], verbose=False)
 
-    def get_device(self, host: str, device_name: str) -> None:
+    def get_device(self: Amcrest2Mqtt, host: str, device_name: str, index: int) -> None:
         camera = None
         try:
             # resolve host and setup camera by ip so we aren't making 100k DNS lookups per day
             try:
                 host_ip = self.get_ip_address(host)
-                camera = self.get_camera(host_ip)
+                device = self.get_camera(host_ip)
+                camera = device.camera
             except Exception as err:
                 self.logger.error(f"Error with {host}: {err}")
                 return
@@ -69,9 +69,6 @@ class AmcrestAPIMixin(object):
             is_doorbell = is_ad110 or is_ad410
 
             serial_number = camera.serial_number
-            if not isinstance(serial_number, str):
-                self.logger.error(f"Error fetching serial number for {host}: {camera.serial_number}")
-                exit(1)
 
             version = camera.software_information[0].replace("version=", "").strip()
             build = camera.software_information[1].strip()
@@ -89,6 +86,7 @@ class AmcrestAPIMixin(object):
                 "camera": camera,
                 "config": {
                     "host": host,
+                    "index": index,
                     "host_ip": host_ip,
                     "device_name": device_name,
                     "device_type": device_type,
@@ -116,15 +114,15 @@ class AmcrestAPIMixin(object):
 
     # Storage stats -------------------------------------------------------------------------------
 
-    def get_storage_stats(self, device_id: str) -> dict[str, str]:
+    def get_storage_stats(self: Amcrest2Mqtt, device_id: str) -> dict[str, str | float]:
         try:
             storage = self.amcrest_devices[device_id]["camera"].storage_all
         except CommError:
             self.logger.error(f"Failed to communicate with device ({self.get_device_name(device_id)}) for storage stats")
+            return {}
         except LoginError:
             self.logger.error(f"Failed to authenticate with device ({self.get_device_name(device_id)}) for storage stats")
-        if not storage:
-            return
+            return {}
 
         return {
             "used_percent": storage.get("used_percent", "unknown"),
@@ -134,7 +132,7 @@ class AmcrestAPIMixin(object):
 
     # Privacy config ------------------------------------------------------------------------------
 
-    def get_privacy_mode(self, device_id: str) -> bool:
+    def get_privacy_mode(self: Amcrest2Mqtt, device_id: str) -> bool:
         device = self.amcrest_devices[device_id]
 
         try:
@@ -148,11 +146,11 @@ class AmcrestAPIMixin(object):
 
         return privacy_mode
 
-    def set_privacy_mode(self, device_id: str, switch: bool) -> str:
+    def set_privacy_mode(self: Amcrest2Mqtt, device_id: str, switch: bool) -> str:
         device = self.amcrest_devices[device_id]
 
         try:
-            response = device["camera"].set_privacy(switch).strip()
+            response = cast(str, device["camera"].set_privacy(switch).strip())
         except CommError:
             self.logger.error(f"Failed to communicate with device ({self.get_device_name(device_id)}) to set privacy mode")
         except LoginError:
@@ -161,27 +159,37 @@ class AmcrestAPIMixin(object):
 
     # Motion detection config ---------------------------------------------------------------------
 
-    def get_motion_detection(self, device_id: str) -> bool:
+    def get_motion_detection(self: Amcrest2Mqtt, device_id: str) -> bool:
         device = self.amcrest_devices[device_id]
+        if not device["camera"]:
+            self.logger.warning(f"Cannot get motion_detection, no camera found for {self.get_device_name(device_id)}")
+            return False
 
         try:
-            motion_detection = device["camera"].is_motion_detector_on()
+            motion_detection: bool = device["camera"].is_motion_detector_on()
         except CommError:
             self.logger.error(f"Failed to communicate with device ({self.get_device_name(device_id)}) to get motion detection")
+            return False
         except LoginError:
             self.logger.error(f"Failed to authenticate with device ({self.get_device_name(device_id)}) to get motion detection")
+            return False
 
         return motion_detection
 
-    def set_motion_detection(self, device_id: str, switch: bool) -> str:
+    def set_motion_detection(self: Amcrest2Mqtt, device_id: str, switch: bool) -> str:
         device = self.amcrest_devices[device_id]
+        if not device["camera"]:
+            self.logger.warning(f"Cannot set motion_detection, no camera found for {self.get_device_name(device_id)}")
+            return ""
 
         try:
-            response = device["camera"].set_motion_detection(switch)
+            response = str(device["camera"].set_motion_detection(switch))
         except CommError:
             self.logger.error(f"Failed to communicate with device ({self.get_device_name(device_id)}) to set motion detections")
+            return ""
         except LoginError:
             self.logger.error(f"Failed to authenticate with device ({self.get_device_name(device_id)}) to set motion detections")
+            return ""
 
         return response
 
@@ -191,7 +199,7 @@ class AmcrestAPIMixin(object):
         tasks = [self.get_snapshot_from_device(device_id) for device_id in self.amcrest_devices]
         await asyncio.gather(*tasks)
 
-    async def get_snapshot_from_device(self, device_id: str) -> str | None:
+    async def get_snapshot_from_device(self: Amcrest2Mqtt, device_id: str) -> str | None:
         device = self.amcrest_devices[device_id]
 
         # Respect privacy mode (default False if missing)
@@ -249,34 +257,34 @@ class AmcrestAPIMixin(object):
         self.logger.error(f"Snapshot: failed after {SNAPSHOT_MAX_TRIES} tries for {self.get_device_name(device_id)}")
         return None
 
-    def get_snapshot(self, device_id: str) -> str | None:
+    def get_snapshot(self: Amcrest2Mqtt, device_id: str) -> str | None:
         return self.amcrest_devices[device_id]["snapshot"] if "snapshot" in self.devices[device_id] else None
 
     # Recorded file -------------------------------------------------------------------------------
 
-    def get_recorded_file(self, device_id: str, file: str, encode: bool = True) -> str | None:
+    def get_recorded_file(self: Amcrest2Mqtt, device_id: str, file: str, encode: bool = True) -> str | None:
         device = self.amcrest_devices[device_id]
 
         tries = 0
         while tries < 3:
             try:
-                data_raw = device["camera"].download_file(file)
+                data_raw = cast(bytes, device["camera"].download_file(file))
                 if data_raw:
                     if not encode:
                         if len(data_raw) < self.mb_to_b(100):
-                            return data_raw
+                            return data_raw.decode("latin-1")
                         else:
                             self.logger.error(f"Raw recording is too large: {self.b_to_mb(len(data_raw))} MB")
-                            return
+                            return None
                     data_base64 = base64.b64encode(data_raw)
                     self.logger.info(
                         f"Processed recording from ({self.get_device_name(device_id)}) {len(data_raw)} bytes raw, and {len(data_base64)} bytes base64"
                     )
                     if len(data_base64) < self.mb_to_b(100):
-                        return data_base64
+                        return data_raw.decode("latin-1")
                     else:
                         self.logger.error(f"Encoded recording is too large: {self.b_to_mb(len(data_base64))} MB")
-                        return
+                        return None
             except CommError:
                 tries += 1
             except LoginError:
@@ -284,6 +292,7 @@ class AmcrestAPIMixin(object):
 
         if tries == 3:
             self.logger.error(f"Failed to communicate with device ({self.get_device_name(device_id)}) to get recorded file")
+        return None
 
     # Events --------------------------------------------------------------------------------------
 
@@ -291,7 +300,7 @@ class AmcrestAPIMixin(object):
         tasks = [self.get_events_from_device(device_id) for device_id in self.amcrest_devices]
         await asyncio.gather(*tasks)
 
-    async def get_events_from_device(self, device_id: str) -> None:
+    async def get_events_from_device(self: Amcrest2Mqtt, device_id: str) -> None:
         device = self.amcrest_devices[device_id]
 
         tries = 0
@@ -307,7 +316,7 @@ class AmcrestAPIMixin(object):
         if tries == 3:
             self.logger.error(f"Failed to communicate for events for device ({self.get_device_name(device_id)})")
 
-    async def process_device_event(self, device_id: str, code: str, payload: Any):
+    async def process_device_event(self: Amcrest2Mqtt, device_id: str, code: str, payload: Any) -> None:
         try:
             device = self.amcrest_devices[device_id]
             config = device["config"]
@@ -357,5 +366,5 @@ class AmcrestAPIMixin(object):
         except Exception as err:
             self.logger.error(f"Failed to process event from {self.get_device_name(device_id)}: {err}", exc_info=True)
 
-    def get_next_event(self: Amcrest2Mqtt) -> str | None:
+    def get_next_event(self: Amcrest2Mqtt) -> dict[str, Any] | None:
         return self.events.pop(0) if len(self.events) > 0 else None

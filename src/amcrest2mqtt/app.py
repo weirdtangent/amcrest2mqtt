@@ -9,6 +9,8 @@ import asyncio
 import argparse
 from json_logging import setup_logging, get_logger
 from .core import Amcrest2Mqtt
+from .mixins.helpers import ConfigError
+from .mixins.mqtt import MqttError
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -22,12 +24,12 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
-def main(argv=None):
+def main() -> int:
     setup_logging()
     logger = get_logger(__name__)
 
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args()
 
     try:
         with Amcrest2Mqtt(args=args) as amcrest2mqtt:
@@ -40,11 +42,21 @@ def main(argv=None):
                     loop.run_until_complete(amcrest2mqtt.main_loop())
                 else:
                     raise
+    except ConfigError as e:
+        logger.error(f"Fatal config error was found: {e}")
+        return 1
+    except MqttError as e:
+        logger.error(f"MQTT service problems: {e}")
+        return 1
     except KeyboardInterrupt:
         logger.warning("Shutdown requested (Ctrl+C). Exiting gracefully...")
+        return 1
     except asyncio.CancelledError:
         logger.warning("Main loop cancelled.")
+        return 1
     except Exception as e:
         logger.error(f"unhandled exception: {e}", exc_info=True)
+        return 1
     finally:
         logger.info("amcrest2mqtt stopped.")
+    return 0

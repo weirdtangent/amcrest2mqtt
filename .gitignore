@@ -1,6 +1,8 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+*.egg
+*.egg-info/
 
 # Distribution / packaging
 .Python
@@ -14,6 +16,7 @@ node_modules/
 .env
 .venv
 venv/
+.vscode/
 
 # Local testing and notes
 config
