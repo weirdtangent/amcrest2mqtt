@@ -131,7 +131,7 @@ class AmcrestMixin:
             "component_type": "sensor",
             "name": "Recording time",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "recording_time"),
-            "stat_t": self.mqtt_helper.stat_t(device_id, "recording_time"),
+            "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "recording_time"),
             "avty_t": self.mqtt_helper.avty_t(device_id),
             "device_class": "timestamp",
             "icon": "mdi:clock",

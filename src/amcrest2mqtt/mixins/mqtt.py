@@ -52,7 +52,7 @@ class MqttMixin:
         self.mqttc.on_log = self.mqtt_on_log
 
         # Define a "last will" message (LWT):
-        self.mqttc.will_set(self.mqtt_helper.svc_t("status"), "offline", qos=1, retain=True)
+        self.mqttc.will_set(self.mqtt_helper.avty_t("service"), "offline", qos=1, retain=True)
 
         try:
             host = self.mqtt_config["host"]

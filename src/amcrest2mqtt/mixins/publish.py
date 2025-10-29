@@ -1,4 +1,3 @@
-from datetime import datetime
 import json
 from typing import TYPE_CHECKING, Any
 
@@ -25,7 +24,8 @@ class PublishMixin:
                 {
                     "name": self.service_name,
                     "uniq_id": self.mqtt_helper.svc_unique_id("service"),
-                    "stat_t": self.mqtt_helper.svc_t("service"),
+                    "stat_t": self.mqtt_helper.stat_t("service", "service"),
+                    "avty_t": self.mqtt_helper.avty_t("service"),
                     "device_class": "connectivity",
                     "icon": "mdi:server",
                     "device": device_block,
@@ -46,8 +46,9 @@ class PublishMixin:
                 {
                     "name": f"{self.service_name} API Calls Today",
                     "uniq_id": self.mqtt_helper.svc_unique_id("api_calls"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service", "api_calls"),
-                    "json_attr_t": self.mqtt_helper.attr_t("service", "service", "api_calls", "attributes"),
+                    "stat_t": self.mqtt_helper.stat_t("service", "service"),
+                    "value_template": "{{ value_json.api_calls }}",
+                    "avty_t": self.mqtt_helper.avty_t("service"),
                     "unit_of_measurement": "calls",
                     "icon": "mdi:api",
                     "state_class": "total_increasing",
@@ -63,8 +64,9 @@ class PublishMixin:
                 {
                     "name": f"{self.service_name} Rate Limited by Amcrest",
                     "uniq_id": self.mqtt_helper.svc_unique_id("rate_limited"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service", "rate_limited"),
-                    "json_attr_t": self.mqtt_helper.attr_t("service", "service", "rate_limited", "attributes"),
+                    "stat_t": self.mqtt_helper.stat_t("service", "service"),
+                    "value_template": "{{ value_json.rate_limited }}",
+                    "avty_t": self.mqtt_helper.avty_t("service"),
                     "payload_on": "YES",
                     "payload_off": "NO",
                     "device_class": "problem",
@@ -81,8 +83,9 @@ class PublishMixin:
                 {
                     "name": f"{self.service_name} Device Refresh Interval",
                     "uniq_id": self.mqtt_helper.svc_unique_id("storage_refresh"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service", "storage_refresh"),
-                    "json_attr_t": self.mqtt_helper.attr_t("service", "service", "storage_refresh", "attributes"),
+                    "stat_t": self.mqtt_helper.stat_t("service", "service"),
+                    "value_template": "{{ value_json.storage_refresh }}",
+                    "avty_t": self.mqtt_helper.avty_t("service"),
                     "cmd_t": self.mqtt_helper.cmd_t("service", "storage_refresh"),
                     "unit_of_measurement": "s",
                     "min": 1,
@@ -101,8 +104,9 @@ class PublishMixin:
                 {
                     "name": f"{self.service_name} Device List Refresh Interval",
                     "uniq_id": self.mqtt_helper.svc_unique_id("device_list_refresh"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service", "device_list_refresh"),
-                    "json_attr_t": self.mqtt_helper.attr_t("service", "service", "device_list_refresh", "attributes"),
+                    "stat_t": self.mqtt_helper.stat_t("service", "service"),
+                    "value_template": "{{ value_json.device_list_refresh }}",
+                    "avty_t": self.mqtt_helper.avty_t("service"),
                     "cmd_t": self.mqtt_helper.cmd_t("service", "device_list_refresh"),
                     "unit_of_measurement": "s",
                     "min": 1,
@@ -121,8 +125,9 @@ class PublishMixin:
                 {
                     "name": f"{self.service_name} Snapshot Refresh Interval",
                     "uniq_id": self.mqtt_helper.svc_unique_id("snapshot_refresh"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service", "snapshot_refresh"),
-                    "json_attr_t": self.mqtt_helper.attr_t("service", "service", "snapshot_refresh", "attributes"),
+                    "stat_t": self.mqtt_helper.stat_t("service", "service"),
+                    "value_template": "{{ value_json.snapshot_refresh }}",
+                    "avty_t": self.mqtt_helper.avty_t("service"),
                     "cmd_t": self.mqtt_helper.cmd_t("service", "snapshot_refresh"),
                     "unit_of_measurement": "m",
                     "min": 1,
@@ -152,16 +157,13 @@ class PublishMixin:
         )
         self.logger.debug(f"[HA] Discovery published for {self.service} ({self.mqtt_helper.service_slug})")
 
-    def publish_service_availability(self: Amcrest2Mqtt, avail: str = "online") -> None:
-        self.mqtt_safe_publish(self.mqtt_helper.svc_t("status"), avail, qos=self.qos, retain=True)
+    def publish_service_availability(self: Amcrest2Mqtt, status: str = "online") -> None:
+        self.mqtt_safe_publish(self.mqtt_helper.avty_t("service"), status, qos=self.qos, retain=True)
 
     def publish_service_state(self: Amcrest2Mqtt) -> None:
         service = {
-            "state": "online",
-            "api_calls": {
-                "api_calls": self.get_api_calls(),
-                "last_api_call": self.get_last_call_date(),
-            },
+            "api_calls": self.get_api_calls(),
+            "last_api_call": self.get_last_call_date(),
             "rate_limited": "YES" if self.is_rate_limited() else "NO",
             "storage_refresh": self.device_interval,
             "device_list_refresh": self.device_list_interval,
@@ -170,13 +172,10 @@ class PublishMixin:
 
         payload: Any
         for key, value in service.items():
-            if isinstance(value, dict):
-                payload = value.get(key)
-                if isinstance(payload, datetime):
-                    payload = payload.isoformat()
-                payload = json.dumps(payload)
-            else:
+            if not isinstance(value, dict):
                 payload = str(value)
+            else:
+                payload = json.dumps(value)
 
             self.mqtt_safe_publish(
                 self.mqtt_helper.stat_t("service", "service", key),
