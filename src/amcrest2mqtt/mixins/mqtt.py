@@ -203,7 +203,7 @@ class MqttMixin:
         joined = "; ".join(reason_names) if reason_names else "none"
         self.logger.debug(f"MQTT subscribed (mid={mid}): {joined}")
 
-    def mqtt_safe_publish(self: Amcrest2Mqtt, topic: str, payload: str | bool | int | dict, **kwargs: Any) -> None:
+    def mqtt_safe_publish(self: Amcrest2Mqtt, topic: str, payload: str | bool | int | dict | None, **kwargs: Any) -> None:
         if not topic:
             raise ValueError("Cannot post to a blank topic")
         if isinstance(payload, dict) and ("component" in payload or "//////" in payload):
@@ -212,6 +212,9 @@ class MqttMixin:
             self.logger.warning(f"payload: {payload}")
             raise ValueError("Possible invalid payload. topic: {topic} payload: {payload}")
         try:
-            self.mqttc.publish(topic, cast(PayloadType, payload), **kwargs)
+            if payload is None:
+                self.mqttc.publish(topic, "null", **kwargs)
+            else:
+                self.mqttc.publish(topic, cast(PayloadType, payload), **kwargs)
         except Exception as e:
             self.logger.warning(f"MQTT publish failed for {topic} with {payload[:120] if isinstance(payload, str) else payload}: {e}")

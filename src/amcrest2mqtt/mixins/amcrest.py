@@ -143,7 +143,7 @@ class AmcrestMixin:
             "component_type": "sensor",
             "name": "Recording url",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "recording_url"),
-            "stat_t": self.mqtt_helper.stat_t(device_id, "recording_url"),
+            "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "recording_url"),
             "avty_t": self.mqtt_helper.avty_t(device_id),
             "clip_url": f"media-source://media_source/local/Videos/amcrest/{device["device_name"]}-latest.mp4",
             "icon": "mdi:web",
@@ -343,8 +343,8 @@ class AmcrestMixin:
             sensor={
                 "motion_region": "n/a",
                 "event_text": "",
-                "event_time": "unknown",
-                "recording_time": "unknown",
+                "event_time": None,
+                "recording_time": None,
                 "recording_url": "",
             },
         )
