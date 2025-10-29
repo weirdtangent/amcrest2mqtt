@@ -1,3 +1,10 @@
+## [2.0.3](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.2...v2.0.3) (2025-10-29)
+
+
+### Bug Fixes
+
+* backoff 5+ sec for snapshot retries ([d0381e2](https://github.com/weirdtangent/amcrest2mqtt/commit/d0381e28a3f0af5593ee6741989f92c90ae1a7bf))
+
 ## [2.0.2](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.1...v2.0.2) (2025-10-29)
 
 
