@@ -100,7 +100,7 @@ jobs:
   docker:
     name: Build and Push Docker Image
     needs: [release]
-    if: github.event_name == 'schedule' || needs.release.result == 'success'
+    if: needs.release.result == 'success'
     runs-on: ubuntu-latest
     env:
       RELEASE_VERSION: ${{ needs.release.outputs.version }}
