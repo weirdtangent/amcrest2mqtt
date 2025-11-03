@@ -1,3 +1,10 @@
+## [2.0.5](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.4...v2.0.5) (2025-11-03)
+
+
+### Bug Fixes
+
+* add heartbeat bits and pieces ([e8ea58b](https://github.com/weirdtangent/amcrest2mqtt/commit/e8ea58b42d5c5806fa50df0a4c7a1957cd4fc757))
+
 ## [2.0.4](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.3...v2.0.4) (2025-10-29)
 
 
