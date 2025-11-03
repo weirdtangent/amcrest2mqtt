@@ -254,7 +254,7 @@ class AmcrestAPIMixin:
                 self.logger.exception(f"Snapshot: unexpected error for {self.get_device_name(device_id)}: {err!r}")
                 return None
 
-        self.logger.error(f"Snapshot: failed after {SNAPSHOT_MAX_TRIES} tries for {self.get_device_name(device_id)}")
+        self.logger.info(f"Snapshot: failed after {SNAPSHOT_MAX_TRIES} tries for {self.get_device_name(device_id)}")
         return None
 
     def get_snapshot(self: Amcrest2Mqtt, device_id: str) -> str | None:

@@ -158,7 +158,7 @@ class MqttMixin:
 
         (vendor, device_id, attribute) = parsed
         if not vendor or not vendor.startswith(self.mqtt_helper.service_slug):
-            self.logger.error(f"Ignoring non-Amcrest device command, got vendor {vendor}")
+            self.logger.info(f"Ignoring non-Amcrest device command, got vendor {vendor}")
             return
         if not device_id or not attribute:
             self.logger.error(f"Failed to parse device_id and/or payload from mqtt topic components: {components}")
