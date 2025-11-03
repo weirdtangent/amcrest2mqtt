@@ -161,22 +161,14 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          pull: true
           push: true
           build-args: |
             VERSION=${{ env.VERSION }}
           tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/arm64,linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          labels: |
-            ${{ steps.meta.outputs.labels }}
-            org.opencontainers.image.version=${{ env.RELEASE_TAG }}
-            org.opencontainers.image.title=amcrest2mqtt
-            org.opencontainers.image.source=${{ github.repository }}
-            org.opencontainers.image.authors=weirdTangent <jeff@weirdtangent.com>
-            org.opencontainers.image.url=https://www.graystorm.com
-            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#readme
-            org.opencontainers.image.description=Publishes Amcrest camera events, snapshots, and status updates via MQTT for Home Assistant auto-discovery
-            org.opencontainers.image.licenses=MIT
           sbom: true
           provenance: true

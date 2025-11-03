@@ -171,7 +171,6 @@ allow_redefinition = false
 # Temporarily quiet noisy files or folders
 [[tool.mypy.overrides]]
 module = [
-  "blinkpy.*",
   "aiohttp.*",
   "paho.*",
 ]
