@@ -4,6 +4,7 @@ from deepmerge.merger import Merger
 import ipaddress
 import logging
 import os
+import pathlib
 import signal
 import socket
 import threading
@@ -84,6 +85,12 @@ class HelpersMixin:
             self.publish_device_discovery(device_id)
 
     # Utility functions ---------------------------------------------------------------------------
+
+    def mark_ready(self: Amcrest2Mqtt) -> None:
+        pathlib.Path(READY_FILE).touch()
+
+    def heartbeat_ready(self: Amcrest2Mqtt) -> None:
+        pathlib.Path(READY_FILE).touch()
 
     def read_file(self: Amcrest2Mqtt, file_name: str) -> str:
         with open(file_name, "r") as file:

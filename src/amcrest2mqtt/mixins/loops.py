@@ -45,6 +45,15 @@ class LoopsMixin:
                 self.logger.debug("collect_snapshots_loop cancelled during sleep")
                 break
 
+    async def heartbeat(self: Amcrest2Mqtt) -> None:
+        while self.running:
+            try:
+                await asyncio.sleep(60)
+                self.heartbeat_ready()
+            except asyncio.CancelledError:
+                self.logger.debug("heartbeat cancelled during sleep")
+                break
+
     # main loop
     async def main_loop(self: Amcrest2Mqtt) -> None:
         await self.setup_device_list()
@@ -57,12 +66,14 @@ class LoopsMixin:
                 self.logger.debug(f"Cannot install handler for {sig}")
 
         self.running = True
+        self.mark_ready()
 
         tasks = [
             asyncio.create_task(self.device_loop(), name="device_loop"),
             asyncio.create_task(self.collect_events_loop(), name="collect events loop"),
             asyncio.create_task(self.check_event_queue_loop(), name="check events queue loop"),
             asyncio.create_task(self.collect_snapshots_loop(), name="collect snapshot loop"),
+            asyncio.create_task(self.heartbeat(), name="heartbeat"),
         ]
 
         try:
