@@ -1,3 +1,10 @@
+## [2.0.7](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.6...v2.0.7) (2025-11-04)
+
+
+### Bug Fixes
+
+* add last_device_check sensor; fix service status; only post messages on changes ([1b111b8](https://github.com/weirdtangent/amcrest2mqtt/commit/1b111b8a4ff6c704d5008e5436180a8a271f0046))
+
 ## [2.0.6](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.5...v2.0.6) (2025-11-04)
 
 
