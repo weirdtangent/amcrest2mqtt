@@ -1,3 +1,10 @@
+## [2.0.6](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.5...v2.0.6) (2025-11-04)
+
+
+### Bug Fixes
+
+* code cleanup; fix service sensors; reduce logging ([a414715](https://github.com/weirdtangent/amcrest2mqtt/commit/a414715f267ce3c0e21d60b74b66c8a017cf06b0))
+
 ## [2.0.5](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.4...v2.0.5) (2025-11-03)
 
 
