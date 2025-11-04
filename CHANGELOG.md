@@ -1,3 +1,10 @@
+## [2.0.8](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.7...v2.0.8) (2025-11-04)
+
+
+### Bug Fixes
+
+* mkdir /media to prep for mounted volume ([da46ee1](https://github.com/weirdtangent/amcrest2mqtt/commit/da46ee102dc943441af0e6f1f876686682fa6474))
+
 ## [2.0.7](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.6...v2.0.7) (2025-11-04)
 
 
