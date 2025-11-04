@@ -35,18 +35,18 @@ def main() -> int:
         with Amcrest2Mqtt(args=args) as amcrest2mqtt:
             try:
                 asyncio.run(amcrest2mqtt.main_loop())
-            except RuntimeError as e:
-                if "asyncio.run() cannot be called from a running event loop" in str(e):
+            except RuntimeError as err:
+                if "asyncio.run() cannot be called from a running event loop" in str(err):
                     # Nested event loop (common in tests or Jupyter) — fall back gracefully
                     loop = asyncio.get_event_loop()
                     loop.run_until_complete(amcrest2mqtt.main_loop())
                 else:
                     raise
-    except ConfigError as e:
-        logger.error(f"Fatal config error was found: {e}")
+    except ConfigError as err:
+        logger.error(f"Fatal config error was found: {err}")
         return 1
-    except MqttError as e:
-        logger.error(f"MQTT service problems: {e}")
+    except MqttError as err:
+        logger.error(f"MQTT service problems: {err}")
         return 1
     except KeyboardInterrupt:
         logger.warning("Shutdown requested (Ctrl+C). Exiting gracefully...")
@@ -54,8 +54,8 @@ def main() -> int:
     except asyncio.CancelledError:
         logger.warning("Main loop cancelled.")
         return 1
-    except Exception as e:
-        logger.error(f"unhandled exception: {e}", exc_info=True)
+    except Exception as err:
+        logger.error(f"unhandled exception: {err}", exc_info=True)
         return 1
     finally:
         logger.info("amcrest2mqtt stopped.")

@@ -2,7 +2,6 @@
 # Copyright (c) 2025 Jeff Culverhouse
 from deepmerge.merger import Merger
 import ipaddress
-import logging
 import os
 import pathlib
 import signal
@@ -51,7 +50,7 @@ class HelpersMixin:
         match handler:
             case "save_recordings":
                 if message == "ON" and "path" not in self.config["media"]:
-                    self.logger.error("User tried to turn on save_recordings, but there is no media path set")
+                    self.logger.error("user tried to turn on save_recordings, but there is no media path set")
                     return
                 self.upsert_state(device_id, switch={"save_recordings": message})
                 self.publish_device_state(device_id)
@@ -67,22 +66,17 @@ class HelpersMixin:
             case "refresh_device_list":
                 if message == "refresh":
                     self.rediscover_all()
-                else:
-                    self.logger.error("[handler] unknown [message]")
-                    return
             case _:
-                self.logger.error(f"Unrecognized message to {self.mqtt_helper.service_slug}: {handler} -> {message}")
+                self.logger.error(f"unrecognized message to {self.mqtt_helper.service_slug}: {handler} -> {message}")
                 return
         self.publish_service_state()
 
     def rediscover_all(self: Amcrest2Mqtt) -> None:
-        self.publish_service_state()
         self.publish_service_discovery()
+        self.publish_service_state()
         for device_id in self.devices:
-            if device_id == "service":
-                continue
-            self.publish_device_state(device_id)
             self.publish_device_discovery(device_id)
+            self.publish_device_state(device_id)
 
     # Utility functions ---------------------------------------------------------------------------
 
@@ -95,7 +89,6 @@ class HelpersMixin:
     def read_file(self: Amcrest2Mqtt, file_name: str) -> str:
         with open(file_name, "r") as file:
             data = file.read().replace("\n", "")
-
         return data
 
     def mb_to_b(self: Amcrest2Mqtt, total: int) -> int:
@@ -121,18 +114,20 @@ class HelpersMixin:
             for i in socket.getaddrinfo(string, None):
                 if i[0] == socket.AddressFamily.AF_INET:
                     return str(i[4][0])
-        except socket.gaierror as e:
-            raise Exception(f"Failed to resolve {string}: {e}")
-        raise Exception(f"Failed to find IP address for {string}")
+        except socket.gaierror as err:
+            raise Exception(f"failed to resolve {string}: {err}")
+        raise Exception(f"failed to find IP address for {string}")
 
-    def _csv(self: Amcrest2Mqtt, env_name: str) -> list[str] | None:
+    def list_from_env(self: Amcrest2Mqtt, env_name: str) -> list[str]:
         v = os.getenv(env_name)
-        if not v:
-            return None
-        return [s.strip() for s in v.split(",") if s.strip()]
+        return [] if not v else [s.strip() for s in v.split(",") if s.strip()]
 
     def load_config(self: Amcrest2Mqtt, config_arg: Any | None) -> dict[str, Any]:
-        version = os.getenv("BLINK2MQTT_VERSION", self.read_file("VERSION"))
+        version = os.getenv("AMCREST2MQTT_VERSION", self.read_file("VERSION"))
+        tier = os.getenv("AMCREST2MQTT_TIER", "prod")
+        if tier == "dev":
+            version += ":DEV"
+
         config_from = "env"
         config: dict[str, str | bool | int | dict] = {}
 
@@ -146,12 +141,6 @@ class HelpersMixin:
         elif os.path.isfile(config_path):
             config_file = config_path
             config_path = os.path.dirname(config_file)
-        else:
-            # If it's not a valid path but looks like a filename, handle gracefully
-            if config_path.endswith(".yaml"):
-                config_file = config_path
-            else:
-                config_file = os.path.join(config_path, "config.yaml")
 
         # Try to load from YAML
         if os.path.exists(config_file):
@@ -159,10 +148,10 @@ class HelpersMixin:
                 with open(config_file, "r") as f:
                     config = yaml.safe_load(f) or {}
                 config_from = "file"
-            except Exception as e:
-                logging.warning(f"Failed to load config from {config_file}: {e}")
+            except Exception as err:
+                raise ConfigError(f"found {config_file} but failed to load: {err}")
         else:
-            logging.warning(f"Config file not found at {config_file}, falling back to environment vars")
+            self.logger.info(f"config file not found at {config_file}, falling back to environment vars")
 
         # Merge with environment vars (env vars override nothing if file exists)
         mqtt = cast(dict[str, Any], config.get("mqtt", {}))
@@ -178,51 +167,51 @@ class HelpersMixin:
 
             if os.path.exists(media_path) and os.access(media_path, os.W_OK):
                 media["path"] = media_path
-                self.logger.info(f"Will be storing recordings in {media_path}, watch that it doesn't fill up your file system")
+                self.logger.info(f"storing recordings in {media_path}, watch that it doesn't fill up the file system")
             else:
                 self.logger.info("media_path not configured, not found, or is not writable. Will not be saving recordings")
 
         # fmt: off
         mqtt = {
-            "host":            cast(str, mqtt.get("host")             or os.getenv("MQTT_HOST", "localhost")),
-            "port":        int(cast(str, mqtt.get("port")             or os.getenv("MQTT_PORT", 1883))),
-            "qos":         int(cast(str, mqtt.get("qos")              or os.getenv("MQTT_QOS", 0))),
-            "username":                  mqtt.get("username")         or os.getenv("MQTT_USERNAME", ""),
-            "password":                  mqtt.get("password")         or os.getenv("MQTT_PASSWORD", ""),
-            "tls_enabled":               mqtt.get("tls_enabled")      or (os.getenv("MQTT_TLS_ENABLED", "false").lower() == "true"),
-            "tls_ca_cert":               mqtt.get("tls_ca_cert")      or os.getenv("MQTT_TLS_CA_CERT"),
-            "tls_cert":                  mqtt.get("tls_cert")         or os.getenv("MQTT_TLS_CERT"),
-            "tls_key":                   mqtt.get("tls_key")          or os.getenv("MQTT_TLS_KEY"),
-            "prefix":                    mqtt.get("prefix")           or os.getenv("MQTT_PREFIX", "amcrest2mqtt"),
-            "discovery_prefix":          mqtt.get("discovery_prefix") or os.getenv("MQTT_DISCOVERY_PREFIX", "homeassistant"),
+            "host":             str(mqtt.get("host")             or os.getenv("MQTT_HOST", "localhost")),
+            "port":         int(str(mqtt.get("port")             or os.getenv("MQTT_PORT", 1883))),
+            "qos":          int(str(mqtt.get("qos")              or os.getenv("MQTT_QOS", 0))),
+            "username":         str(mqtt.get("username")         or os.getenv("MQTT_USERNAME", "")),
+            "password":         str(mqtt.get("password")         or os.getenv("MQTT_PASSWORD", "")),
+            "tls_enabled":     bool(mqtt.get("tls_enabled")      or (os.getenv("MQTT_TLS_ENABLED", "false").lower() == "true")),
+            "tls_ca_cert":      str(mqtt.get("tls_ca_cert")      or os.getenv("MQTT_TLS_CA_CERT")),
+            "tls_cert":         str(mqtt.get("tls_cert")         or os.getenv("MQTT_TLS_CERT")),
+            "tls_key":          str(mqtt.get("tls_key")          or os.getenv("MQTT_TLS_KEY")),
+            "prefix":           str(mqtt.get("prefix")           or os.getenv("MQTT_PREFIX", "amcrest2mqtt")),
+            "discovery_prefix": str(mqtt.get("discovery_prefix") or os.getenv("MQTT_DISCOVERY_PREFIX", "homeassistant")),
         }
 
-        hosts = amcrest.get("hosts") or self._csv("AMCREST_HOSTS") or []
-        names = amcrest.get("names") or self._csv("AMCREST_NAMES") or []
-        sources = webrtc.get("sources") or self._csv("AMCREST_SOURCES") or []
+        hosts = list[str](amcrest.get("hosts") or self.list_from_env("AMCREST_HOSTS"))
+        names = list[str](amcrest.get("names") or self.list_from_env("AMCREST_NAMES"))
+        sources = list[str](webrtc.get("sources") or self.list_from_env("AMCREST_SOURCES"))
 
         amcrest = {
             "hosts":                    hosts,
             "names":                    names,
-            "port":                     int(cast(str, amcrest.get("port") or os.getenv("AMCREST_PORT", 80))),
-            "username":                               amcrest.get("username") or os.getenv("AMCREST_USERNAME", ""),
-            "password":                               amcrest.get("password") or os.getenv("AMCREST_PASSWORD", ""),
-            "storage_update_interval":  int(cast(str, amcrest.get("storage_update_interval") or os.getenv("AMCREST_STORAGE_UPDATE_INTERVAL", 900))),
-            "snapshot_update_interval": int(cast(str, amcrest.get("snapshot_update_interval") or os.getenv("AMCREST_SNAPSHOT_UPDATE_INTERVAL", 60))),
+            "port":                     int(str(amcrest.get("port") or os.getenv("AMCREST_PORT", 80))),
+            "username":                     str(amcrest.get("username") or os.getenv("AMCREST_USERNAME", "")),
+            "password":                     str(amcrest.get("password") or os.getenv("AMCREST_PASSWORD", "")),
+            "storage_update_interval":  int(str(amcrest.get("storage_update_interval") or os.getenv("AMCREST_STORAGE_UPDATE_INTERVAL", 900))),
+            "snapshot_update_interval": int(str(amcrest.get("snapshot_update_interval") or os.getenv("AMCREST_SNAPSHOT_UPDATE_INTERVAL", 60))),
             "webrtc": {
-                "host":                 webrtc.get("host") or os.getenv("AMCREST_WEBRTC_HOST", ""),
-                "port":   int(cast(str, webrtc.get("port") or os.getenv("AMCREST_WEBRTC_PORT", 1984))),
-                "link":                 webrtc.get("link") or os.getenv("AMCREST_WEBRTC_LINK", "webrtc"),
-                "sources":              sources,
+                "host":      str(webrtc.get("host") or os.getenv("AMCREST_WEBRTC_HOST", "")),
+                "port":  int(str(webrtc.get("port") or os.getenv("AMCREST_WEBRTC_PORT", 1984))),
+                "link":      str(webrtc.get("link") or os.getenv("AMCREST_WEBRTC_LINK", "webrtc")),
+                "sources":   sources,
             },
         }
 
         config = {
             "mqtt":        mqtt,
             "amcrest":     amcrest,
-            "debug":       config.get("debug", os.getenv("DEBUG", "").lower() == "true"),
-            "hide_ts":     config.get("hide_ts", os.getenv("HIDE_TS", "").lower() == "true"),
-            "timezone":    config.get("timezone", os.getenv("TZ", "UTC")),
+            "debug":       bool(config.get("debug", os.getenv("DEBUG", "").lower() == "true")),
+            "hide_ts":     bool(config.get("hide_ts", os.getenv("HIDE_TS", "").lower() == "true")),
+            "timezone":    str(config.get("timezone", os.getenv("TZ", "UTC"))),
             "media":       media,
             "config_from": config_from,
             "config_path": config_path,
@@ -250,45 +239,46 @@ class HelpersMixin:
             path = self.config["media"]["path"]
             file_name = f"{name}-{time}.mp4"
             file_path = Path(f"{path}/{file_name}")
+
             try:
                 file_path.write_bytes(recording.encode("latin-1"))
-
-                self.upsert_state(
-                    device_id,
-                    media={"recording": file_path},
-                    sensor={"recording_time": datetime.now(timezone.utc).isoformat()},
-                )
-                local_file = Path(f"./{file_name}")
-                latest_link = Path(f"{path}/{name}-latest.mp4")
-                if latest_link.is_symlink():
-                    latest_link.unlink()
-                latest_link.symlink_to(local_file)
-
-                if "media_source" in self.config["media"]:
-                    url = f"{self.config["media"]["media_source"]}/{file_name}"
-                    self.upsert_state(device_id, sensor={"recording_url": url})
-                    return url
-            except IOError as e:
-                self.logger.error(f"Failed to save recordingt to {path}: {e}")
+            except IOError as err:
+                self.logger.error(f"failed to save recordingt to {path}: {err}")
                 return None
 
-        self.logger.error(f"Failed to download recording from device {self.get_device_name(device_id)}")
+            self.upsert_state(
+                device_id,
+                media={"recording": file_path},
+                sensor={"recording_time": datetime.now(timezone.utc).isoformat()},
+            )
+
+            # update symlink to "lastest" recording
+            local_file = Path(f"./{file_name}")
+            latest_link = Path(f"{path}/{name}-latest.mp4")
+            if latest_link.is_symlink():
+                latest_link.unlink()
+            latest_link.symlink_to(local_file)
+
+            if "media_source" in self.config["media"]:
+                url = f"{self.config["media"]["media_source"]}/{file_name}"
+                self.upsert_state(device_id, sensor={"recording_url": url})
+                return url
         return None
 
-    def _handle_signal(self: Amcrest2Mqtt, signum: int, frame: FrameType | None) -> Any:
+    def handle_signal(self: Amcrest2Mqtt, signum: int, _: FrameType | None) -> Any:
         sig_name = signal.Signals(signum).name
         self.logger.warning(f"{sig_name} received - stopping service loop")
         self.running = False
 
         def _force_exit() -> None:
-            self.logger.warning("Force-exiting process after signal")
+            self.logger.warning("force-exiting process after signal")
             os._exit(0)
 
         threading.Timer(5.0, _force_exit).start()
 
     # Upsert devices and states -------------------------------------------------------------------
 
-    def _assert_no_tuples(self: Amcrest2Mqtt, data: Any, path: str = "root") -> None:
+    def assert_no_tuples(self: Amcrest2Mqtt, data: Any, path: str = "root") -> None:
         if isinstance(data, tuple):
             raise TypeError(f"⚠️ Found tuple at {path}: {data!r}")
 
@@ -296,33 +286,33 @@ class HelpersMixin:
             for key, value in data.items():
                 if isinstance(key, tuple):
                     raise TypeError(f"⚠️ Found tuple key at {path}: {key!r}")
-                self._assert_no_tuples(value, f"{path}.{key}")
+                self.assert_no_tuples(value, f"{path}.{key}")
         elif isinstance(data, list):
             for idx, value in enumerate(data):
-                self._assert_no_tuples(value, f"{path}[{idx}]")
+                self.assert_no_tuples(value, f"{path}[{idx}]")
 
     def upsert_device(self: Amcrest2Mqtt, device_id: str, **kwargs: dict[str, Any] | str | int | bool | None) -> None:
         MERGER = Merger(
             [(dict, "merge"), (list, "append_unique"), (set, "union")],
-            ["override"],  # type conflicts: new wins
-            ["override"],  # fallback
+            ["override"],
+            ["override"],
         )
         for section, data in kwargs.items():
             # Pre-merge check
-            self._assert_no_tuples(data, f"device[{device_id}].{section}")
+            self.assert_no_tuples(data, f"device[{device_id}].{section}")
             merged = MERGER.merge(self.devices.get(device_id, {}), {section: data})
             # Post-merge check
-            self._assert_no_tuples(merged, f"device[{device_id}].{section} (post-merge)")
+            self.assert_no_tuples(merged, f"device[{device_id}].{section} (post-merge)")
             self.devices[device_id] = merged
 
     def upsert_state(self: Amcrest2Mqtt, device_id: str, **kwargs: dict[str, Any] | str | int | bool | None) -> None:
         MERGER = Merger(
             [(dict, "merge"), (list, "append_unique"), (set, "union")],
-            ["override"],  # type conflicts: new wins
-            ["override"],  # fallback
+            ["override"],
+            ["override"],
         )
         for section, data in kwargs.items():
-            self._assert_no_tuples(data, f"state[{device_id}].{section}")
+            self.assert_no_tuples(data, f"state[{device_id}].{section}")
             merged = MERGER.merge(self.states.get(device_id, {}), {section: data})
-            self._assert_no_tuples(merged, f"state[{device_id}].{section} (post-merge)")
+            self.assert_no_tuples(merged, f"state[{device_id}].{section} (post-merge)")
             self.states[device_id] = merged

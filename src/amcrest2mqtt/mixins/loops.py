@@ -61,7 +61,7 @@ class LoopsMixin:
         self.loop = asyncio.get_running_loop()
         for sig in (signal.SIGTERM, signal.SIGINT):
             try:
-                signal.signal(sig, self._handle_signal)
+                signal.signal(sig, self.handle_signal)
             except Exception:
                 self.logger.debug(f"Cannot install handler for {sig}")
 

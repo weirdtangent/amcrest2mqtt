@@ -57,22 +57,22 @@ class MqttMixin:
         try:
             host = self.mqtt_config["host"]
             port = self.mqtt_config["port"]
-            self.logger.info(f"Connecting to MQTT broker at {host}:{port} as {self.client_id}")
+            self.logger.info(f"connecting to MQTT broker at {host}:{port} as {self.client_id}")
 
             props = Properties(PacketTypes.CONNECT)
             props.SessionExpiryInterval = 0
 
             self.mqttc.connect(host=host, port=port, keepalive=60, properties=props)
-            self.logger.info(f"Successful connection to {host} MQTT broker")
+            self.logger.info(f"connected to {host} MQTT broker")
 
             self.mqtt_connect_time = datetime.now()
             self.mqttc.loop_start()
-        except ConnectionError as error:
-            self.logger.error(f"Failed to connect to MQTT host {host}: {error}")
+        except ConnectionError as err:
+            self.logger.error(f"failed to connect to MQTT host {host}: {err}")
             self.running = False
             raise SystemExit(1)
-        except Exception as error:
-            self.logger.error(f"Network problem trying to connect to MQTT host {host}: {error}")
+        except Exception as err:
+            self.logger.error(f"network problem trying to connect to MQTT host {host}: {err}")
             self.running = False
             raise SystemExit(1)
 
@@ -89,7 +89,7 @@ class MqttMixin:
         self.publish_service_availability()
         self.publish_service_state()
 
-        self.logger.debug("Subscribing to topics on MQTT")
+        self.logger.debug("subscribing to topics on MQTT")
         client.subscribe("homeassistant/status")
         client.subscribe(f"{self.mqtt_helper.service_slug}/service/+/set")
         client.subscribe(f"{self.mqtt_helper.service_slug}/service/+/command")
@@ -102,23 +102,23 @@ class MqttMixin:
         self.mqtt_helper.clear_client()
 
         if reason_code.value != 0:
-            self.logger.error(f"MQTT lost connection ({reason_code.getName()})")
+            self.logger.error(f"Mqtt lost connection ({reason_code.getName()})")
         else:
-            self.logger.info("Closed MQTT connection")
+            self.logger.info("closed Mqtt connection")
 
         if self.running and (self.mqtt_connect_time is None or datetime.now() > self.mqtt_connect_time + timedelta(seconds=10)):
             # lets use a new client_id for a reconnect attempt
             self.client_id = self.mqtt_helper.client_id()
             self.mqttc_create()
         else:
-            self.logger.info("MQTT disconnect — stopping service loop")
+            self.logger.info("Mqtt disconnect — stopping service loop")
             self.running = False
 
     def mqtt_on_log(self: Amcrest2Mqtt, client: Client, userdata: Any, paho_log_level: int, msg: str) -> None:
         if paho_log_level == LogLevel.MQTT_LOG_ERR:
-            self.logger.error(f"MQTT logged: {msg}")
+            self.logger.error(f"Mqtt logged: {msg}")
         if paho_log_level == LogLevel.MQTT_LOG_WARNING:
-            self.logger.warning(f"MQTT logged: {msg}")
+            self.logger.warning(f"Mqtt logged: {msg}")
 
     def mqtt_on_message(self: Amcrest2Mqtt, client: Client, userdata: Any, msg: MQTTMessage) -> None:
         topic = msg.topic
@@ -134,7 +134,7 @@ class MqttMixin:
         if components[0] == self.mqtt_helper.service_slug:
             return self._handle_device_topic(components, payload)
 
-        self.logger.debug(f"Ignoring unrelated MQTT topic: {topic}")
+        self.logger.debug(f"ignoring unrelated MQTT topic: {topic}")
 
     def _decode_payload(self: Amcrest2Mqtt, raw: bytes) -> Any:
         try:
@@ -143,13 +143,13 @@ class MqttMixin:
             try:
                 return raw.decode("utf-8")
             except Exception:
-                self.logger.warning("Failed to decode MQTT payload")
+                self.logger.warning("failed to decode MQTT payload: {err}")
                 return None
 
     def _handle_homeassistant_message(self: Amcrest2Mqtt, payload: str) -> None:
         if payload == "online":
             self.rediscover_all()
-            self.logger.info("Home Assistant came online — rediscovering devices")
+            self.logger.info("home Assistant came (back?) online — resending device discovery")
 
     def _handle_device_topic(self: Amcrest2Mqtt, components: list[str], payload: str) -> None:
         parsed = self._parse_device_topic(components)
@@ -158,16 +158,16 @@ class MqttMixin:
 
         (vendor, device_id, attribute) = parsed
         if not vendor or not vendor.startswith(self.mqtt_helper.service_slug):
-            self.logger.info(f"Ignoring non-Amcrest device command, got vendor {vendor}")
+            self.logger.info(f"ignoring non-Amcrest device command, got vendor {vendor}")
             return
         if not device_id or not attribute:
-            self.logger.error(f"Failed to parse device_id and/or payload from mqtt topic components: {components}")
+            self.logger.error(f"failed to parse device_id and/or payload from mqtt topic components: {components}")
             return
         if not self.devices.get(device_id, None):
-            self.logger.warning(f"Got MQTT message for unknown device: {device_id}")
+            self.logger.warning(f"got Mqtt message for unknown device: {device_id}")
             return
 
-        self.logger.info(f"Got message for {self.get_device_name(device_id)}: set {components[-2]} to {payload}")
+        self.logger.info(f"got message for {self.get_device_name(device_id)}: set {components[-2]} to {payload}")
         self.handle_device_command(device_id, attribute, payload)
 
     def _parse_device_topic(self: Amcrest2Mqtt, components: list[str]) -> list[str | None] | None:
@@ -193,18 +193,18 @@ class MqttMixin:
 
             return [vendor, device_id, attribute]
 
-        except Exception as e:
-            self.logger.warning(f"Malformed device topic: {components} ({e})")
+        except Exception as err:
+            self.logger.warning(f"malformed device topic with {components}: {err}")
             return []
 
     def safe_split_device(self: Amcrest2Mqtt, topic: str, segment: str) -> list[str]:
         try:
             return segment.split("-", 1)
-        except ValueError:
-            self.logger.warning(f"Ignoring malformed topic: {topic}")
+        except ValueError as err:
+            self.logger.warning(f"Ignoring malformed topic {topic}: {err}")
             return []
 
     def mqtt_on_subscribe(self: Amcrest2Mqtt, client: Client, userdata: Any, mid: int, reason_code_list: list[ReasonCode], properties: Properties) -> None:
         reason_names = [rc.getName() for rc in reason_code_list]
         joined = "; ".join(reason_names) if reason_names else "none"
-        self.logger.debug(f"MQTT subscribed (mid={mid}): {joined}")
+        self.logger.debug(f"Mqtt subscribed (mid={mid}): {joined}")

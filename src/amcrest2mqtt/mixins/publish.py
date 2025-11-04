@@ -17,7 +17,7 @@ class PublishMixin:
             self.config["version"],
         )
 
-        self.logger.info("Publishing service entity")
+        self.logger.debug("publishing service entity")
         self.mqtt_helper.safe_publish(
             topic=self.mqtt_helper.disc_t("binary_sensor", "service"),
             payload=json.dumps(
@@ -46,8 +46,7 @@ class PublishMixin:
                 {
                     "name": f"{self.service_name} API Calls Today",
                     "uniq_id": self.mqtt_helper.svc_unique_id("api_calls"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service"),
-                    "value_template": "{{ value_json.api_calls }}",
+                    "stat_t": self.mqtt_helper.stat_t("service", "service", "api_calls"),
                     "avty_t": self.mqtt_helper.avty_t("service"),
                     "unit_of_measurement": "calls",
                     "icon": "mdi:api",
@@ -64,8 +63,7 @@ class PublishMixin:
                 {
                     "name": f"{self.service_name} Rate Limited by Amcrest",
                     "uniq_id": self.mqtt_helper.svc_unique_id("rate_limited"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service"),
-                    "value_template": "{{ value_json.rate_limited }}",
+                    "stat_t": self.mqtt_helper.stat_t("service", "service", "rate_limited"),
                     "avty_t": self.mqtt_helper.avty_t("service"),
                     "payload_on": "YES",
                     "payload_off": "NO",
@@ -83,8 +81,7 @@ class PublishMixin:
                 {
                     "name": f"{self.service_name} Device Refresh Interval",
                     "uniq_id": self.mqtt_helper.svc_unique_id("storage_refresh"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service"),
-                    "value_template": "{{ value_json.storage_refresh }}",
+                    "stat_t": self.mqtt_helper.stat_t("service", "service", "storage_refresh"),
                     "avty_t": self.mqtt_helper.avty_t("service"),
                     "cmd_t": self.mqtt_helper.cmd_t("service", "storage_refresh"),
                     "unit_of_measurement": "s",
@@ -104,8 +101,7 @@ class PublishMixin:
                 {
                     "name": f"{self.service_name} Device List Refresh Interval",
                     "uniq_id": self.mqtt_helper.svc_unique_id("device_list_refresh"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service"),
-                    "value_template": "{{ value_json.device_list_refresh }}",
+                    "stat_t": self.mqtt_helper.stat_t("service", "service", "device_list_refresh"),
                     "avty_t": self.mqtt_helper.avty_t("service"),
                     "cmd_t": self.mqtt_helper.cmd_t("service", "device_list_refresh"),
                     "unit_of_measurement": "s",
@@ -125,8 +121,7 @@ class PublishMixin:
                 {
                     "name": f"{self.service_name} Snapshot Refresh Interval",
                     "uniq_id": self.mqtt_helper.svc_unique_id("snapshot_refresh"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service"),
-                    "value_template": "{{ value_json.snapshot_refresh }}",
+                    "stat_t": self.mqtt_helper.stat_t("service", "service", "snapshot_refresh"),
                     "avty_t": self.mqtt_helper.avty_t("service"),
                     "cmd_t": self.mqtt_helper.cmd_t("service", "snapshot_refresh"),
                     "unit_of_measurement": "m",
@@ -155,7 +150,7 @@ class PublishMixin:
             qos=self.mqtt_config["qos"],
             retain=True,
         )
-        self.logger.debug(f"[HA] Discovery published for {self.service} ({self.mqtt_helper.service_slug})")
+        self.logger.debug(f"discovery published for {self.service} ({self.mqtt_helper.service_slug})")
 
     def publish_service_availability(self: Amcrest2Mqtt, status: str = "online") -> None:
         self.mqtt_helper.safe_publish(self.mqtt_helper.avty_t("service"), status, qos=self.qos, retain=True)
@@ -170,16 +165,10 @@ class PublishMixin:
             "snapshot_refresh": self.snapshot_update_interval,
         }
 
-        payload: Any
         for key, value in service.items():
-            if not isinstance(value, dict):
-                payload = str(value)
-            else:
-                payload = json.dumps(value)
-
             self.mqtt_helper.safe_publish(
                 self.mqtt_helper.stat_t("service", "service", key),
-                payload,
+                json.dumps(value) if isinstance(value, dict) else str(value),
                 qos=self.mqtt_config["qos"],
                 retain=True,
             )
@@ -188,23 +177,13 @@ class PublishMixin:
 
     def publish_device_discovery(self: Amcrest2Mqtt, device_id: str) -> None:
         def _publish_one(dev_id: str, defn: dict, suffix: str = "") -> None:
-            # Compute a per-mode device_id for topic namespacing
             eff_device_id = dev_id if not suffix else f"{dev_id}_{suffix}"
-
-            # Grab this component's discovery topic
             topic = self.mqtt_helper.disc_t(defn["component_type"], f"{dev_id}_{suffix}" if suffix else dev_id)
-
-            # Shallow copy to avoid mutating source
             payload = {k: v for k, v in defn.items() if k != "component_type"}
-
-            # Publish discovery
             self.mqtt_helper.safe_publish(topic, json.dumps(payload), retain=True)
+            self.upsert_state(eff_device_id, internal={"discovered": True})
 
-            # Mark discovered in state (per published entity)
-            self.states.setdefault(eff_device_id, {}).setdefault("internal", {})["discovered"] = 1
-
-        component = self.get_component(device_id)
-        _publish_one(device_id, component)
+        _publish_one(device_id, self.get_component(device_id))
 
         # Publish any modes (0..n)
         modes = self.get_modes(device_id)
@@ -219,14 +198,9 @@ class PublishMixin:
 
     def publish_device_state(self: Amcrest2Mqtt, device_id: str) -> None:
         def _publish_one(dev_id: str, defn: str | dict[str, Any], suffix: str = "") -> None:
-            # Grab this component's state topic
             topic = self.get_device_state_topic(dev_id, suffix)
-
-            # Shallow copy to avoid mutating source
             if isinstance(defn, dict):
                 flat: dict[str, Any] = {k: v for k, v in defn.items() if k != "component_type"}
-
-                # Add metadata
                 meta = self.states[dev_id].get("meta")
                 if isinstance(meta, dict) and "last_update" in meta:
                     flat["last_update"] = meta["last_update"]
@@ -235,13 +209,12 @@ class PublishMixin:
                 self.mqtt_helper.safe_publish(topic, defn, retain=True)
 
         if not self.is_discovered(device_id):
-            self.logger.debug(f"[device state] Discovery not complete for {device_id} yet, holding off on sending state")
+            self.logger.debug(f"discovery not complete for {device_id} yet, holding off on sending state")
             return
 
         states = self.states[device_id]
         _publish_one(device_id, states[self.get_component_type(device_id)])
 
-        # Publish any modes (0..n)
         modes = self.get_modes(device_id)
         for name, mode in modes.items():
             component_type = mode["component_type"]

@@ -9,14 +9,14 @@ if TYPE_CHECKING:
 
 class AmcrestMixin:
     async def setup_device_list(self: Amcrest2Mqtt) -> None:
-        self.logger.info("Setting up device list from config")
+        self.logger.debug("setting up device list from config")
 
-        devices = await self.connect_to_devices()
+        amcrest_devices = await self.connect_to_devices()
         self.publish_service_state()
 
         seen_devices = set()
 
-        for device in devices.values():
+        for device in amcrest_devices.values():
             created = await self.build_component(device)
             if created:
                 seen_devices.add(created)
@@ -25,12 +25,12 @@ class AmcrestMixin:
         missing_devices = set(self.devices.keys()) - seen_devices
         for device_id in missing_devices:
             self.publish_device_availability(device_id, online=False)
-            self.logger.warning(f"Device {device_id} not seen in Amcrest API list — marked offline")
+            self.logger.warning(f"device {device_id} not seen in Amcrest API list — marked offline")
 
         # Handle first discovery completion
         if not self.discovery_complete:
             await asyncio.sleep(1)
-            self.logger.info("First-time device setup and discovery is done")
+            self.logger.info("device setup and discovery is done")
             self.discovery_complete = True
 
     # convert Amcrest device capabilities into MQTT components
@@ -62,7 +62,7 @@ class AmcrestMixin:
         ]:
             return "camera"
         else:
-            self.logger.error(f"Device you specified is not a supported model: {device["device_type"]}")
+            self.logger.error(f"device you specified is not a supported model: {device["device_type"]}")
             return ""
 
     async def build_camera(self: Amcrest2Mqtt, device: dict) -> str:
@@ -352,7 +352,7 @@ class AmcrestMixin:
         self.build_device_states(device_id)
 
         if not self.states[device_id]["internal"].get("discovered", None):
-            self.logger.info(f'Added new camera: "{device["device_name"]}" {device["vendor"]} {device["device_type"]}] ({device_id})')
+            self.logger.info(f'added new camera: "{device["device_name"]}" {device["vendor"]} {device["device_type"]}] ({device_id})')
 
         self.publish_device_discovery(device_id)
         self.publish_device_availability(device_id, online=True)
