@@ -24,9 +24,12 @@ class PublishMixin:
                 {
                     "name": self.service_name,
                     "uniq_id": self.mqtt_helper.svc_unique_id("service"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service"),
+                    "stat_t": self.mqtt_helper.avty_t("service"),
                     "avty_t": self.mqtt_helper.avty_t("service"),
+                    "payload_on": "online",
+                    "payload_off": "offline",
                     "device_class": "connectivity",
+                    "entity_category": "diagnostic",
                     "icon": "mdi:server",
                     "device": device_block,
                     "origin": {
@@ -49,6 +52,7 @@ class PublishMixin:
                     "stat_t": self.mqtt_helper.stat_t("service", "service", "api_calls"),
                     "avty_t": self.mqtt_helper.avty_t("service"),
                     "unit_of_measurement": "calls",
+                    "entity_category": "diagnostic",
                     "icon": "mdi:api",
                     "state_class": "total_increasing",
                     "device": device_block,
@@ -68,7 +72,25 @@ class PublishMixin:
                     "payload_on": "YES",
                     "payload_off": "NO",
                     "device_class": "problem",
+                    "entity_category": "diagnostic",
                     "icon": "mdi:speedometer-slow",
+                    "device": device_block,
+                }
+            ),
+            qos=self.mqtt_config["qos"],
+            retain=True,
+        )
+        self.mqtt_helper.safe_publish(
+            topic=self.mqtt_helper.disc_t("sensor", "last_call_date"),
+            payload=json.dumps(
+                {
+                    "name": f"{self.service_name} Last Device Check",
+                    "uniq_id": self.mqtt_helper.svc_unique_id("last_call_date"),
+                    "stat_t": self.mqtt_helper.stat_t("service", "service", "last_call_date"),
+                    "avty_t": self.mqtt_helper.avty_t("service"),
+                    "device_class": "timestamp",
+                    "entity_category": "diagnostic",
+                    "icon": "mdi:clock-outline",
                     "device": device_block,
                 }
             ),
@@ -158,7 +180,7 @@ class PublishMixin:
     def publish_service_state(self: Amcrest2Mqtt) -> None:
         service = {
             "api_calls": self.get_api_calls(),
-            "last_api_call": self.get_last_call_date(),
+            "last_call_date": self.get_last_call_date(),
             "rate_limited": "YES" if self.is_rate_limited() else "NO",
             "storage_refresh": self.device_interval,
             "device_list_refresh": self.device_list_interval,

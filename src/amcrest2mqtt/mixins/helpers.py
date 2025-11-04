@@ -26,12 +26,12 @@ class ConfigError(ValueError):
 
 
 class HelpersMixin:
-    def build_device_states(self: Amcrest2Mqtt, device_id: str) -> None:
+    def build_device_states(self: Amcrest2Mqtt, device_id: str) -> bool:
         storage = self.get_storage_stats(device_id)
         privacy = self.get_privacy_mode(device_id)
         motion_detection = self.get_motion_detection(device_id)
 
-        self.upsert_state(
+        changed = self.upsert_state(
             device_id,
             switch={
                 "privacy": "ON" if privacy else "OFF",
@@ -43,6 +43,7 @@ class HelpersMixin:
                 "storage_used_pct": storage["used_percent"],
             },
         )
+        return changed
 
     # send command to Amcrest -----------------------------------------------------------------------
 
@@ -291,12 +292,13 @@ class HelpersMixin:
             for idx, value in enumerate(data):
                 self.assert_no_tuples(value, f"{path}[{idx}]")
 
-    def upsert_device(self: Amcrest2Mqtt, device_id: str, **kwargs: dict[str, Any] | str | int | bool | None) -> None:
+    def upsert_device(self: Amcrest2Mqtt, device_id: str, **kwargs: dict[str, Any] | str | int | bool | None) -> bool:
         MERGER = Merger(
             [(dict, "merge"), (list, "append_unique"), (set, "union")],
             ["override"],
             ["override"],
         )
+        prev = self.devices.get(device_id, {})
         for section, data in kwargs.items():
             # Pre-merge check
             self.assert_no_tuples(data, f"device[{device_id}].{section}")
@@ -304,15 +306,20 @@ class HelpersMixin:
             # Post-merge check
             self.assert_no_tuples(merged, f"device[{device_id}].{section} (post-merge)")
             self.devices[device_id] = merged
+        new = self.devices.get(device_id, {})
+        return False if prev == new else True
 
-    def upsert_state(self: Amcrest2Mqtt, device_id: str, **kwargs: dict[str, Any] | str | int | bool | None) -> None:
+    def upsert_state(self: Amcrest2Mqtt, device_id: str, **kwargs: dict[str, Any] | str | int | bool | None) -> bool:
         MERGER = Merger(
             [(dict, "merge"), (list, "append_unique"), (set, "union")],
             ["override"],
             ["override"],
         )
+        prev = self.states.get(device_id, {})
         for section, data in kwargs.items():
             self.assert_no_tuples(data, f"state[{device_id}].{section}")
             merged = MERGER.merge(self.states.get(device_id, {}), {section: data})
             self.assert_no_tuples(merged, f"state[{device_id}].{section} (post-merge)")
             self.states[device_id] = merged
+        new = self.states.get(device_id, {})
+        return False if prev == new else True

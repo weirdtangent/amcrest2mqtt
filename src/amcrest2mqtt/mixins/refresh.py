@@ -9,13 +9,15 @@ if TYPE_CHECKING:
 
 class RefreshMixin:
     async def refresh_all_devices(self: Amcrest2Mqtt) -> None:
-        self.logger.info(f"Refreshing all devices from Amcrest (every {self.device_interval} sec)")
+        self.logger.info(f"refreshing device stats (every {self.device_interval} sec)")
 
         semaphore = asyncio.Semaphore(5)
 
         async def _refresh(device_id: str) -> None:
             async with semaphore:
-                await asyncio.to_thread(self.build_device_states, device_id)
+                changed = await asyncio.to_thread(self.build_device_states, device_id)
+                if changed:
+                    await asyncio.to_thread(self.publish_device_state, device_id)
 
         tasks = []
         for device_id in self.devices:
