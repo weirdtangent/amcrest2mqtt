@@ -90,6 +90,28 @@ or make sure you attach a volume with the config file and point to that director
 CMD [ "python", "-u", "./app.py", "-c", "/config" ]
 ```
 
+## Mounted Volume Permissions (Synology)
+
+If you mount a host folder into /media for saving recordings, ensure the container has write access.
+On Synology NAS, shared folders use ACLs that can block Docker containers even when chmod 777 appears open.
+
+To reset permissions and make the volume writable by the container’s default user (uid=1000, gid=1000), run the following via SSH:
+```
+sudo synoacltool -del /volume1/photo/Amcrest
+sudo chmod 777 /volume1/photo/Amcrest
+sudo chown 1000:1000 /volume1/photo/Amcrest
+```
+
+Then verify inside the container:
+```
+docker exec -it amcrest2mqtt ls -ld /media
+```
+
+You should see permissions like:
+```
+drwxrwxrwx 1 appuser appuser ... /media
+```
+
 ## Out of Scope
 
 ### Non-Docker Environments
