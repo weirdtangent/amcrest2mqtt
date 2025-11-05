@@ -1,3 +1,10 @@
+## [2.0.10](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.9...v2.0.10) (2025-11-05)
+
+
+### Bug Fixes
+
+* return last known state if we fail to get current state, so upsert just works ([2ca75d4](https://github.com/weirdtangent/amcrest2mqtt/commit/2ca75d4128751544cc31699543032df618f92af3))
+
 ## [2.0.9](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.8...v2.0.9) (2025-11-05)
 
 
