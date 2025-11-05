@@ -21,11 +21,6 @@ class RefreshMixin:
 
         tasks = []
         for device_id in self.devices:
-            if not self.running:
-                break
-            if device_id == "service":
-                continue
             tasks.append(_refresh(device_id))
-
         if tasks:
             await asyncio.gather(*tasks)

@@ -120,19 +120,28 @@ class AmcrestAPIMixin:
 
     def get_storage_stats(self: Amcrest2Mqtt, device_id: str) -> dict[str, str | float]:
         device = self.amcrest_devices[device_id]
+        states = self.states[device_id]
+
+        # return our last known state if we fail to get new stats
+        current: dict[str, str | float] = {
+            "used_percent": states["sensor"]["used_percent"],
+            "used": states["sensor"]["used"],
+            "total": states["sensor"]["total"],
+        }
+
         if not device["camera"]:
             self.logger.warning(f"camera not found for {self.get_device_name(device_id)}")
-            return {}
+            return current
 
         try:
             storage = device["camera"].storage_all
             self.set_last_call_date()
         except CommError as err:
             self.logger.error(f"failed to get storage stats from ({self.get_device_name(device_id)}): {err}")
-            return {}
+            return current
         except LoginError as err:
             self.logger.error(f"failed to auth to ({self.get_device_name(device_id)}): {err}")
-            return {}
+            return current
 
         return {
             "used_percent": storage.get("used_percent", "unknown"),
@@ -144,9 +153,14 @@ class AmcrestAPIMixin:
 
     def get_privacy_mode(self: Amcrest2Mqtt, device_id: str) -> bool:
         device = self.amcrest_devices[device_id]
+        states = self.states[device_id]
+
+        # return our last known state if we fail to get new stats
+        current = bool(states["sensor"]["privacy"] == "ON")
+
         if not device["camera"]:
             self.logger.warning(f"camera not found for {self.get_device_name(device_id)}")
-            return False
+            return current
 
         try:
             privacy = device["camera"].privacy_config().split()
@@ -155,10 +169,10 @@ class AmcrestAPIMixin:
             self.set_last_call_date()
         except CommError as err:
             self.logger.error(f"failed to get privacy mode from ({self.get_device_name(device_id)}): {err}")
-            return False
+            return current
         except LoginError as err:
             self.logger.error(f"failed to auth to device ({self.get_device_name(device_id)}): {err}")
-            return False
+            return current
 
         return privacy_mode
 
@@ -184,24 +198,30 @@ class AmcrestAPIMixin:
 
     def get_motion_detection(self: Amcrest2Mqtt, device_id: str) -> bool:
         device = self.amcrest_devices[device_id]
+        states = self.states[device_id]
+
+        # return our last known state if we fail to get new stats
+        current = bool(states["sensor"]["motion_detection"] == "ON")
+
         if not device["camera"]:
             self.logger.warning(f"camera not found for {self.get_device_name(device_id)}")
-            return False
+            return current
 
         try:
             motion_detection = bool(device["camera"].is_motion_detector_on())
             self.set_last_call_date()
         except CommError as err:
             self.logger.error(f"failed to get motion detection switch on ({self.get_device_name(device_id)}): {err}")
-            return False
+            return current
         except LoginError as err:
             self.logger.error(f"failed to auth to device ({self.get_device_name(device_id)}): {err}")
-            return False
+            return current
 
         return motion_detection
 
     def set_motion_detection(self: Amcrest2Mqtt, device_id: str, switch: bool) -> str:
         device = self.amcrest_devices[device_id]
+
         if not device["camera"]:
             self.logger.warning(f"camera not found for {self.get_device_name(device_id)}")
             return ""
