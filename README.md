@@ -112,6 +112,8 @@ You should see permissions like:
 drwxrwxrwx 1 appuser appuser ... /media
 ```
 
+Once configured correctly, you should see new recordings appear in your mounted folder with ownership 1000:1000 and a symlink to the latest file.
+
 ## Out of Scope
 
 ### Non-Docker Environments
