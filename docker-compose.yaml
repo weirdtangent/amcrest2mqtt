@@ -9,8 +9,7 @@ services:
     volumes:
       - ./config:/config
     environment:
-      - TZ=${TZ:-UTC}
-      - CONFIG_PATH=/config/config.yaml
+      - TZ=America/New_York
     healthcheck:
       test: ["CMD", "python3", "/app/src/healthcheck.py"]
       interval: 60s

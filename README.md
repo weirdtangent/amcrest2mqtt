@@ -44,7 +44,6 @@ It supports the following environment variables:
 -   `MEDIA_PATH` (optional) - path to store motion recordings (mp4) files
 -   `MEDIA_SOURCE` (optional) - HomeAssistant url for accessing those recordings (see config.yaml.sample)
 
--   `TZ` (required, timezone identifier, see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List)
 -   `STORAGE_UPDATE_INTERVAL` (optional, default = 900) - how often to fetch storage stats (in seconds)
 -   `SNAPSHOT_UPDATE_INTERVAL` (optional, default = 60) - how often to fetch camera snapshot (in seconds)
 
@@ -113,6 +112,13 @@ drwxrwxrwx 1 appuser appuser ... /media
 ```
 
 Once configured correctly, you should see new recordings appear in your mounted folder with ownership 1000:1000 and a symlink to the latest file.
+
+Also, make sure you have
+```
+environment:
+  - TZ=America/New_York
+```
+in your docker-compose if you want the recording filenames to by local time and not UTC.
 
 ## Out of Scope
 

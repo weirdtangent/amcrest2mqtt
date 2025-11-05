@@ -59,8 +59,6 @@ class Base:
         self.device_interval = self.config["amcrest"].get("device_interval", 30)
         self.device_list_interval = self.config["amcrest"].get("device_list_interval", 300)
 
-        self.timezone = self.config["timezone"]
-
         self.api_calls = 0
         self.last_call_date = ""
         self.rate_limited = False
