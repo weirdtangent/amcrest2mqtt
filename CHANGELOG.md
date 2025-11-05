@@ -1,3 +1,10 @@
+## [2.0.9](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.8...v2.0.9) (2025-11-05)
+
+
+### Bug Fixes
+
+* more generic Dockerfile; remove old/; better logging for failed /media writes ([33ab975](https://github.com/weirdtangent/amcrest2mqtt/commit/33ab97597f1f210fe6faa49020a7c313dabca658))
+
 ## [2.0.8](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.7...v2.0.8) (2025-11-04)
 
 
