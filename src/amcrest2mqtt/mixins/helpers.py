@@ -244,8 +244,29 @@ class HelpersMixin:
             try:
                 file_path.write_bytes(recording.encode("latin-1"))
             except IOError as err:
-                self.logger.error(f"failed to save recordingt to {path}: {err}")
+                self.logger.error(f"Failed to save recording to {file_path}: {err}")
                 return None
+
+            self.upsert_state(
+                device_id,
+                media={"recording": file_path},
+                sensor={"recording_time": datetime.now(timezone.utc).isoformat()},
+            )
+            local_file = Path(f"./{file_name}")
+            latest_link = Path(f"{path}/{name}-latest.mp4")
+
+            try:
+                if latest_link.is_symlink():
+                    latest_link.unlink()
+                latest_link.symlink_to(local_file)
+            except IOError as err:
+                self.logger.error(f"Failed to save symlink {latest_link} -> {local_file}: {err}")
+                pass
+
+            if "media_source" in self.config["media"]:
+                url = f"{self.config["media"]["media_source"]}/{file_name}"
+                self.upsert_state(device_id, sensor={"recording_url": url})
+                return url
 
             self.upsert_state(
                 device_id,
