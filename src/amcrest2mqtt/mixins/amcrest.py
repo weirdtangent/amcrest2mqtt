@@ -328,6 +328,9 @@ class AmcrestMixin:
                 "device": device_block,
             }
 
+        # store device and any "modes"
+        self.upsert_device(device_id, component=component, modes=modes)
+
         # defaults - which build_device_states doesn't update (events do)
         self.upsert_state(
             device_id,
@@ -341,6 +344,11 @@ class AmcrestMixin:
                 "human": False,
             },
             sensor={
+                "motion_detection": "ON",
+                "privacy": "OFF",
+                "storage_used": 0,
+                "storage_total": 0,
+                "storage_used_pct": 0,
                 "motion_region": "n/a",
                 "event_text": "",
                 "event_time": None,
@@ -348,7 +356,6 @@ class AmcrestMixin:
                 "recording_url": "",
             },
         )
-        self.upsert_device(device_id, component=component, modes=modes)
         self.build_device_states(device_id)
 
         if not self.states[device_id]["internal"].get("discovered", None):

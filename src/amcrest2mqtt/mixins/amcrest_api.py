@@ -114,7 +114,6 @@ class AmcrestAPIMixin:
                 },
             },
         }
-        self.get_privacy_mode(serial_number)
 
     # Storage stats -------------------------------------------------------------------------------
 
@@ -124,9 +123,9 @@ class AmcrestAPIMixin:
 
         # return our last known state if we fail to get new stats
         current: dict[str, str | float] = {
-            "used_percent": states["sensor"]["used_percent"],
-            "used": states["sensor"]["used"],
-            "total": states["sensor"]["total"],
+            "used_percent": states["sensor"]["storage_used_pct"],
+            "used": states["sensor"]["storage_used"],
+            "total": states["sensor"]["storage_total"],
         }
 
         if not device["camera"]:
