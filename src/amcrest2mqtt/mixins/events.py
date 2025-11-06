@@ -37,20 +37,25 @@ class EventsMixin:
                                 camera={"eventshot": image},
                                 sensor={"event_time": datetime.now(timezone.utc).isoformat()},
                             )
+                        event += ": snapshot"
                     elif payload["file"].endswith(".mp4"):
                         if "path" in self.config["media"] and self.states[device_id]["switch"]["save_recordings"] == "ON":
                             await self.store_recording_in_media(device_id, payload["file"])
+                        event += ": video"
                 elif event == "motion":
+                    region = payload["region"] if payload["state"] != "off" else "n/a"
                     self.upsert_state(
                         device_id,
                         binary_sensor={"motion": payload["state"]},
                         sensor={
-                            "motion_region": payload["region"] if payload["state"] != "off" else "n/a",
+                            "motion_region": region,
                             "event_time": datetime.now(timezone.utc).isoformat(),
                         },
                     )
+                    event += f": ({region}) - {payload["state"]}"
                 else:
                     self.upsert_state(device_id, sensor={event: payload})
+                    event += ": " + payload["state"]
 
                 # other ways to infer "privacy mode" has been turned off and we need to update
                 if event in ["motion", "human", "doorbell"] and states["switch"]["privacy"] != "OFF":
@@ -61,7 +66,7 @@ class EventsMixin:
             self.upsert_state(
                 device_id,
                 sensor={
-                    "event_text": f"{event}: {payload}",
+                    "event_text": event,
                     "event_time": datetime.now(timezone.utc).isoformat(),
                 },
             )
