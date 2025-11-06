@@ -1,3 +1,10 @@
+## [2.0.12](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.11...v2.0.12) (2025-11-06)
+
+
+### Bug Fixes
+
+* simply event for reporting to HA ([8a58519](https://github.com/weirdtangent/amcrest2mqtt/commit/8a585191a66686f1f038c3e80cc16e8833fac6f0))
+
 ## [2.0.11](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.10...v2.0.11) (2025-11-06)
 
 
