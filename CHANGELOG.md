@@ -1,3 +1,10 @@
+## [2.0.11](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.10...v2.0.11) (2025-11-06)
+
+
+### Bug Fixes
+
+* always setup defaults for all states expected at init time ([ee05312](https://github.com/weirdtangent/amcrest2mqtt/commit/ee053122bd4c37ef365c9ee16268c35afb56a3b6))
+
 ## [2.0.10](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.9...v2.0.10) (2025-11-05)
 
 
