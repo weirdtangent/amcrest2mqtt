@@ -1,4 +1,5 @@
 import json
+from datetime import timezone
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -111,6 +112,7 @@ class PublishMixin:
                     "max": 3600,
                     "step": 1,
                     "icon": "mdi:timer-refresh",
+                    "mode": "box",
                     "device": device_block,
                 }
             ),
@@ -131,6 +133,7 @@ class PublishMixin:
                     "max": 3600,
                     "step": 1,
                     "icon": "mdi:format-list-bulleted",
+                    "mode": "box",
                     "device": device_block,
                 }
             ),
@@ -151,6 +154,7 @@ class PublishMixin:
                     "max": 60,
                     "step": 1,
                     "icon": "mdi:lightning-bolt",
+                    "mode": "box",
                     "device": device_block,
                 }
             ),
@@ -178,10 +182,17 @@ class PublishMixin:
         self.mqtt_helper.safe_publish(self.mqtt_helper.avty_t("service"), status, qos=self.qos, retain=True)
 
     def publish_service_state(self: Amcrest2Mqtt) -> None:
+        # we keep last_call_date in localtime so it rolls-over the api call counter
+        # at the right time (midnight, local) but we want to send last_call_date
+        # to HomeAssistant as UTC
+        last_call_date = self.last_call_date
+        local_tz = last_call_date.astimezone().tzinfo
+        utc_dt = last_call_date.replace(tzinfo=local_tz).astimezone(timezone.utc)
+
         service = {
-            "api_calls": self.get_api_calls(),
-            "last_call_date": self.get_last_call_date(),
-            "rate_limited": "YES" if self.is_rate_limited() else "NO",
+            "api_calls": self.api_calls,
+            "last_call_date": utc_dt.isoformat(),
+            "rate_limited": "YES" if self.rate_limited else "NO",
             "storage_refresh": self.device_interval,
             "device_list_refresh": self.device_list_interval,
             "snapshot_refresh": self.snapshot_update_interval,
@@ -190,7 +201,7 @@ class PublishMixin:
         for key, value in service.items():
             self.mqtt_helper.safe_publish(
                 self.mqtt_helper.stat_t("service", "service", key),
-                json.dumps(value) if isinstance(value, dict) else str(value),
+                json.dumps(value) if isinstance(value, dict) else value,
                 qos=self.mqtt_config["qos"],
                 retain=True,
             )
@@ -247,3 +258,5 @@ class PublishMixin:
 
             type_states = states[component_type][name] if isinstance(states[component_type], dict) else states[component_type]
             _publish_one(device_id, type_states, name)
+
+        self.publish_service_state()

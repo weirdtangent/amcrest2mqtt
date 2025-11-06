@@ -17,19 +17,11 @@ SNAPSHOT_BASE_BACKOFF_S = 5
 
 
 class AmcrestAPIMixin:
-    def get_api_calls(self: Amcrest2Mqtt) -> int:
-        return self.api_calls
-
-    def get_last_call_date(self: Amcrest2Mqtt) -> str:
-        return self.last_call_date
-
-    def set_last_call_date(self: Amcrest2Mqtt) -> None:
-        self.last_call_date = datetime.now(timezone.utc).isoformat()
-
-    def is_rate_limited(self: Amcrest2Mqtt) -> bool:
-        return self.rate_limited
-
-    # ----------------------------------------------------------------------------------------------
+    def increase_api_calls(self: Amcrest2Mqtt) -> None:
+        if not self.last_call_date or self.last_call_date.date() != datetime.now().date():
+            self.api_calls = 0
+        self.last_call_date = datetime.now()
+        self.api_calls += 1
 
     async def connect_to_devices(self: Amcrest2Mqtt) -> dict[str, Any]:
         semaphore = asyncio.Semaphore(5)
@@ -52,6 +44,7 @@ class AmcrestAPIMixin:
 
     def get_camera(self: Amcrest2Mqtt, host: str) -> AmcrestCamera:
         config = self.amcrest_config
+        self.increase_api_calls()
         return AmcrestCamera(host, config["port"], config["username"], config["password"], verbose=False)
 
     def get_device(self: Amcrest2Mqtt, host: str, device_name: str, index: int) -> None:
@@ -61,7 +54,7 @@ class AmcrestAPIMixin:
             host_ip = self.get_ip_address(host)
             device = self.get_camera(host_ip)
             camera = device.camera
-            self.set_last_call_date()
+            self.increase_api_calls()
         except LoginError:
             self.logger.error(f'invalid username/password to connect to device "{host}", fix in config.yaml')
             return
@@ -134,7 +127,7 @@ class AmcrestAPIMixin:
 
         try:
             storage = device["camera"].storage_all
-            self.set_last_call_date()
+            self.increase_api_calls()
         except CommError as err:
             self.logger.error(f"failed to get storage stats from ({self.get_device_name(device_id)}): {err}")
             return current
@@ -165,7 +158,7 @@ class AmcrestAPIMixin:
             privacy = device["camera"].privacy_config().split()
             privacy_mode = True if privacy[0].split("=")[1] == "true" else False
             device["privacy_mode"] = privacy_mode
-            self.set_last_call_date()
+            self.increase_api_calls()
         except CommError as err:
             self.logger.error(f"failed to get privacy mode from ({self.get_device_name(device_id)}): {err}")
             return current
@@ -183,7 +176,7 @@ class AmcrestAPIMixin:
 
         try:
             response = cast(str, device["camera"].set_privacy(switch).strip())
-            self.set_last_call_date()
+            self.increase_api_calls()
         except CommError as err:
             self.logger.error(f"failed to set privacy mode on ({self.get_device_name(device_id)}): {err}")
             return ""
@@ -208,7 +201,7 @@ class AmcrestAPIMixin:
 
         try:
             motion_detection = bool(device["camera"].is_motion_detector_on())
-            self.set_last_call_date()
+            self.increase_api_calls()
         except CommError as err:
             self.logger.error(f"failed to get motion detection switch on ({self.get_device_name(device_id)}): {err}")
             return current
@@ -227,7 +220,7 @@ class AmcrestAPIMixin:
 
         try:
             response = str(device["camera"].set_motion_detection(switch))
-            self.set_last_call_date()
+            self.increase_api_calls()
         except CommError:
             self.logger.error(f"Failed to communicate with device ({self.get_device_name(device_id)}) to set motion detections")
             return ""
@@ -259,7 +252,7 @@ class AmcrestAPIMixin:
         for attempt in range(1, SNAPSHOT_MAX_TRIES + 1):
             try:
                 image_bytes = await asyncio.wait_for(camera.async_snapshot(), timeout=SNAPSHOT_TIMEOUT_S)
-                self.set_last_call_date()
+                self.increase_api_calls()
                 if not image_bytes:
                     self.logger.warning(f"Snapshot: empty image from {self.get_device_name(device_id)}")
                     return None
@@ -314,7 +307,7 @@ class AmcrestAPIMixin:
         while tries < 3:
             try:
                 data_raw = cast(bytes, device["camera"].download_file(file))
-                self.set_last_call_date()
+                self.increase_api_calls()
                 if data_raw:
                     if not encode:
                         if len(data_raw) < self.mb_to_b(100):
@@ -356,7 +349,7 @@ class AmcrestAPIMixin:
             try:
                 async for code, payload in device["camera"].async_event_actions("All"):
                     await self.process_device_event(device_id, code, payload)
-                self.set_last_call_date()
+                self.increase_api_calls()
                 return
             except CommError:
                 tries += 1

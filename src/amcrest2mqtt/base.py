@@ -4,8 +4,11 @@ import argparse
 from datetime import datetime
 import logging
 from mqtt_helper import MqttHelper
+import json
 from json_logging import get_logger
+import os
 from paho.mqtt.client import Client
+from pathlib import Path
 from types import TracebackType
 
 from typing import Any, cast, Self
@@ -60,7 +63,7 @@ class Base:
         self.device_list_interval = self.config["amcrest"].get("device_list_interval", 300)
 
         self.api_calls = 0
-        self.last_call_date = ""
+        self.last_call_date = datetime.now()
         self.rate_limited = False
 
     def __enter__(self: Self) -> Amcrest2Mqtt:
@@ -69,6 +72,7 @@ class Base:
             super_enter()
 
         cast(Any, self).mqttc_create()
+        cast(Any, self).restore_state()
         self.running = True
 
         return cast(Amcrest2Mqtt, self)
@@ -79,6 +83,7 @@ class Base:
             super_exit(exc_type, exc_val, exc_tb)
 
         self.running = False
+        cast(Any, self).save_state()
 
         if cast(Any, self).mqttc is not None:
             try:
@@ -95,3 +100,22 @@ class Base:
                     self.logger.warning(f"error during MQTT disconnect: {err}")
 
         self.logger.info("exiting gracefully")
+
+    def save_state(self: Amcrest2Mqtt) -> None:
+        data_file = Path(self.config["config_path"]) / "amcrest2mqtt.dat"
+        state = {
+            "api_calls": self.api_calls,
+            "last_call_date": str(self.last_call_date),
+        }
+        with open(data_file, "w", encoding="utf-8") as file:
+            json.dump(state, file, indent=4)
+        self.logger.info(f"Saved state to {data_file}")
+
+    def restore_state(self: Amcrest2Mqtt) -> None:
+        data_file = Path(self.config["config_path"]) / "amcrest2mqtt.dat"
+        if os.path.exists(data_file):
+            with open(data_file, "r") as file:
+                state = json.loads(file.read())
+                self.api_calls = state["api_calls"]
+                self.last_call_date = datetime.strptime(state["last_call_date"], "%Y-%m-%d %H:%M:%S.%f")
+                self.logger.info(f"Restored state from {data_file}: {self.api_calls} / {str(self.last_call_date)}")
