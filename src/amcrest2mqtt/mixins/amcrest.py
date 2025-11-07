@@ -147,6 +147,7 @@ class AmcrestMixin:
             "avty_t": self.mqtt_helper.avty_t(device_id),
             "clip_url": f"media-source://media_source/local/Videos/amcrest/{device["device_name"]}-latest.mp4",
             "icon": "mdi:web",
+            "enabled_by_default": False,
             "via_device": self.mqtt_helper.service_slug,
             "device": device_block,
         }

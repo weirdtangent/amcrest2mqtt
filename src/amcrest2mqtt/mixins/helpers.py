@@ -168,7 +168,8 @@ class HelpersMixin:
 
             if os.path.exists(media_path) and os.access(media_path, os.W_OK):
                 media["path"] = media_path
-                self.logger.info(f"storing recordings in {media_path}, watch that it doesn't fill up the file system")
+                media.setdefault("max_size", 25)
+                self.logger.info(f"storing recordings in {media_path} up to {media["max_size"]} MB per file. Watch that it doesn't fill up the file system")
             else:
                 self.logger.info("media_path not configured, not found, or is not writable. Will not be saving recordings")
 
@@ -239,6 +240,11 @@ class HelpersMixin:
             path = self.config["media"]["path"]
             file_name = f"{name}-{time}.mp4"
             file_path = Path(f"{path}/{file_name}")
+
+            # last chance to skip the recording
+            if self.b_to_mb(len(recording)) > self.config["media"]["max_size"]:
+                self.logger.info(f"Skipping saving recording to {path} because {self.b_to_mb(len(recording))} > {self.config["media"]["max_size"]} MB")
+                return None
 
             try:
                 file_path.write_bytes(recording.encode("latin-1"))

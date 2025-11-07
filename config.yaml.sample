@@ -5,7 +5,6 @@ mqtt:
   password: password
   qos: 0
   prefix: amcrest2mqtt
-  homeassistant: True
   discovery_prefix: homeassistant
   tls_enabled: False
   tls_ca_cert: filename
@@ -33,4 +32,5 @@ amcrest:
 
 media:
   path: /media
+  max_size: 25 # per recording, in MB; default is 25
   media_source: media-source://media_source/local/videos
