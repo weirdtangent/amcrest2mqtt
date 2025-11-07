@@ -61,9 +61,7 @@ class EventsMixin:
                 if event in ["motion", "human", "doorbell"] and states["switch"]["privacy"] != "OFF":
                     self.upsert_state(device_id, switch={"privacy_mode": "OFF"})
 
-            # send most everything to the device's event_text/time
-            if event not in ["NTPAdjustTime"]:
-                self.logger.debug(f'got event {{{event}: {payload}}} for "{self.get_device_name(device_id)}"')
+                # record just these "events": text and time
                 self.upsert_state(
                     device_id,
                     sensor={
@@ -72,6 +70,8 @@ class EventsMixin:
                     },
                 )
                 needs_publish.add(device_id)
+            else:
+                self.logger.info(f'Ignored event for "{self.get_device_name(device_id)}": {event} with {payload}')
 
         for id in needs_publish:
             self.publish_device_state(id)

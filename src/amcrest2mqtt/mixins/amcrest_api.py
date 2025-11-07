@@ -4,7 +4,7 @@ from amcrest import AmcrestCamera
 from amcrest.exceptions import LoginError, AmcrestError, CommError
 import asyncio
 import base64
-from datetime import datetime, timezone
+from datetime import datetime
 import random
 from typing import TYPE_CHECKING, Any, cast
 
@@ -262,10 +262,6 @@ class AmcrestAPIMixin:
                 self.upsert_state(
                     device_id,
                     image={"snapshot": encoded},
-                    sensor={
-                        "event_text": "Got snapshot",
-                        "event_time": datetime.now(timezone.utc).isoformat(),
-                    },
                 )
                 self.publish_device_state(device_id)
 
