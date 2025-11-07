@@ -21,6 +21,9 @@ class RefreshMixin:
 
         tasks = []
         for device_id in self.devices:
+            if self.is_rebooting(device_id):
+                self.logger.debug(f"skipping refresh for {self.get_device_name(device_id)}, still rebooting")
+                continue
             tasks.append(_refresh(device_id))
         if tasks:
             await asyncio.gather(*tasks)

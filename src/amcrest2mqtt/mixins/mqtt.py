@@ -93,7 +93,8 @@ class MqttMixin:
         client.subscribe("homeassistant/status")
         client.subscribe(f"{self.mqtt_helper.service_slug}/service/+/set")
         client.subscribe(f"{self.mqtt_helper.service_slug}/service/+/command")
-        client.subscribe(f"{self.mqtt_helper.service_slug}/switch/#")
+        client.subscribe(f"{self.mqtt_helper.service_slug}/+/switch/+/set")
+        client.subscribe(f"{self.mqtt_helper.service_slug}/+/button/+/set")
 
     def mqtt_on_disconnect(
         self: Amcrest2Mqtt, client: Client, userdata: Any, flags: DisconnectFlags, reason_code: ReasonCode, properties: Properties | None
@@ -176,20 +177,11 @@ class MqttMixin:
                 return None
 
             # Example topics:
-            # amcrest2mqtt/light/amcrest2mqtt_2BEFD0C907BB6BF2/set
-            # amcrest2mqtt/light/amcrest2mqtt_2BEFD0C907BB6BF2/save_recordings/set
+            # amcrest2mqtt/amcrest2mqtt_2BEFD0C907BB6BF2/switch/save_recordings/set
+            # amcrest2mqtt/amcrest2mqtt_2BEFD0C907BB6BF2/button/reboot/set
 
-            # Case 1: .../<device>/<attribute>set
-            if len(components) >= 5 and "_" in components[-3]:
-                vendor, device_id = components[-3].split("_", 1)
-                attribute = components[-2]
-            # Case 2: .../<device>/<attribute>/set
-            elif len(components) >= 4 and "_" in components[-2]:
-                vendor, device_id = components[-2].split("_", 1)
-                attribute = None
-
-            else:
-                raise ValueError(f"Malformed topic (expected underscore): {'/'.join(components)}")
+            vendor, device_id = components[1].split("_", 1)
+            attribute = components[-2]
 
             return [vendor, device_id, attribute]
 

@@ -7,7 +7,7 @@ Uses the [`python-amcrest`](https://github.com/tchellomello/python-amcrest) libr
 Forked from [dchesterton/amcrest2mqtt](https://github.com/dchesterton/amcrest2mqtt)
 
 UPDATES:
-* 10/2025 Added a "media" config where mp4 recordings of motions events can be stored
+* 10/2025 Added a "media" config where mp4 recordings of motions events can be stored (11/2025 now with "max_size" option)
 * 10/2025 "Rediscover" button added to service - when pressed, device discovery is re-run so HA will rediscover deleted devices
 
 

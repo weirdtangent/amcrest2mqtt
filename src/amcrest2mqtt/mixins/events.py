@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
-import asyncio
 from typing import TYPE_CHECKING
 from datetime import datetime, timezone
 
@@ -9,10 +8,6 @@ if TYPE_CHECKING:
 
 
 class EventsMixin:
-    async def collect_all_device_events(self: Amcrest2Mqtt) -> None:
-        tasks = [self.get_events_from_device(device_id) for device_id in self.amcrest_devices]
-        await asyncio.gather(*tasks)
-
     async def check_for_events(self: Amcrest2Mqtt) -> None:
         needs_publish = set()
 
@@ -27,7 +22,7 @@ class EventsMixin:
             states = self.states[device_id]
 
             # if one of our known sensors
-            if event in ["motion", "human", "doorbell", "recording", "privacy_mode"]:
+            if event in ["motion", "human", "doorbell", "recording", "privacy_mode", "Reboot"]:
                 if event == "recording":
                     if payload["file"].endswith(".jpg"):
                         image = self.get_recorded_file(device_id, payload["file"])
@@ -54,8 +49,13 @@ class EventsMixin:
                     )
                     event += f": ({region}) - {payload["state"]}"
                 else:
-                    self.upsert_state(device_id, sensor={event: payload})
-                    event += ": " + payload["state"]
+                    if isinstance(payload, str):
+                        event += ": " + payload
+                    elif isinstance(payload, dict):
+                        if "state" in payload:
+                            event += ": " + payload["state"]
+                        if "action" in payload:
+                            event += ": " + payload["action"]
 
                 # other ways to infer "privacy mode" has been turned off and we need to update
                 if event in ["motion", "human", "doorbell"] and states["switch"]["privacy"] != "OFF":
@@ -69,9 +69,10 @@ class EventsMixin:
                         "event_time": datetime.now(timezone.utc).isoformat(),
                     },
                 )
+                self.logger.debug(f'processed event for "{self.get_device_name(device_id)}": {event} with {payload}')
                 needs_publish.add(device_id)
             else:
-                self.logger.info(f'Ignored event for "{self.get_device_name(device_id)}": {event} with {payload}')
+                self.logger.debug(f'ignored event for "{self.get_device_name(device_id)}": {event} with {payload}')
 
         for id in needs_publish:
             self.publish_device_state(id)

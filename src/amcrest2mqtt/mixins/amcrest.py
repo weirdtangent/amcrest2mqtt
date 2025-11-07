@@ -114,6 +114,18 @@ class AmcrestMixin:
             device["software_version"],
         )
 
+        modes["reboot"] = {
+            "component_type": "button",
+            "name": "Reboot",
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "reboot"),
+            "cmd_t": self.mqtt_helper.cmd_t(device_id, "button", "reboot"),
+            "payload_press": "PRESS",
+            "icon": "mdi:restart",
+            "entity_category": "diagnostic",
+            "via_device": self.mqtt_helper.service_slug,
+            "device": device_block,
+        }
+
         modes["snapshot"] = {
             "component_type": "image",
             "name": "Timed snapshot",

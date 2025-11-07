@@ -27,6 +27,10 @@ class ConfigError(ValueError):
 
 class HelpersMixin:
     def build_device_states(self: Amcrest2Mqtt, device_id: str) -> bool:
+        if self.is_rebooting(device_id):
+            self.logger.debug(f"skipping device states for {self.get_device_name(device_id)}, still rebooting")
+            return False
+
         storage = self.get_storage_stats(device_id)
         privacy = self.get_privacy_mode(device_id)
         motion_detection = self.get_motion_detection(device_id)
@@ -55,6 +59,12 @@ class HelpersMixin:
                     return
                 self.upsert_state(device_id, switch={"save_recordings": message})
                 self.publish_device_state(device_id)
+            case "motion_detection":
+                self.set_motion_detection(device_id, message == "ON")
+            case "privacy":
+                self.set_privacy_mode(device_id, message == "ON")
+            case "reboot":
+                self.reboot_device(device_id)
 
     def handle_service_command(self: Amcrest2Mqtt, handler: str, message: str) -> None:
         match handler:
