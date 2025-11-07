@@ -1,3 +1,10 @@
+# [2.1.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.12...v2.1.0) (2025-11-07)
+
+
+### Features
+
+* added save recordings and reboot button ([9b4338b](https://github.com/weirdtangent/amcrest2mqtt/commit/9b4338b13b37e61625b9b424bb94366616371ae6))
+
 ## [2.0.12](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.11...v2.0.12) (2025-11-06)
 
 
