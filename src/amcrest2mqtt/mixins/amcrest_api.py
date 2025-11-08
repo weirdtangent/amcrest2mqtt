@@ -12,9 +12,9 @@ from typing import TYPE_CHECKING, Any, cast
 if TYPE_CHECKING:
     from amcrest2mqtt.interface import AmcrestServiceProtocol as Amcrest2Mqtt
 
-SNAPSHOT_TIMEOUT_S = 10
+SNAPSHOT_TIMEOUT_S = 20
 SNAPSHOT_MAX_TRIES = 3
-SNAPSHOT_BASE_BACKOFF_S = 5
+SNAPSHOT_BASE_BACKOFF_S = 8
 
 
 class AmcrestAPIMixin:
@@ -117,7 +117,11 @@ class AmcrestAPIMixin:
         build = sw_info[1].strip()
         sw_version = f"{version} ({build})"
 
-        network_config = dict(item.split("=", 1) for item in net_config[0].splitlines() if "=" in item)
+        if isinstance(net_config, tuple):
+            net_config_str = cast(str, net_config[0])
+        else:
+            net_config_str = cast(str, net_config)
+        network_config = dict(item.split("=", 1) for item in net_config_str.splitlines() if "=" in item)
 
         interface = network_config.get("table.Network.DefaultInterface")
         if not interface:
