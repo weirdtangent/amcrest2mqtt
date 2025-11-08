@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
+import asyncio
 import argparse
+import concurrent.futures
 from datetime import datetime
 import logging
 from mqtt_helper import MqttHelper
@@ -19,6 +21,9 @@ from amcrest2mqtt.interface import AmcrestServiceProtocol as Amcrest2Mqtt
 class Base:
     def __init__(self: Amcrest2Mqtt, args: argparse.Namespace | None = None, **kwargs: Any):
         super().__init__(**kwargs)
+
+        self.loop = asyncio.get_running_loop()
+        self.loop.set_default_executor(concurrent.futures.ThreadPoolExecutor(max_workers=16))
 
         self.args = args
         self.logger = get_logger(__name__)
@@ -66,18 +71,18 @@ class Base:
         self.last_call_date = datetime.now()
         self.rate_limited = False
 
-    def __enter__(self: Self) -> Amcrest2Mqtt:
+    async def __aenter__(self: Self) -> Amcrest2Mqtt:
         super_enter = getattr(super(), "__enter__", None)
         if callable(super_enter):
             super_enter()
 
-        cast(Any, self).mqttc_create()
+        await cast(Any, self).mqttc_create()
         cast(Any, self).restore_state()
         self.running = True
 
         return cast(Amcrest2Mqtt, self)
 
-    def __exit__(self: Self, exc_type: BaseException | None, exc_val: BaseException | None, exc_tb: TracebackType) -> None:
+    async def __aexit__(self: Self, exc_type: BaseException | None, exc_val: BaseException | None, exc_tb: TracebackType) -> None:
         super_exit = getattr(super(), "__exit__", None)
         if callable(super_exit):
             super_exit(exc_type, exc_val, exc_tb)
@@ -87,7 +92,7 @@ class Base:
 
         if cast(Any, self).mqttc is not None:
             try:
-                cast(Any, self).publish_service_availability("offline")
+                await cast(Any, self).publish_service_availability("offline")
                 cast(Any, self).mqttc.loop_stop()
             except Exception as err:
                 self.logger.debug(f"Mqtt loop_stop failed: {err}")

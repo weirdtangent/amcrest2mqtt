@@ -56,15 +56,13 @@ class LoopsMixin:
 
     # main loop
     async def main_loop(self: Amcrest2Mqtt) -> None:
-        await self.setup_device_list()
-
-        self.loop = asyncio.get_running_loop()
         for sig in (signal.SIGTERM, signal.SIGINT):
             try:
                 signal.signal(sig, self.handle_signal)
             except Exception:
                 self.logger.debug(f"Cannot install handler for {sig}")
 
+        await self.setup_device_list()
         self.running = True
         self.mark_ready()
 

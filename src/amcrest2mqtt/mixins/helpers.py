@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
+import asyncio
 from deepmerge.merger import Merger
 import ipaddress
 import os
@@ -26,14 +27,17 @@ class ConfigError(ValueError):
 
 
 class HelpersMixin:
-    def build_device_states(self: Amcrest2Mqtt, device_id: str) -> bool:
+    async def build_device_states(self: Amcrest2Mqtt, device_id: str) -> bool:
         if self.is_rebooting(device_id):
             self.logger.debug(f"skipping device states for {self.get_device_name(device_id)}, still rebooting")
             return False
 
-        storage = self.get_storage_stats(device_id)
-        privacy = self.get_privacy_mode(device_id)
-        motion_detection = self.get_motion_detection(device_id)
+        # get properties from device
+        storage, privacy, motion_detection = await asyncio.gather(
+            self.get_storage_stats(device_id),
+            self.get_privacy_mode(device_id),
+            self.get_motion_detection(device_id),
+        )
 
         changed = self.upsert_state(
             device_id,
@@ -51,22 +55,22 @@ class HelpersMixin:
 
     # send command to Amcrest -----------------------------------------------------------------------
 
-    def handle_device_command(self: Amcrest2Mqtt, device_id: str, handler: str, message: str) -> None:
+    async def handle_device_command(self: Amcrest2Mqtt, device_id: str, handler: str, message: str) -> None:
         match handler:
             case "save_recordings":
                 if message == "ON" and "path" not in self.config["media"]:
                     self.logger.error("user tried to turn on save_recordings, but there is no media path set")
                     return
                 self.upsert_state(device_id, switch={"save_recordings": message})
-                self.publish_device_state(device_id)
+                await self.publish_device_state(device_id)
             case "motion_detection":
-                self.set_motion_detection(device_id, message == "ON")
+                await self.set_motion_detection(device_id, message == "ON")
             case "privacy":
-                self.set_privacy_mode(device_id, message == "ON")
+                await self.set_privacy_mode(device_id, message == "ON")
             case "reboot":
                 self.reboot_device(device_id)
 
-    def handle_service_command(self: Amcrest2Mqtt, handler: str, message: str) -> None:
+    async def handle_service_command(self: Amcrest2Mqtt, handler: str, message: str) -> None:
         match handler:
             case "storage_refresh":
                 self.device_interval = int(message)
@@ -76,18 +80,18 @@ class HelpersMixin:
                 self.snapshot_update_interval = int(message)
             case "refresh_device_list":
                 if message == "refresh":
-                    self.rediscover_all()
+                    await self.rediscover_all()
             case _:
                 self.logger.error(f"unrecognized message to {self.mqtt_helper.service_slug}: {handler} -> {message}")
                 return
-        self.publish_service_state()
+        await self.publish_service_state()
 
-    def rediscover_all(self: Amcrest2Mqtt) -> None:
-        self.publish_service_discovery()
-        self.publish_service_state()
+    async def rediscover_all(self: Amcrest2Mqtt) -> None:
+        await self.publish_service_discovery()
+        await self.publish_service_state()
         for device_id in self.devices:
-            self.publish_device_discovery(device_id)
-            self.publish_device_state(device_id)
+            await self.publish_device_discovery(device_id)
+            await self.publish_device_state(device_id)
 
     # Utility functions ---------------------------------------------------------------------------
 
@@ -118,16 +122,18 @@ class HelpersMixin:
         except ValueError:
             return False
 
-    def get_ip_address(self: Amcrest2Mqtt, string: str) -> str:
+    async def get_ip_address(self: Amcrest2Mqtt, string: str) -> str:
         if self.is_ipv4(string):
             return string
+
         try:
-            for i in socket.getaddrinfo(string, None):
-                if i[0] == socket.AddressFamily.AF_INET:
-                    return str(i[4][0])
+            infos = await self.loop.getaddrinfo(string, None, family=socket.AF_INET)
+            # getaddrinfo returns a list of 5-tuples; [4][0] holds the IP string
+            return infos[0][4][0]
         except socket.gaierror as err:
-            raise Exception(f"failed to resolve {string}: {err}")
-        raise Exception(f"failed to find IP address for {string}")
+            raise Exception(f"failed to resolve {string}: {err}") from err
+        except IndexError:
+            raise Exception(f"failed to find IP address for {string}")
 
     def list_from_env(self: Amcrest2Mqtt, env_name: str) -> list[str]:
         v = os.getenv(env_name)

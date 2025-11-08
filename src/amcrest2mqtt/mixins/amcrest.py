@@ -12,19 +12,25 @@ class AmcrestMixin:
         self.logger.debug("setting up device list from config")
 
         amcrest_devices = await self.connect_to_devices()
-        self.publish_service_state()
+        await self.publish_service_state()
 
-        seen_devices = set()
+        seen_devices: set[str] = set()
 
-        for device in amcrest_devices.values():
-            created = await self.build_component(device)
-            if created:
-                seen_devices.add(created)
+        # Build all components concurrently
+        tasks = [self.build_component(device) for device in amcrest_devices.values()]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Collect successful device IDs
+        for result in results:
+            if isinstance(result, Exception):
+                self.logger.error(f"error during build_component: {result}", exc_info=True)
+            elif result and isinstance(result, str):
+                seen_devices.add(result)
 
         # Mark missing devices offline
         missing_devices = set(self.devices.keys()) - seen_devices
         for device_id in missing_devices:
-            self.publish_device_availability(device_id, online=False)
+            await self.publish_device_availability(device_id, online=False)
             self.logger.warning(f"device {device_id} not seen in Amcrest API list — marked offline")
 
         # Handle first discovery completion
@@ -369,13 +375,13 @@ class AmcrestMixin:
                 "recording_url": "",
             },
         )
-        self.build_device_states(device_id)
+        await self.build_device_states(device_id)
 
         if not self.states[device_id]["internal"].get("discovered", None):
             self.logger.info(f'added new camera: "{device["device_name"]}" {device["vendor"]} {device["device_type"]}] ({device_id})')
 
-        self.publish_device_discovery(device_id)
-        self.publish_device_availability(device_id, online=True)
-        self.publish_device_state(device_id)
+        await self.publish_device_discovery(device_id)
+        await self.publish_device_availability(device_id, online=True)
+        await self.publish_device_state(device_id)
 
         return device_id

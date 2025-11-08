@@ -1,5 +1,6 @@
-import json
+import asyncio
 from datetime import timezone
+import json
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -10,7 +11,7 @@ class PublishMixin:
 
     # Service -------------------------------------------------------------------------------------
 
-    def publish_service_discovery(self: Amcrest2Mqtt) -> None:
+    async def publish_service_discovery(self: Amcrest2Mqtt) -> None:
         device_block = self.mqtt_helper.device_block(
             self.service_name,
             self.mqtt_helper.service_slug,
@@ -161,7 +162,8 @@ class PublishMixin:
             qos=self.mqtt_config["qos"],
             retain=True,
         )
-        self.mqtt_helper.safe_publish(
+        await asyncio.to_thread(
+            self.mqtt_helper.safe_publish,
             topic=self.mqtt_helper.disc_t("button", "refresh_device_list"),
             payload=json.dumps(
                 {
@@ -178,10 +180,10 @@ class PublishMixin:
         )
         self.logger.debug(f"discovery published for {self.service} ({self.mqtt_helper.service_slug})")
 
-    def publish_service_availability(self: Amcrest2Mqtt, status: str = "online") -> None:
-        self.mqtt_helper.safe_publish(self.mqtt_helper.avty_t("service"), status, qos=self.qos, retain=True)
+    async def publish_service_availability(self: Amcrest2Mqtt, status: str = "online") -> None:
+        await asyncio.to_thread(self.mqtt_helper.safe_publish, self.mqtt_helper.avty_t("service"), status, qos=self.qos, retain=True)
 
-    def publish_service_state(self: Amcrest2Mqtt) -> None:
+    async def publish_service_state(self: Amcrest2Mqtt) -> None:
         # we keep last_call_date in localtime so it rolls-over the api call counter
         # at the right time (midnight, local) but we want to send last_call_date
         # to HomeAssistant as UTC
@@ -199,7 +201,8 @@ class PublishMixin:
         }
 
         for key, value in service.items():
-            self.mqtt_helper.safe_publish(
+            await asyncio.to_thread(
+                self.mqtt_helper.safe_publish,
                 self.mqtt_helper.stat_t("service", "service", key),
                 json.dumps(value) if isinstance(value, dict) else value,
                 qos=self.mqtt_config["qos"],
@@ -208,45 +211,45 @@ class PublishMixin:
 
     # Devices -------------------------------------------------------------------------------------
 
-    def publish_device_discovery(self: Amcrest2Mqtt, device_id: str) -> None:
-        def _publish_one(dev_id: str, defn: dict, suffix: str = "") -> None:
+    async def publish_device_discovery(self: Amcrest2Mqtt, device_id: str) -> None:
+        async def _publish_one(dev_id: str, defn: dict, suffix: str = "") -> None:
             eff_device_id = dev_id if not suffix else f"{dev_id}_{suffix}"
             topic = self.mqtt_helper.disc_t(defn["component_type"], f"{dev_id}_{suffix}" if suffix else dev_id)
             payload = {k: v for k, v in defn.items() if k != "component_type"}
-            self.mqtt_helper.safe_publish(topic, json.dumps(payload), retain=True)
+            await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(payload), retain=True)
             self.upsert_state(eff_device_id, internal={"discovered": True})
 
-        _publish_one(device_id, self.get_component(device_id))
+        await _publish_one(device_id, self.get_component(device_id))
 
         # Publish any modes (0..n)
         modes = self.get_modes(device_id)
         for slug, mode in modes.items():
-            _publish_one(device_id, mode, suffix=slug)
+            await _publish_one(device_id, mode, suffix=slug)
 
-    def publish_device_availability(self: Amcrest2Mqtt, device_id: str, online: bool = True) -> None:
+    async def publish_device_availability(self: Amcrest2Mqtt, device_id: str, online: bool = True) -> None:
         payload = "online" if online else "offline"
 
         avty_t = self.get_device_availability_topic(device_id)
-        self.mqtt_helper.safe_publish(avty_t, payload, retain=True)
+        await asyncio.to_thread(self.mqtt_helper.safe_publish, avty_t, payload, retain=True)
 
-    def publish_device_state(self: Amcrest2Mqtt, device_id: str) -> None:
-        def _publish_one(dev_id: str, defn: str | dict[str, Any], suffix: str = "") -> None:
+    async def publish_device_state(self: Amcrest2Mqtt, device_id: str) -> None:
+        async def _publish_one(dev_id: str, defn: str | dict[str, Any], suffix: str = "") -> None:
             topic = self.get_device_state_topic(dev_id, suffix)
             if isinstance(defn, dict):
                 flat: dict[str, Any] = {k: v for k, v in defn.items() if k != "component_type"}
                 meta = self.states[dev_id].get("meta")
                 if isinstance(meta, dict) and "last_update" in meta:
                     flat["last_update"] = meta["last_update"]
-                self.mqtt_helper.safe_publish(topic, json.dumps(flat), retain=True)
+                await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(flat), retain=True)
             else:
-                self.mqtt_helper.safe_publish(topic, defn, retain=True)
+                await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, defn, retain=True)
 
         if not self.is_discovered(device_id):
             self.logger.debug(f"discovery not complete for {device_id} yet, holding off on sending state")
             return
 
         states = self.states[device_id]
-        _publish_one(device_id, states[self.get_component_type(device_id)])
+        await _publish_one(device_id, states[self.get_component_type(device_id)])
 
         modes = self.get_modes(device_id)
         for name, mode in modes.items():
@@ -257,6 +260,6 @@ class PublishMixin:
                 continue
 
             type_states = states[component_type][name] if isinstance(states[component_type], dict) else states[component_type]
-            _publish_one(device_id, type_states, name)
+            await _publish_one(device_id, type_states, name)
 
-        self.publish_service_state()
+        await self.publish_service_state()

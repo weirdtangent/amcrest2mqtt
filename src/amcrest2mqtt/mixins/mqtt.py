@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
+import asyncio
 from datetime import datetime, timedelta
 import json
 import paho.mqtt.client as mqtt
@@ -10,10 +11,12 @@ from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.reasoncodes import ReasonCode
 from paho.mqtt.enums import CallbackAPIVersion
 import ssl
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, TypeVar
 
 if TYPE_CHECKING:
     from amcrest2mqtt.interface import AmcrestServiceProtocol as Amcrest2Mqtt
+
+_T = TypeVar("_T")
 
 
 class MqttError(ValueError):
@@ -23,7 +26,7 @@ class MqttError(ValueError):
 
 
 class MqttMixin:
-    def mqttc_create(self: Amcrest2Mqtt) -> None:
+    async def mqttc_create(self: Amcrest2Mqtt) -> None:
         self.mqttc = mqtt.Client(
             client_id=self.client_id,
             callback_api_version=CallbackAPIVersion.VERSION2,
@@ -45,11 +48,11 @@ class MqttMixin:
                 password=self.mqtt_config.get("password", ""),
             )
 
-        self.mqttc.on_connect = self.mqtt_on_connect
-        self.mqttc.on_disconnect = self.mqtt_on_disconnect
-        self.mqttc.on_message = self.mqtt_on_message
-        self.mqttc.on_subscribe = self.mqtt_on_subscribe
-        self.mqttc.on_log = self.mqtt_on_log
+        self.mqttc.on_connect = self._wrap_async(self.mqtt_on_connect)
+        self.mqttc.on_disconnect = self._wrap_async(self.mqtt_on_disconnect)
+        self.mqttc.on_message = self._wrap_async(self.mqtt_on_message)
+        self.mqttc.on_subscribe = self._wrap_async(self.mqtt_on_subscribe)
+        self.mqttc.on_log = self._wrap_async(self.mqtt_on_log)
 
         # Define a "last will" message (LWT):
         self.mqttc.will_set(self.mqtt_helper.avty_t("service"), "offline", qos=1, retain=True)
@@ -76,7 +79,16 @@ class MqttMixin:
             self.running = False
             raise SystemExit(1)
 
-    def mqtt_on_connect(
+    def _wrap_async(
+        self: Amcrest2Mqtt,
+        coro_func: Callable[..., Coroutine[Any, Any, _T]],
+    ) -> Callable[..., None]:
+        def wrapper(*args: Any, **kwargs: Any) -> None:
+            self.loop.call_soon_threadsafe(lambda: asyncio.create_task(coro_func(*args, **kwargs)))
+
+        return wrapper
+
+    async def mqtt_on_connect(
         self: Amcrest2Mqtt, client: Client, userdata: dict[str, Any], flags: ConnectFlags, reason_code: ReasonCode, properties: Properties | None
     ) -> None:
         # send our helper the client
@@ -85,9 +97,9 @@ class MqttMixin:
         if reason_code.value != 0:
             raise MqttError(f"MQTT failed to connect ({reason_code.getName()})")
 
-        self.publish_service_discovery()
-        self.publish_service_availability()
-        self.publish_service_state()
+        await self.publish_service_discovery()
+        await self.publish_service_availability()
+        await self.publish_service_state()
 
         self.logger.debug("subscribing to topics on MQTT")
         client.subscribe("homeassistant/status")
@@ -96,7 +108,7 @@ class MqttMixin:
         client.subscribe(f"{self.mqtt_helper.service_slug}/+/switch/+/set")
         client.subscribe(f"{self.mqtt_helper.service_slug}/+/button/+/set")
 
-    def mqtt_on_disconnect(
+    async def mqtt_on_disconnect(
         self: Amcrest2Mqtt, client: Client, userdata: Any, flags: DisconnectFlags, reason_code: ReasonCode, properties: Properties | None
     ) -> None:
         # clear the client on our helper
@@ -110,49 +122,47 @@ class MqttMixin:
         if self.running and (self.mqtt_connect_time is None or datetime.now() > self.mqtt_connect_time + timedelta(seconds=10)):
             # lets use a new client_id for a reconnect attempt
             self.client_id = self.mqtt_helper.client_id()
-            self.mqttc_create()
+            await self.mqttc_create()
         else:
             self.logger.info("Mqtt disconnect — stopping service loop")
             self.running = False
 
-    def mqtt_on_log(self: Amcrest2Mqtt, client: Client, userdata: Any, paho_log_level: int, msg: str) -> None:
+    async def mqtt_on_log(self: Amcrest2Mqtt, client: Client, userdata: Any, paho_log_level: int, msg: str) -> None:
         if paho_log_level == LogLevel.MQTT_LOG_ERR:
             self.logger.error(f"Mqtt logged: {msg}")
         if paho_log_level == LogLevel.MQTT_LOG_WARNING:
             self.logger.warning(f"Mqtt logged: {msg}")
 
-    def mqtt_on_message(self: Amcrest2Mqtt, client: Client, userdata: Any, msg: MQTTMessage) -> None:
+    async def mqtt_on_message(self: Amcrest2Mqtt, client: Client, userdata: Any, msg: MQTTMessage) -> None:
         topic = msg.topic
-        payload = self._decode_payload(msg.payload)
         components = topic.split("/")
 
-        if components[0] == self.mqtt_config["discovery_prefix"]:
-            return self._handle_homeassistant_message(payload)
-
-        if components[0] == self.mqtt_helper.service_slug and components[1] == "service":
-            return self.handle_service_command(components[2], payload)
-
-        if components[0] == self.mqtt_helper.service_slug:
-            return self._handle_device_topic(components, payload)
-
-        self.logger.debug(f"ignoring unrelated MQTT topic: {topic}")
-
-    def _decode_payload(self: Amcrest2Mqtt, raw: bytes) -> Any:
         try:
-            return json.loads(raw)
+            payload = json.loads(msg.payload)
         except (json.JSONDecodeError, UnicodeDecodeError, TypeError, ValueError):
             try:
-                return raw.decode("utf-8")
+                payload = msg.payload.decode("utf-8")
             except Exception:
                 self.logger.warning("failed to decode MQTT payload: {err}")
                 return None
 
-    def _handle_homeassistant_message(self: Amcrest2Mqtt, payload: str) -> None:
+        if components[0] == self.mqtt_config["discovery_prefix"]:
+            return await self.handle_homeassistant_message(payload)
+
+        if components[0] == self.mqtt_helper.service_slug and components[1] == "service":
+            return await self.handle_service_command(components[2], payload)
+
+        if components[0] == self.mqtt_helper.service_slug:
+            return await self.handle_device_topic(components, payload)
+
+        self.logger.debug(f"ignoring unrelated MQTT topic: {topic}")
+
+    async def handle_homeassistant_message(self: Amcrest2Mqtt, payload: str) -> None:
         if payload == "online":
-            self.rediscover_all()
+            await self.rediscover_all()
             self.logger.info("home Assistant came (back?) online — resending device discovery")
 
-    def _handle_device_topic(self: Amcrest2Mqtt, components: list[str], payload: str) -> None:
+    async def handle_device_topic(self: Amcrest2Mqtt, components: list[str], payload: str) -> None:
         parsed = self._parse_device_topic(components)
         if not parsed:
             return
@@ -169,7 +179,7 @@ class MqttMixin:
             return
 
         self.logger.info(f"got message for {self.get_device_name(device_id)}: set {components[-2]} to {payload}")
-        self.handle_device_command(device_id, attribute, payload)
+        await self.handle_device_command(device_id, attribute, payload)
 
     def _parse_device_topic(self: Amcrest2Mqtt, components: list[str]) -> list[str | None] | None:
         try:
@@ -196,7 +206,9 @@ class MqttMixin:
             self.logger.warning(f"Ignoring malformed topic {topic}: {err}")
             return []
 
-    def mqtt_on_subscribe(self: Amcrest2Mqtt, client: Client, userdata: Any, mid: int, reason_code_list: list[ReasonCode], properties: Properties) -> None:
+    async def mqtt_on_subscribe(
+        self: Amcrest2Mqtt, client: Client, userdata: Any, mid: int, reason_code_list: list[ReasonCode], properties: Properties
+    ) -> None:
         reason_names = [rc.getName() for rc in reason_code_list]
         joined = "; ".join(reason_names) if reason_names else "none"
         self.logger.debug(f"Mqtt subscribed (mid={mid}): {joined}")

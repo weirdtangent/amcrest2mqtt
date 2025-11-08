@@ -15,9 +15,9 @@ class RefreshMixin:
 
         async def _refresh(device_id: str) -> None:
             async with semaphore:
-                changed = await asyncio.to_thread(self.build_device_states, device_id)
+                changed = await self.build_device_states(device_id)
                 if changed:
-                    await asyncio.to_thread(self.publish_device_state, device_id)
+                    await self.publish_device_state(device_id)
 
         tasks = []
         for device_id in self.devices:

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
+import asyncio
 from typing import TYPE_CHECKING
 from datetime import datetime, timezone
 
@@ -74,5 +75,6 @@ class EventsMixin:
             else:
                 self.logger.debug(f'ignored event for "{self.get_device_name(device_id)}": {event} with {payload}')
 
-        for id in needs_publish:
-            self.publish_device_state(id)
+        tasks = [self.publish_device_state(id) for id in needs_publish]
+        if tasks:
+            await asyncio.gather(*tasks)
