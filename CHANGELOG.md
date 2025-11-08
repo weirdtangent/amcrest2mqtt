@@ -1,3 +1,10 @@
+# [2.2.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.1.0...v2.2.0) (2025-11-08)
+
+
+### Features
+
+* **discovery:** unify service and camera discovery to new HA device schema ([8c7bfd2](https://github.com/weirdtangent/amcrest2mqtt/commit/8c7bfd2b9e462b1cf91108e4db65088cd15f893c))
+
 # [2.1.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.0.12...v2.1.0) (2025-11-07)
 
 
