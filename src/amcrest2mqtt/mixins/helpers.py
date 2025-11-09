@@ -55,7 +55,7 @@ class HelpersMixin:
 
     # send command to Amcrest -----------------------------------------------------------------------
 
-    async def handle_device_command(self: Amcrest2Mqtt, device_id: str, handler: str, message: str) -> None:
+    async def handle_device_command(self: Amcrest2Mqtt, device_id: str, handler: str, message: Any) -> None:
         match handler:
             case "save_recordings":
                 if message == "ON" and "path" not in self.config["media"]:
@@ -70,17 +70,14 @@ class HelpersMixin:
             case "reboot":
                 self.reboot_device(device_id)
 
-    async def handle_service_command(self: Amcrest2Mqtt, handler: str, message: str) -> None:
+    async def handle_service_command(self: Amcrest2Mqtt, handler: str, message: Any) -> None:
         match handler:
-            case "storage_refresh":
+            case "storage_interval":
                 self.device_interval = int(message)
-            case "device_list_refresh":
+            case "rescan_interval":
                 self.device_list_interval = int(message)
             case "snapshot_refresh":
                 self.snapshot_update_interval = int(message)
-            case "refresh_device_list":
-                if message == "refresh":
-                    await self.rediscover_all()
             case _:
                 self.logger.error(f"unrecognized message to {self.mqtt_helper.service_slug}: {handler} -> {message}")
                 return

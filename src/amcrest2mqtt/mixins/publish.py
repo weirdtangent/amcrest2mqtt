@@ -75,9 +75,22 @@ class PublishMixin:
                     "entity_category": "diagnostic",
                     "icon": "mdi:clock-outline",
                 },
-                "storage_interval": {
+                "refresh_interval": {
                     "platform": "number",
                     "name": "Refresh interval",
+                    "uniq_id": self.mqtt_helper.svc_unique_id("refresh_interval"),
+                    "stat_t": self.mqtt_helper.stat_t(device_id, "service", "refresh_interval"),
+                    "cmd_t": self.mqtt_helper.cmd_t(device_id, "refresh_interval"),
+                    "unit_of_measurement": "s",
+                    "min": 1,
+                    "max": 3600,
+                    "step": 1,
+                    "icon": "mdi:timer-refresh",
+                    "mode": "box",
+                },
+                "storage_interval": {
+                    "platform": "number",
+                    "name": "Storage interval",
                     "uniq_id": self.mqtt_helper.svc_unique_id("storage_interval"),
                     "stat_t": self.mqtt_helper.stat_t(device_id, "service", "storage_interval"),
                     "cmd_t": self.mqtt_helper.cmd_t(device_id, "storage_interval"),
@@ -125,7 +138,8 @@ class PublishMixin:
             "server": "online",
             "api_calls": self.api_calls,
             "last_call": last_call_date.replace(tzinfo=local_tz).astimezone(timezone.utc).isoformat(),
-            "storage_interval": self.device_interval,
+            "refresh_interval": self.device_interval,
+            "storage_interval": self.storage_update_interval,
             "snapshot_interval": self.snapshot_update_interval,
             "rate_limited": "YES" if self.rate_limited else "NO",
         }
