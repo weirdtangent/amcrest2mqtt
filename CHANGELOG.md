@@ -1,3 +1,10 @@
+## [2.2.1](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.2.0...v2.2.1) (2025-11-09)
+
+
+### Bug Fixes
+
+* fix interval setting ([165d0c7](https://github.com/weirdtangent/amcrest2mqtt/commit/165d0c723fa418c79adfa05f81647dd897cb2813))
+
 # [2.2.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.1.0...v2.2.0) (2025-11-08)
 
 
