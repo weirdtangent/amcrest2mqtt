@@ -74,10 +74,13 @@ class HelpersMixin:
         match handler:
             case "storage_interval":
                 self.device_interval = int(message)
+                self.logger.info(f"storage_interval updated to be {message}")
             case "rescan_interval":
                 self.device_list_interval = int(message)
+                self.logger.info(f"rescan_interval updated to be {message}")
             case "snapshot_refresh":
                 self.snapshot_update_interval = int(message)
+                self.logger.info(f"snapshot_interval updated to be {message}")
             case _:
                 self.logger.error(f"unrecognized message to {self.mqtt_helper.service_slug}: {handler} -> {message}")
                 return
