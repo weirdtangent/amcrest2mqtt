@@ -223,7 +223,7 @@ class AmcrestAPIMixin:
         states = self.states[device_id]
 
         # return our last known state if we fail to get new stats
-        current = bool(states["sensor"]["privacy"] == "ON")
+        current = True if states["sensor"]["privacy"] == "ON" else False
 
         if not device["camera"]:
             self.logger.warning(f"camera not found for {self.get_device_name(device_id)}")
@@ -271,7 +271,7 @@ class AmcrestAPIMixin:
         states = self.states[device_id]
 
         # return our last known state if we fail to get new stats
-        current = bool(states["sensor"]["motion_detection"] == "ON")
+        current = True if states["sensor"]["motion_detection"] == "ON" else False
 
         if not device["camera"]:
             self.logger.warning(f"camera not found for {self.get_device_name(device_id)}")
