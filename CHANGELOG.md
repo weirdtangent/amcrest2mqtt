@@ -1,3 +1,10 @@
+## [2.2.2](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.2.1...v2.2.2) (2025-11-10)
+
+
+### Bug Fixes
+
+* save recording path as a string not Pathlib path; upgrade packages ([1231871](https://github.com/weirdtangent/amcrest2mqtt/commit/1231871ba73f27763c4feddc83760fe8f6677b36))
+
 ## [2.2.1](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.2.0...v2.2.1) (2025-11-09)
 
 
