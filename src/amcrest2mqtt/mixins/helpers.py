@@ -270,7 +270,7 @@ class HelpersMixin:
 
             self.upsert_state(
                 device_id,
-                media={"recording": file_path},
+                media={"recording": str(file_path)},
                 sensor={"recording_time": datetime.now(timezone.utc).isoformat()},
             )
             local_file = Path(f"./{file_name}")
