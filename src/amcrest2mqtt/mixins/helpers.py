@@ -140,8 +140,8 @@ class HelpersMixin:
         return [] if not v else [s.strip() for s in v.split(",") if s.strip()]
 
     def load_config(self: Amcrest2Mqtt, config_arg: Any | None) -> dict[str, Any]:
-        version = os.getenv("AMCREST2MQTT_VERSION", self.read_file("VERSION"))
-        tier = os.getenv("AMCREST2MQTT_TIER", "prod")
+        version = os.getenv("APP_VERSION", self.read_file("VERSION"))
+        tier = os.getenv("APP_TIER", "prod")
         if tier == "dev":
             version += ":DEV"
 
