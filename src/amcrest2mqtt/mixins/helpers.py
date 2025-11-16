@@ -260,13 +260,13 @@ class HelpersMixin:
 
             # last chance to skip the recording
             if self.b_to_mb(len(recording)) > self.config["media"]["max_size"]:
-                self.logger.info(f"Skipping saving recording to {path} because {self.b_to_mb(len(recording))} > {self.config["media"]["max_size"]} MB")
+                self.logger.info(f"skipping saving recording to {path} because {self.b_to_mb(len(recording))} > {self.config["media"]["max_size"]} MB")
                 return None
 
             try:
                 file_path.write_bytes(recording.encode("latin-1"))
             except IOError as err:
-                self.logger.error(f"Failed to save recording to {file_path}: {err}")
+                self.logger.error(f"failed to save recording to {file_path}: {err}")
                 return None
 
             self.upsert_state(
@@ -282,7 +282,7 @@ class HelpersMixin:
                     latest_link.unlink()
                 latest_link.symlink_to(local_file)
             except IOError as err:
-                self.logger.error(f"Failed to save symlink {latest_link} -> {local_file}: {err}")
+                self.logger.error(f"failed to save symlink {latest_link} -> {local_file}: {err}")
                 pass
 
             if "media_source" in self.config["media"]:

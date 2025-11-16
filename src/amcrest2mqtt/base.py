@@ -94,7 +94,7 @@ class Base:
                 await cast(Any, self).publish_service_availability("offline")
                 cast(Any, self).mqttc.loop_stop()
             except Exception as err:
-                self.logger.debug(f"Mqtt loop_stop failed: {err}")
+                self.logger.debug(f"mqtt loop_stop failed: {err}")
 
             if cast(Any, self).mqttc.is_connected():
                 try:
@@ -113,7 +113,7 @@ class Base:
         }
         with open(data_file, "w", encoding="utf-8") as file:
             json.dump(state, file, indent=4)
-        self.logger.info(f"Saved state to {data_file}")
+        self.logger.info(f"saved state to {data_file}")
 
     def restore_state(self: Amcrest2Mqtt) -> None:
         data_file = Path(self.config["config_path"]) / "amcrest2mqtt.dat"
@@ -122,4 +122,4 @@ class Base:
                 state = json.loads(file.read())
                 self.api_calls = state["api_calls"]
                 self.last_call_date = datetime.strptime(state["last_call_date"], "%Y-%m-%d %H:%M:%S.%f")
-                self.logger.info(f"Restored state from {data_file}: {self.api_calls} / {str(self.last_call_date)}")
+                self.logger.info(f"restored state from {data_file}: {self.api_calls} / {str(self.last_call_date)}")

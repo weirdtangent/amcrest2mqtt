@@ -128,7 +128,7 @@ class AmcrestAPIMixin:
             # Find first interface key dynamically
             candidates = [k.split(".")[2] for k in network_config if k.startswith("table.Network.") and ".IPAddress" in k]
             interface = candidates[0] if candidates else "eth0"
-            self.logger.debug(f"No DefaultInterface key; using {interface}")
+            self.logger.debug(f"no DefaultInterface key; using {interface}")
 
         ip_address = network_config.get(f"table.Network.{interface}.IPAddress", "0.0.0.0")
         mac_address = network_config.get(f"table.Network.{interface}.PhysicalAddress", "00:00:00:00:00:00").upper()
@@ -166,7 +166,7 @@ class AmcrestAPIMixin:
             self.logger.warning(f"camera not found for {self.get_device_name(device_id)}")
             return None
         response = device["camera"].reboot().strip()
-        self.logger.info(f"Sent REBOOT signal to {self.get_device_name(device_id)}, {response}")
+        self.logger.info(f"sent REBOOT signal to {self.get_device_name(device_id)}, {response}")
         if response == "OK":
             self.upsert_state(device_id, internal={"reboot": datetime.now()})
 
@@ -253,7 +253,7 @@ class AmcrestAPIMixin:
         try:
             response = str(await device["camera"].async_set_privacy(switch)).strip()
             self.increase_api_calls()
-            self.logger.debug(f"Set privacy_mode on {self.get_device_name(device_id)} to {switch}, got back: {response}")
+            self.logger.debug(f"set privacy_mode on {self.get_device_name(device_id)} to {switch}, got back: {response}")
             if response == "OK":
                 self.upsert_state(device_id, switch={"privacy": "ON" if switch else "OFF"})
                 await self.publish_device_state(device_id)
@@ -299,14 +299,14 @@ class AmcrestAPIMixin:
         try:
             response = bool(await device["camera"].async_set_motion_detection(switch))
             self.increase_api_calls()
-            self.logger.debug(f"Set motion_detection on {self.get_device_name(device_id)} to {switch}, got back: {response}")
+            self.logger.debug(f"set motion_detection on {self.get_device_name(device_id)} to {switch}, got back: {response}")
             if response:
                 self.upsert_state(device_id, switch={"motion_detection": "ON" if switch else "OFF"})
                 await self.publish_device_state(device_id)
         except CommError:
-            self.logger.error(f"Failed to communicate with device ({self.get_device_name(device_id)}) to set motion detections")
+            self.logger.error(f"failed to communicate with device ({self.get_device_name(device_id)}) to set motion detections")
         except LoginError:
-            self.logger.error(f"Failed to authenticate with device ({self.get_device_name(device_id)}) to set motion detections")
+            self.logger.error(f"failed to authenticate with device ({self.get_device_name(device_id)}) to set motion detections")
 
         return None
 
@@ -343,7 +343,7 @@ class AmcrestAPIMixin:
                 image_bytes = await asyncio.wait_for(camera.async_snapshot(), timeout=SNAPSHOT_TIMEOUT_S)
                 self.increase_api_calls()
                 if not image_bytes:
-                    self.logger.warning(f"Snapshot: empty image from {self.get_device_name(device_id)}")
+                    self.logger.warning(f"snapshot: empty image from {self.get_device_name(device_id)}")
                     return None
 
                 encoded_b = base64.b64encode(image_bytes)

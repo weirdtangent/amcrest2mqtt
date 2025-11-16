@@ -90,5 +90,5 @@ class MqttMixin(BaseMqttMixin):
         try:
             return segment.split("-", 1)
         except ValueError as err:
-            self.logger.warning(f"Ignoring malformed topic {topic}: {err}")
+            self.logger.warning(f"ignoring malformed topic {topic}: {err}")
             return []
