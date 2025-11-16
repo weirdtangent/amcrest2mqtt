@@ -27,6 +27,8 @@ class MqttError(ValueError):
 
 class MqttMixin:
     async def mqttc_create(self: Amcrest2Mqtt) -> None:
+        # lets use a new client_id for each connection attempt
+        self.client_id = self.mqtt_helper.client_id()
         self.mqttc = mqtt.Client(
             client_id=self.client_id,
             callback_api_version=CallbackAPIVersion.VERSION2,
@@ -60,7 +62,7 @@ class MqttMixin:
         try:
             host = self.mqtt_config["host"]
             port = self.mqtt_config["port"]
-            self.logger.info(f"connecting to MQTT broker at {host}:{port} as {self.client_id}")
+            self.logger.info(f"connecting to MQTT broker at {host}:{port} as client_id: {self.client_id}")
 
             props = Properties(PacketTypes.CONNECT)
             props.SessionExpiryInterval = 0
@@ -120,8 +122,6 @@ class MqttMixin:
             self.logger.info("closed Mqtt connection")
 
         if self.running and (self.mqtt_connect_time is None or datetime.now() > self.mqtt_connect_time + timedelta(seconds=10)):
-            # lets use a new client_id for a reconnect attempt
-            self.client_id = self.mqtt_helper.client_id()
             await self.mqttc_create()
         else:
             self.logger.info("Mqtt disconnect — stopping service loop")
