@@ -88,7 +88,6 @@ class AmcrestMixin:
                 rtc_url = f"http://{rtc_host}:{rtc_port}/{rtc_link}?src={rtc_source}"
 
         device = {
-            "platform": "mqtt",
             "stat_t": self.mqtt_helper.stat_t(device_id, "state"),
             "avty_t": self.mqtt_helper.avty_t(device_id),
             "device": {
@@ -310,7 +309,7 @@ class AmcrestMixin:
                 "motion_region": "n/a",
             },
         )
-        self.upsert_device(device_id, component=device, modes={k: v for k, v in device["cmps"].items()})
+        self.upsert_device(device_id, component=device, cmps={k: v for k, v in device["cmps"].items()})
         await self.build_device_states(device_id)
 
         if not self.is_discovered(device_id):

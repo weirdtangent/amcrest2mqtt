@@ -1,6 +1,5 @@
 from .mixins.helpers import HelpersMixin
 from .mixins.mqtt import MqttMixin
-from .mixins.topics import TopicsMixin
 from .mixins.events import EventsMixin
 from .mixins.publish import PublishMixin
 from .mixins.amcrest import AmcrestMixin
@@ -13,7 +12,6 @@ from .base import Base
 class Amcrest2Mqtt(
     HelpersMixin,
     EventsMixin,
-    TopicsMixin,
     PublishMixin,
     AmcrestMixin,
     AmcrestAPIMixin,
