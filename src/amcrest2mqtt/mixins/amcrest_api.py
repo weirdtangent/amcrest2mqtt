@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
-import re
 from amcrest import AmcrestCamera, ApiWrapper
 from amcrest.exceptions import LoginError, AmcrestError, CommError
 import asyncio
@@ -12,6 +11,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from amcrest2mqtt.interface import AmcrestServiceProtocol as Amcrest2Mqtt
+
 
 class AmcrestAPIMixin:
     def increase_api_calls(self: Amcrest2Mqtt) -> None:
@@ -192,11 +192,15 @@ class AmcrestAPIMixin:
         states = self.states[device_id]
 
         # return our last known state if something fails
-        current: dict[str, str | float] = {
-            "used_percent": states["sensor"]["storage_used_pct"],
-            "used": states["sensor"]["storage_used"],
-            "total": states["sensor"]["storage_total"],
-        } if "sensor" in states else {}
+        current: dict[str, str | float] = (
+            {
+                "used_percent": states["sensor"]["storage_used_pct"],
+                "used": states["sensor"]["storage_used"],
+                "total": states["sensor"]["storage_total"],
+            }
+            if "sensor" in states
+            else {}
+        )
 
         if not device["camera"]:
             self.logger.warning(f"camera not found for {self.get_device_name(device_id)}")
@@ -253,19 +257,19 @@ class AmcrestAPIMixin:
                 if "=" in line:
                     key, value = line.split("=", 1)
                     privacy[key] = value
-        
+
         # Extract Enable value from the parsed dictionary
         enable_value = None
         for key in privacy:
             if key.endswith(".Enable") or key == "Enable":
                 enable_value = privacy[key]
                 break
-        
+
         if enable_value is None:
             self.logger.warning(f"failed to get privacy mode from ({self.get_device_name(device_id)}), got: {type(privacy)} with value: {privacy}")
             return current
 
-        privacy_mode = enable_value.lower() == "true"
+        privacy_mode = bool(enable_value.lower() == "true")
         return privacy_mode
 
     async def set_privacy_mode(self: Amcrest2Mqtt, device_id: str, switch: bool) -> None:

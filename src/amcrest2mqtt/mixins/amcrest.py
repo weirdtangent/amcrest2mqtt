@@ -26,11 +26,7 @@ class AmcrestMixin:
                 device_name = device.get("device_name", "unknown")
                 device_id = device.get("serial_number", "unknown")
                 exception_type = type(result).__name__
-                self.logger.error(
-                    f"error during build_component for device '{device_name}' ({device_id}): "
-                    f"{exception_type}: {result}",
-                    exc_info=True
-                )
+                self.logger.error(f"error during build_component for device '{device_name}' ({device_id}): " f"{exception_type}: {result}", exc_info=True)
             elif result and isinstance(result, str):
                 seen_devices.add(result)
 
