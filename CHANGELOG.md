@@ -1,3 +1,15 @@
+# [2.3.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.2.2...v2.3.0) (2025-11-17)
+
+
+### Bug Fixes
+
+* minor linting issues ([e709760](https://github.com/weirdtangent/amcrest2mqtt/commit/e709760971cea5a087967ab46ef1d070742d4363))
+
+
+### Features
+
+* better error handling and logging ([2d48726](https://github.com/weirdtangent/amcrest2mqtt/commit/2d48726917a985b1bd190b9bdac2da9a9084d189))
+
 ## [2.2.2](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.2.1...v2.2.2) (2025-11-10)
 
 
