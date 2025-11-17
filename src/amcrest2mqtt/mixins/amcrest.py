@@ -17,13 +17,20 @@ class AmcrestMixin:
         seen_devices: set[str] = set()
 
         # Build all components concurrently
-        tasks = [self.build_component(device) for device in amcrest_devices.values()]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        tasks = [(device, self.build_component(device)) for device in amcrest_devices.values()]
+        results = await asyncio.gather(*[task[1] for task in tasks], return_exceptions=True)
 
         # Collect successful device IDs
-        for result in results:
+        for (device, _), result in zip(tasks, results):
             if isinstance(result, Exception):
-                self.logger.error(f"error during build_component: {result}", exc_info=True)
+                device_name = device.get("device_name", "unknown")
+                device_id = device.get("serial_number", "unknown")
+                exception_type = type(result).__name__
+                self.logger.error(
+                    f"error during build_component for device '{device_name}' ({device_id}): "
+                    f"{exception_type}: {result}",
+                    exc_info=True
+                )
             elif result and isinstance(result, str):
                 seen_devices.add(result)
 
@@ -72,7 +79,7 @@ class AmcrestMixin:
             return ""
 
     async def build_camera(self: Amcrest2Mqtt, camera: dict) -> str:
-        raw_id = cast(str, camera["serial_number"])
+        raw_id = cast(str, camera["serial_number"]).strip()
         device_id = raw_id
 
         rtc_url = ""
@@ -94,7 +101,7 @@ class AmcrestMixin:
                 "name": camera["device_name"],
                 "identifiers": [
                     self.mqtt_helper.device_slug(device_id),
-                    camera["serial_number"],
+                    raw_id,
                 ],
                 "manufacturer": camera["vendor"],
                 "model": camera["device_type"],
@@ -288,34 +295,14 @@ class AmcrestMixin:
                 "icon": "mdi:person",
             }
 
-        # defaults - which build_device_states doesn't update (events do)
-        self.upsert_state(
-            device_id,
-            internal={"discovered": False},
-            camera={"video": None},
-            image={"snapshot": None, "motion_snapshot": None},
-            switch={"save_recordings": "ON" if "path" in self.config["media"] else "OFF"},
-            binary_sensor={
-                "motion": False,
-                "doorbell": False,
-                "human": False,
-            },
-            sensor={
-                "motion_detection": "ON",
-                "privacy": "OFF",
-                "storage_used": 0,
-                "storage_total": 0,
-                "storage_used_pct": 0,
-                "motion_region": "n/a",
-            },
-        )
+        self.upsert_state(device_id, internal={})
         self.upsert_device(device_id, component=device, cmps={k: v for k, v in device["cmps"].items()})
         await self.build_device_states(device_id)
 
         if not self.is_discovered(device_id):
             self.logger.info(f'added new camera: "{camera["device_name"]}" {camera["vendor"]} {camera["device_type"]}] ({device_id})')
+            await self.publish_device_discovery(device_id)
 
-        await self.publish_device_discovery(device_id)
         await self.publish_device_availability(device_id, online=True)
         await self.publish_device_state(device_id)
 

@@ -83,12 +83,12 @@ class MqttMixin(BaseMqttMixin):
             return [vendor, device_id, attribute]
 
         except Exception as err:
-            self.logger.warning(f"malformed device topic with {components}: {err}")
+            self.logger.warning(f"malformed device topic with {components}: {err!r}")
             return []
 
     def safe_split_device(self: Amcrest2Mqtt, topic: str, segment: str) -> list[str]:
         try:
             return segment.split("-", 1)
         except ValueError as err:
-            self.logger.warning(f"ignoring malformed topic {topic}: {err}")
+            self.logger.warning(f"ignoring malformed topic {topic}: {err!r}")
             return []

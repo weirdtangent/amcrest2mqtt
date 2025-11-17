@@ -250,7 +250,7 @@ class HelpersMixin:
         return config
 
     async def store_recording_in_media(self: Amcrest2Mqtt, device_id: str, amcrest_file: str) -> str | None:
-        recording = self.get_recorded_file(device_id, amcrest_file, encode=False)
+        recording = await self.get_recorded_file(device_id, amcrest_file, encode=False)
         if recording:
             name = self.get_device_name_slug(device_id)
             time = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -266,7 +266,7 @@ class HelpersMixin:
             try:
                 file_path.write_bytes(recording.encode("latin-1"))
             except IOError as err:
-                self.logger.error(f"failed to save recording to {file_path}: {err}")
+                self.logger.error(f"failed to save recording to {file_path}: {err!r}")
                 return None
 
             self.upsert_state(
@@ -282,7 +282,7 @@ class HelpersMixin:
                     latest_link.unlink()
                 latest_link.symlink_to(local_file)
             except IOError as err:
-                self.logger.error(f"failed to save symlink {latest_link} -> {local_file}: {err}")
+                self.logger.error(f"failed to save symlink {latest_link} -> {local_file}: {err!r}")
                 pass
 
             if "media_source" in self.config["media"]:

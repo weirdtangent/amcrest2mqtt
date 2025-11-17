@@ -79,7 +79,7 @@ class LoopsMixin:
         except asyncio.CancelledError:
             self.logger.warning("main loop cancelled — shutting down...")
         except Exception as err:
-            self.logger.exception(f"unhandled exception in main loop: {err}")
+            self.logger.exception(f"unhandled exception in main loop: {err!r}")
             self.running = False
         finally:
             self.logger.info("all loops terminated — cleanup complete.")

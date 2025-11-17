@@ -34,10 +34,10 @@ async def async_main() -> int:
         async with Amcrest2Mqtt(args=args) as amcrest2mqtt:
             await amcrest2mqtt.main_loop()
     except ConfigError as err:
-        logger.error(f"fatal config error was found: {err}")
+        logger.error(f"fatal config error was found: {err!r}")
         return 1
     except MqttError as err:
-        logger.error(f"mqtt service problems: {err}")
+        logger.error(f"mqtt service problems: {err!r}")
         return 1
     except KeyboardInterrupt:
         logger.warning("shutdown requested (Ctrl+C). exiting gracefully...")
@@ -46,7 +46,7 @@ async def async_main() -> int:
         logger.warning("main loop cancelled.")
         return 1
     except Exception as err:
-        logger.error(f"unhandled exception: {err}", exc_info=True)
+        logger.error(f"unhandled exception: {err!r}", exc_info=True)
         return 1
     finally:
         logger.info("amcrest2mqtt stopped.")

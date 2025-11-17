@@ -94,14 +94,14 @@ class Base:
                 await cast(Any, self).publish_service_availability("offline")
                 cast(Any, self).mqttc.loop_stop()
             except Exception as err:
-                self.logger.debug(f"mqtt loop_stop failed: {err}")
+                self.logger.debug(f"mqtt loop_stop failed: {err!r}")
 
             if cast(Any, self).mqttc.is_connected():
                 try:
                     cast(Any, self).mqttc.disconnect()
                     self.logger.info("disconnected from MQTT broker")
                 except Exception as err:
-                    self.logger.warning(f"error during MQTT disconnect: {err}")
+                    self.logger.warning(f"error during MQTT disconnect: {err!r}")
 
         self.logger.info("exiting gracefully")
 
