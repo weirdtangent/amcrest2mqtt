@@ -70,7 +70,7 @@ An "event snapshot" (`eventshot`) is separately (and specifically, by filename) 
 
 ## WebRTC
 
-The WebRTC option works very well with the <a href="https://github.com/AlexxIT/go2rtc">go2rtc</a> package which is a streaming server that works very well for (my) Amcrest cameras. If you setup the WebRTC config here, the `configuration_url` for the MQTT device will be the streaming RTC link instead of just a link to the hostname (which is arguably a more correct "configuration" url, but I'd rather have a simple link from the device page to jump to a live stream).
+The WebRTC option works with the <a href="https://github.com/AlexxIT/go2rtc">go2rtc</a> package which is a streaming server that works very well for (my) Amcrest cameras. If you setup the WebRTC config here, there will be a `camera.<name> webrtc` which you can put on a dashboard with the entity card. It will show a small camera icon and likely say "Idle", but if you click on it (and give it a little time to warm up) you will see the live-streaming feed from the webrtc server.
 
 ## Device Support
 
