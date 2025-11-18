@@ -34,7 +34,7 @@ class PublishMixin:
             "qos": self.qos,
             "cmps": {
                 "server": {
-                    "platform": "binary_sensor",
+                    "p": "binary_sensor",
                     "name": self.service_name,
                     "uniq_id": self.mqtt_helper.svc_unique_id("server"),
                     "stat_t": self.mqtt_helper.stat_t(device_id, "service", "server"),
@@ -45,7 +45,7 @@ class PublishMixin:
                     "icon": "mdi:server",
                 },
                 "api_calls": {
-                    "platform": "sensor",
+                    "p": "sensor",
                     "name": "API calls today",
                     "uniq_id": self.mqtt_helper.svc_unique_id("api_calls"),
                     "stat_t": self.mqtt_helper.stat_t(device_id, "service", "api_calls"),
@@ -55,7 +55,7 @@ class PublishMixin:
                     "icon": "mdi:api",
                 },
                 "rate_limited": {
-                    "platform": "binary_sensor",
+                    "p": "binary_sensor",
                     "name": "Rate limited",
                     "uniq_id": self.mqtt_helper.svc_unique_id("rate_limited"),
                     "stat_t": self.mqtt_helper.stat_t(device_id, "service", "rate_limited"),
@@ -66,7 +66,7 @@ class PublishMixin:
                     "icon": "mdi:speedometer-slow",
                 },
                 "last_call": {
-                    "platform": "sensor",
+                    "p": "sensor",
                     "name": "Last device check",
                     "uniq_id": self.mqtt_helper.svc_unique_id("last_call"),
                     "stat_t": self.mqtt_helper.stat_t(device_id, "service", "last_call"),
@@ -75,7 +75,7 @@ class PublishMixin:
                     "icon": "mdi:clock-outline",
                 },
                 "refresh_interval": {
-                    "platform": "number",
+                    "p": "number",
                     "name": "Refresh interval",
                     "uniq_id": self.mqtt_helper.svc_unique_id("refresh_interval"),
                     "stat_t": self.mqtt_helper.stat_t(device_id, "service", "refresh_interval"),
@@ -88,7 +88,7 @@ class PublishMixin:
                     "mode": "box",
                 },
                 "storage_interval": {
-                    "platform": "number",
+                    "p": "number",
                     "name": "Storage interval",
                     "uniq_id": self.mqtt_helper.svc_unique_id("storage_interval"),
                     "stat_t": self.mqtt_helper.stat_t(device_id, "service", "storage_interval"),
@@ -101,7 +101,7 @@ class PublishMixin:
                     "mode": "box",
                 },
                 "snapshot_interval": {
-                    "platform": "number",
+                    "p": "number",
                     "name": "Snapshot interval",
                     "uniq_id": self.mqtt_helper.svc_unique_id("snapshot_interval"),
                     "stat_t": self.mqtt_helper.stat_t(device_id, "service", "snapshot_interval"),
@@ -117,7 +117,7 @@ class PublishMixin:
         }
 
         topic = self.mqtt_helper.disc_t("device", device_id)
-        payload = {k: v for k, v in device.items() if k != "platform"}
+        payload = {k: v for k, v in device.items() if k != "p"}
         await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(payload))
         self.upsert_state(device_id, internal={"discovered": True})
 
@@ -153,25 +153,19 @@ class PublishMixin:
     # Devices -------------------------------------------------------------------------------------
 
     async def publish_device_discovery(self: Amcrest2Mqtt, device_id: str) -> None:
-        if self.is_discovered(device_id):
-            return
-
         topic = self.mqtt_helper.disc_t("device", device_id)
-        component = self.get_component(device_id)
-        await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(component))
+        payload = json.dumps(self.devices[device_id]["component"])
+
+        await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, payload)
         self.upsert_state(device_id, internal={"discovered": True})
 
     async def publish_device_availability(self: Amcrest2Mqtt, device_id: str, online: bool = True) -> None:
+        topic = self.mqtt_helper.avty_t(device_id)
         payload = "online" if online else "offline"
 
-        avty_t = self.get_device_availability_topic(device_id)
-        await asyncio.to_thread(self.mqtt_helper.safe_publish, avty_t, payload)
+        await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, payload)
 
     async def publish_device_state(self: Amcrest2Mqtt, device_id: str, subject: str = "", sub: str = "") -> None:
-        if not self.is_discovered(device_id):
-            self.logger.debug(f"discovery not complete for {device_id} yet, holding off on sending state")
-            return
-
         for state, value in self.states[device_id].items():
             if subject and state != subject:
                 continue

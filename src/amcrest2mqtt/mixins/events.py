@@ -2,7 +2,6 @@
 # Copyright (c) 2025 Jeff Culverhouse
 import asyncio
 from typing import TYPE_CHECKING
-from datetime import datetime, timezone
 
 if TYPE_CHECKING:
     from amcrest2mqtt.interface import AmcrestServiceProtocol as Amcrest2Mqtt
@@ -23,44 +22,29 @@ class EventsMixin:
 
             # if one of our known sensors
             if event in ["motion", "human", "doorbell", "recording", "privacy_mode", "Reboot"]:
-                if event == "recording":
+                if event == "recording" and "file" in payload:
+                    self.logger.debug(f'recording event for "{self.get_device_name(device_id)}": {payload["file"]}')
                     if payload["file"].endswith(".jpg"):
                         image = await self.get_recorded_file(device_id, payload["file"])
                         if image:
-                            if self.upsert_state(
-                                device_id,
-                                camera={"eventshot": image},
-                                sensor={"event_time": datetime.now(timezone.utc).isoformat()},
-                            ):
-                                needs_publish.add(device_id)
-                        event += ": snapshot"
+
+                            needs_publish.add(device_id)
+                            event += ": snapshot"
                     elif payload["file"].endswith(".mp4"):
                         if "path" in self.config["media"] and self.states[device_id]["switch"].get("save_recordings", "OFF") == "ON":
                             await self.store_recording_in_media(device_id, payload["file"])
                         event += ": video"
                 elif event == "motion":
-                    region = payload["region"] if payload["state"] != "off" else "n/a"
-                    if payload["file"].endswith(".jpg"):
-                        image = await self.get_recorded_file(device_id, payload["file"])
-                        if image:
-                            if self.upsert_state(
-                                device_id,
-                                camera={"eventshot": image},
-                                sensor={"event_time": datetime.now(timezone.utc).isoformat()},
-                            ):
-                                needs_publish.add(device_id)
-                        event += ": snapshot"
-                    elif payload["file"].endswith(".mp4"):
-                        if "path" in self.config["media"] and self.states[device_id]["switch"].get("save_recordings", "OFF") == "ON":
-                            await self.store_recording_in_media(device_id, payload["file"])
-                        event += ": video"
-                    if self.upsert_state(
+                    region = payload["region"] if payload["state"] != "off" else ""
+                    motion = f": {region}" if region else f": {payload["state"]}"
+
+                    self.upsert_state(
                         device_id,
                         binary_sensor={"motion": payload["state"]},
-                        sensor={"motion_region": region, "event_time": datetime.now(timezone.utc).isoformat()},
-                    ):
-                        needs_publish.add(device_id)
-                    event += f": ({region}) - {payload["state"]}"
+                        sensor={"motion_region": region},
+                    )
+                    needs_publish.add(device_id)
+                    event += motion
                 else:
                     if isinstance(payload, str):
                         event += ": " + payload
@@ -76,17 +60,13 @@ class EventsMixin:
                         needs_publish.add(device_id)
 
                 # record just these "events": text and time
-                if self.upsert_state(
-                    device_id,
-                    sensor={
-                        "event_text": event,
-                        "event_time": datetime.now(timezone.utc).isoformat(),
-                    },
-                ):
-                    needs_publish.add(device_id)
+                self.upsert_state(device_id, sensor={"event_text": event})
+                needs_publish.add(device_id)
                 self.logger.debug(f'processed event for "{self.get_device_name(device_id)}": {event} with {payload}')
             else:
-                self.logger.debug(f'ignored event for "{self.get_device_name(device_id)}": {event} with {payload}')
+                # we ignore these on purpose, but log if something unexpected comes through
+                if event not in ["NtpAdjustTime", "TimeChange", "RtspSessionDisconnect"]:
+                    self.logger.debug(f'ignored unexpected event for "{self.get_device_name(device_id)}": {event} with {payload}')
 
         tasks = [self.publish_device_state(device_id) for device_id in needs_publish]
         if tasks:

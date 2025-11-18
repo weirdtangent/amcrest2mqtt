@@ -268,9 +268,6 @@ class HelpersMixin:
             except PermissionError as err:
                 self.logger.error(f"permission error saving recording to {file_path}: {err!r}")
                 return None
-            except IOError as err:
-                self.logger.error(f"failed to save recording to {file_path}: {err!r}")
-                return None
             except Exception as err:
                 self.logger.error(f"failed to save recording to {file_path}: {err!r}")
                 return None
@@ -337,30 +334,8 @@ class HelpersMixin:
     def get_component(self: Amcrest2Mqtt, device_id: str) -> dict[str, Any]:
         return cast(dict[str, Any], self.devices[device_id]["component"])
 
-    def get_platform(self: Amcrest2Mqtt, device_id: str) -> str:
-        return cast(str, self.devices[device_id]["component"].get("platform", "unknown"))
-
     def is_discovered(self: Amcrest2Mqtt, device_id: str) -> bool:
         return cast(bool, self.states[device_id]["internal"].get("discovered", False))
-
-    def get_device_state_topic(self: Amcrest2Mqtt, device_id: str, mode_name: str = "") -> str:
-        component = self.get_component(device_id)["cmps"][f"{device_id}_{mode_name}"] if mode_name else self.get_component(device_id)
-
-        match component["platform"]:
-            case "camera":
-                return cast(str, component["topic"])
-            case "image":
-                return cast(str, component["image_topic"])
-            case _:
-                return cast(str, component.get("stat_t") or component.get("state_topic"))
-
-    def get_device_image_topic(self: Amcrest2Mqtt, device_id: str) -> str:
-        component = self.get_component(device_id)
-        return cast(str, component["topic"])
-
-    def get_device_availability_topic(self: Amcrest2Mqtt, device_id: str) -> str:
-        component = self.get_component(device_id)
-        return cast(str, component.get("avty_t") or component.get("availability_topic"))
 
     # Upsert devices and states -------------------------------------------------------------------
 

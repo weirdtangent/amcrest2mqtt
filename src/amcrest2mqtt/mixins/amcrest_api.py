@@ -194,9 +194,9 @@ class AmcrestAPIMixin:
         # return our last known state if something fails
         current: dict[str, str | float] = (
             {
-                "used_percent": states["sensor"]["storage_used_pct"],
-                "used": states["sensor"]["storage_used"],
-                "total": states["sensor"]["storage_total"],
+                "used_percent": states["sensor"].get("storage_used_pct", 0),
+                "used": states["sensor"].get("storage_used", 0),
+                "total": states["sensor"].get("storage_total", 0),
             }
             if "sensor" in states
             else {}
@@ -361,9 +361,9 @@ class AmcrestAPIMixin:
             return None
 
         device = self.amcrest_devices[device_id]
-        timeout = 20
+        timeout = 10
         max_tries = 3
-        base_backoff = 15
+        base_backoff = 5
 
         # Respect privacy mode (default False if missing)
         if device.get("privacy_mode", False):
@@ -392,6 +392,7 @@ class AmcrestAPIMixin:
                 encoded = encoded_b.decode("ascii")
                 self.upsert_state(
                     device_id,
+                    camera={"snapshot": encoded},
                     image={"snapshot": encoded},
                 )
                 await self.publish_device_state(device_id)
@@ -412,13 +413,6 @@ class AmcrestAPIMixin:
 
         self.logger.info(f"getting snapshot failed after {max_tries} tries for {self.get_device_name(device_id)}")
         return None
-
-    def get_snapshot(self: Amcrest2Mqtt, device_id: str) -> str | None:
-        if device_id not in self.amcrest_devices:
-            self.logger.warning(f"device not found for {device_id}")
-            return None
-
-        return self.amcrest_devices[device_id]["snapshot"] if "snapshot" in self.devices[device_id] else None
 
     # Recorded file -------------------------------------------------------------------------------
 

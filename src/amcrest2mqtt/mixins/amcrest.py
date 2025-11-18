@@ -115,16 +115,52 @@ class AmcrestMixin:
             "origin": {"name": self.service_name, "sw": self.config["version"], "support_url": "https://github.com/weirdTangent/amcrest2mqtt"},
             "qos": self.qos,
             "cmps": {
-                "video": {
-                    "platform": "camera",
-                    "name": "Video",
-                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "video"),
-                    "topic": self.mqtt_helper.stat_t(device_id, "camera", "video"),
+                "camera": {
+                    "p": "camera",
+                    "name": "Camera",
+                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "camera"),
+                    "topic": self.mqtt_helper.stat_t(device_id, "camera", "snapshot"),
+                    "sup_str": True,
+                    "str_src": rtc_url,
+                    "image_encoding": "b64",
                     "icon": "mdi:video",
-                    "web_url": rtc_url,
+                },
+                "snapshot": {
+                    "p": "image",
+                    "name": "Snapshot",
+                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "snapshot"),
+                    "image_topic": self.mqtt_helper.stat_t(device_id, "camera", "snapshot"),
+                    "image_encoding": "b64",
+                    "icon": "mdi:camera",
+                },
+                "motion": {
+                    "p": "binary_sensor",
+                    "name": "Motion",
+                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "motion"),
+                    "stat_t": self.mqtt_helper.stat_t(device_id, "binary_sensor", "motion"),
+                    "jsn_atr_t": self.mqtt_helper.stat_t(device_id, "attributes"),
+                    "payload_on": True,
+                    "payload_off": False,
+                    "device_class": "motion",
+                    "icon": "mdi:eye-outline",
+                },
+                "motion_region": {
+                    "p": "sensor",
+                    "name": "Motion region",
+                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "motion_region"),
+                    "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "motion_region"),
+                    "icon": "mdi:map-marker",
+                },
+                "motion_snapshot": {
+                    "p": "image",
+                    "name": "Motion snapshot",
+                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "motion_snapshot"),
+                    "image_topic": self.mqtt_helper.stat_t(device_id, "image", "motion_snapshot"),
+                    "image_encoding": "b64",
+                    "icon": "mdi:camera",
                 },
                 "reboot": {
-                    "platform": "button",
+                    "p": "button",
                     "name": "Reboot",
                     "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "reboot"),
                     "cmd_t": self.mqtt_helper.cmd_t(device_id, "button", "reboot"),
@@ -132,25 +168,8 @@ class AmcrestMixin:
                     "icon": "mdi:restart",
                     "entity_category": "diagnostic",
                 },
-                "snapshot": {
-                    "platform": "image",
-                    "name": "Timed snapshot",
-                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "snapshot"),
-                    "image_topic": self.mqtt_helper.stat_t(device_id, "image", "snapshot"),
-                    "image_encoding": "b64",
-                    "content_type": "image/jpeg",
-                    "icon": "mdi:camera",
-                },
-                "recording": {
-                    "platform": "sensor",
-                    "name": "Last recording",
-                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "recording"),
-                    "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "recording"),
-                    "device_class": "timestamp",
-                    "icon": "mdi:clock",
-                },
                 "privacy": {
-                    "platform": "switch",
+                    "p": "switch",
                     "name": "Privacy mode",
                     "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "privacy"),
                     "stat_t": self.mqtt_helper.stat_t(device_id, "switch", "privacy"),
@@ -161,7 +180,7 @@ class AmcrestMixin:
                     "icon": "mdi:camera-outline",
                 },
                 "motion_detection": {
-                    "platform": "switch",
+                    "p": "switch",
                     "name": "Motion detection",
                     "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "motion_detection"),
                     "stat_t": self.mqtt_helper.stat_t(device_id, "switch", "motion_detection"),
@@ -171,8 +190,15 @@ class AmcrestMixin:
                     "device_class": "switch",
                     "icon": "mdi:motion-sensor",
                 },
+                "event_text": {
+                    "p": "sensor",
+                    "name": "Last event",
+                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "event_text"),
+                    "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "event_text"),
+                    "icon": "mdi:note",
+                },
                 "save_recordings": {
-                    "platform": "switch",
+                    "p": "switch",
                     "name": "Save recordings",
                     "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "save_recordings"),
                     "stat_t": self.mqtt_helper.stat_t(device_id, "switch", "save_recordings"),
@@ -182,34 +208,8 @@ class AmcrestMixin:
                     "device_class": "switch",
                     "icon": "mdi:content-save-outline",
                 },
-                "motion": {
-                    "platform": "binary_sensor",
-                    "name": "Motion sensor",
-                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "motion"),
-                    "stat_t": self.mqtt_helper.stat_t(device_id, "binary_sensor", "motion"),
-                    "payload_on": True,
-                    "payload_off": False,
-                    "device_class": "motion",
-                    "icon": "mdi:eye-outline",
-                },
-                "motion_region": {
-                    "platform": "sensor",
-                    "name": "Motion region",
-                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "motion_region"),
-                    "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "motion_region"),
-                    "icon": "mdi:map-marker",
-                },
-                "motion_snapshot": {
-                    "platform": "image",
-                    "name": "Motion snapshot",
-                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "motion_snapshot"),
-                    "image_topic": self.mqtt_helper.stat_t(device_id, "image", "motion_snapshot"),
-                    "image_encoding": "b64",
-                    "content_type": "image/jpeg",
-                    "icon": "mdi:camera",
-                },
                 "storage_used": {
-                    "platform": "sensor",
+                    "p": "sensor",
                     "name": "Storage used",
                     "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "storage_used"),
                     "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "storage_used"),
@@ -220,7 +220,7 @@ class AmcrestMixin:
                     "icon": "mdi:micro-sd",
                 },
                 "storage_used_pct": {
-                    "platform": "sensor",
+                    "p": "sensor",
                     "name": "Storage used %",
                     "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "storage_used_pct"),
                     "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "storage_used_pct"),
@@ -230,7 +230,7 @@ class AmcrestMixin:
                     "icon": "mdi:micro-sd",
                 },
                 "storage_total": {
-                    "platform": "sensor",
+                    "p": "sensor",
                     "name": "Storage total",
                     "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "storage_total"),
                     "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "storage_total"),
@@ -240,38 +240,21 @@ class AmcrestMixin:
                     "entity_category": "diagnostic",
                     "icon": "mdi:micro-sd",
                 },
-                "event_text": {
-                    "platform": "sensor",
-                    "name": "Last event",
-                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "event_text"),
-                    "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "event_text"),
-                    "icon": "mdi:note",
-                },
-                "event": {
-                    "platform": "sensor",
-                    "name": "Last event time",
-                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "event"),
-                    "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "event"),
-                    "device_class": "timestamp",
-                    "icon": "mdi:clock",
-                },
             },
         }
 
         if "media" in self.config and "media_source" in self.config["media"]:
             device["cmps"]["recording_url"] = {
-                "platform": "sensor",
+                "p": "sensor",
                 "name": "Recording url",
                 "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "recording_url"),
                 "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "recording_url"),
-                "clip_url": f"{self.config["media"]["media_source"]}/{camera["device_name"]}-latest.mp4",
                 "icon": "mdi:web",
-                "enabled_by_default": False,
             }
 
         if camera.get("is_doorbell", None):
             device["cmps"]["doorbell"] = {
-                "platform": "binary_sensor",
+                "p": "binary_sensor",
                 "name": "Doorbell" if camera["device_name"] == "Doorbell" else f"{camera["device_name"]} Doorbell",
                 "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "doorbell"),
                 "stat_t": self.mqtt_helper.stat_t(device_id, "binary_sensor", "doorbell"),
@@ -282,7 +265,7 @@ class AmcrestMixin:
 
         if camera.get("is_ad410", None):
             device["cmps"]["human"] = {
-                "platform": "binary_sensor",
+                "p": "binary_sensor",
                 "name": "Human Sensor",
                 "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "human"),
                 "stat_t": self.mqtt_helper.stat_t(device_id, "binary_sensor", "human"),
@@ -291,9 +274,19 @@ class AmcrestMixin:
                 "icon": "mdi:person",
             }
 
-        self.upsert_state(device_id, internal={})
-        self.upsert_device(device_id, component=device, cmps={k: v for k, v in device["cmps"].items()})
-        await self.build_device_states(device_id)
+        self.upsert_device(device_id, component=device)
+        # initial states because many of these won't update until something happens
+        # or this is the only time we'll ever set them
+        self.upsert_state(
+            device_id,
+            internal={},
+            webrtc=rtc_url,
+            switch={"save_recordings": "ON" if "path" in self.config["media"] else "OFF"},
+            binary_sensor={"motion": False},
+            sensor={"motion_region": ""},
+            attributes={"recording_url": f"{self.config["media"]["media_source"]}/{camera["device_name"]}-latest.mp4"},
+            image={"motion_snapshot": ""},
+        )
 
         if not self.is_discovered(device_id):
             self.logger.info(f'added new camera: "{camera["device_name"]}" {camera["vendor"]} {camera["device_type"]}] ({device_id})')
