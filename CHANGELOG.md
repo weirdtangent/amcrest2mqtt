@@ -1,3 +1,10 @@
+## [2.3.1](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.3.0...v2.3.1) (2025-11-18)
+
+
+### Bug Fixes
+
+* handle permission errors when saving recordings ([bf54589](https://github.com/weirdtangent/amcrest2mqtt/commit/bf54589328302ae920c9193b1880664b5bccacca))
+
 # [2.3.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.2.2...v2.3.0) (2025-11-17)
 
 
