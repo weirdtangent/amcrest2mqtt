@@ -169,7 +169,11 @@ class PublishMixin:
         for state, value in self.states[device_id].items():
             if subject and state != subject:
                 continue
-            if isinstance(value, dict):
+            # Attributes need to be published as a single JSON object to the attributes topic
+            if state == "attributes" and isinstance(value, dict):
+                topic = self.mqtt_helper.stat_t(device_id, "attributes")
+                await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(value))
+            elif isinstance(value, dict):
                 for k, v in value.items():
                     if sub and k != sub:
                         continue

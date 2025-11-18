@@ -32,7 +32,10 @@ class EventsMixin:
                             event += ": snapshot"
                     elif payload["file"].endswith(".mp4"):
                         if "path" in self.config["media"] and self.states[device_id]["switch"].get("save_recordings", "OFF") == "ON":
-                            await self.store_recording_in_media(device_id, payload["file"])
+                            file_name = await self.store_recording_in_media(device_id, payload["file"])
+                            if file_name:
+                                self.upsert_state(device_id, attributes={"recording_url": f"{self.config["media"]["media_source"]}/{file_name}"})
+                                needs_publish.add(device_id)
                         event += ": video"
                 elif event == "motion":
                     region = payload["region"] if payload["state"] != "off" else ""
@@ -41,7 +44,7 @@ class EventsMixin:
                     self.upsert_state(
                         device_id,
                         binary_sensor={"motion": payload["state"]},
-                        sensor={"motion_region": region},
+                        attributes={"region": region},
                     )
                     needs_publish.add(device_id)
                     event += motion

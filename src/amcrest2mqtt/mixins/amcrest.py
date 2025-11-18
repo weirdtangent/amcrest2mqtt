@@ -138,18 +138,11 @@ class AmcrestMixin:
                     "name": "Motion",
                     "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "motion"),
                     "stat_t": self.mqtt_helper.stat_t(device_id, "binary_sensor", "motion"),
-                    "jsn_atr_t": self.mqtt_helper.stat_t(device_id, "attributes"),
+                    "json_attributes_topic": self.mqtt_helper.stat_t(device_id, "attributes"),
                     "payload_on": True,
                     "payload_off": False,
                     "device_class": "motion",
                     "icon": "mdi:eye-outline",
-                },
-                "motion_region": {
-                    "p": "sensor",
-                    "name": "Motion region",
-                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "motion_region"),
-                    "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "motion_region"),
-                    "icon": "mdi:map-marker",
                 },
                 "motion_snapshot": {
                     "p": "image",
@@ -243,15 +236,6 @@ class AmcrestMixin:
             },
         }
 
-        if "media" in self.config and "media_source" in self.config["media"]:
-            device["cmps"]["recording_url"] = {
-                "p": "sensor",
-                "name": "Recording url",
-                "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "recording_url"),
-                "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "recording_url"),
-                "icon": "mdi:web",
-            }
-
         if camera.get("is_doorbell", None):
             device["cmps"]["doorbell"] = {
                 "p": "binary_sensor",
@@ -283,8 +267,10 @@ class AmcrestMixin:
             webrtc=rtc_url,
             switch={"save_recordings": "ON" if "path" in self.config["media"] else "OFF"},
             binary_sensor={"motion": False},
-            sensor={"motion_region": ""},
-            attributes={"recording_url": f"{self.config["media"]["media_source"]}/{camera["device_name"]}-latest.mp4"},
+            attributes={
+                "recording_url": f"{self.config["media"]["media_source"]}/{camera["device_name"]}-latest.mp4",
+                "region": "",
+            },
             image={"motion_snapshot": ""},
         )
 

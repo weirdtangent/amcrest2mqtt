@@ -12,7 +12,7 @@ import threading
 from types import FrameType
 import yaml
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
@@ -272,11 +272,7 @@ class HelpersMixin:
                 self.logger.error(f"failed to save recording to {file_path}: {err!r}")
                 return None
 
-            self.upsert_state(
-                device_id,
-                media={"recording": str(file_path)},
-                sensor={"recording_time": datetime.now(timezone.utc).isoformat()},
-            )
+            # update the latest symlink
             local_file = Path(f"./{file_name}")
             latest_link = Path(f"{path}/{name}-latest.mp4")
 
@@ -288,29 +284,7 @@ class HelpersMixin:
                 self.logger.error(f"failed to save symlink {latest_link} -> {local_file}: {err!r}")
                 pass
 
-            if "media_source" in self.config["media"]:
-                url = f"{self.config["media"]["media_source"]}/{file_name}"
-                self.upsert_state(device_id, sensor={"recording_url": url})
-                return url
-
-            self.upsert_state(
-                device_id,
-                media={"recording": file_path},
-                sensor={"recording_time": datetime.now(timezone.utc).isoformat()},
-            )
-
-            # update symlink to "lastest" recording
-            local_file = Path(f"./{file_name}")
-            latest_link = Path(f"{path}/{name}-latest.mp4")
-            if latest_link.is_symlink():
-                latest_link.unlink()
-            latest_link.symlink_to(local_file)
-
-            if "media_source" in self.config["media"]:
-                url = f"{self.config["media"]["media_source"]}/{file_name}"
-                self.upsert_state(device_id, sensor={"recording_url": url})
-                return url
-        return None
+        return file_name
 
     def handle_signal(self: Amcrest2Mqtt, signum: int, _: FrameType | None) -> Any:
         sig_name = signal.Signals(signum).name
