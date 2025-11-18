@@ -20,10 +20,12 @@ if TYPE_CHECKING:
 
 READY_FILE = os.getenv("READY_FILE", "/tmp/amcrest2mqtt.ready")
 
+
 class ConfigError(ValueError):
     """Raised when the configuration file is invalid."""
 
     pass
+
 
 class HelpersMixin:
     async def build_device_states(self: Amcrest2Mqtt, device_id: str) -> bool:
