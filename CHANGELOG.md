@@ -1,3 +1,10 @@
+## [2.3.2](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.3.1...v2.3.2) (2025-11-18)
+
+
+### Bug Fixes
+
+* README.md doc on webrtc ([2531e42](https://github.com/weirdtangent/amcrest2mqtt/commit/2531e42f25fb46766a2db810701768540703bedb))
+
 ## [2.3.1](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.3.0...v2.3.1) (2025-11-18)
 
 
