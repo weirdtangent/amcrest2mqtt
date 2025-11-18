@@ -20,12 +20,10 @@ if TYPE_CHECKING:
 
 READY_FILE = os.getenv("READY_FILE", "/tmp/amcrest2mqtt.ready")
 
-
 class ConfigError(ValueError):
     """Raised when the configuration file is invalid."""
 
     pass
-
 
 class HelpersMixin:
     async def build_device_states(self: Amcrest2Mqtt, device_id: str) -> bool:
@@ -265,7 +263,13 @@ class HelpersMixin:
 
             try:
                 file_path.write_bytes(recording.encode("latin-1"))
+            except PermissionError as err:
+                self.logger.error(f"permission error saving recording to {file_path}: {err!r}")
+                return None
             except IOError as err:
+                self.logger.error(f"failed to save recording to {file_path}: {err!r}")
+                return None
+            except Exception as err:
                 self.logger.error(f"failed to save recording to {file_path}: {err!r}")
                 return None
 
