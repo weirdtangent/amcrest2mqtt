@@ -1,22 +1,19 @@
 # weirdtangent/amcrest2mqtt
 
 Expose multiple Amcrest cameras and events to an MQTT broker, primarily
-designed to work with Home Assistant.
+designed to work with Home Assistant. Also exposes a webrtc link, if you have one,
+so a live feed can be viewed from within Home Assistant (on a dashboard, not on the
+entity page for the camera)
+
 Uses the [`python-amcrest`](https://github.com/tchellomello/python-amcrest) library.
-
 Forked from [dchesterton/amcrest2mqtt](https://github.com/dchesterton/amcrest2mqtt)
-
-UPDATES:
-* 10/2025 Added a "media" config where mp4 recordings of motions events can be stored (11/2025 now with "max_size" option)
-* 10/2025 "Rediscover" button added to service - when pressed, device discovery is re-run so HA will rediscover deleted devices
-
 
 ## Docker
 For `docker-compose`, use the [configuration included](https://github.com/weirdtangent/amcrest2mqtt/blob/master/docker-compose.yaml) in this repository.
 
-An docker image is available at `graystorm/amcrest2mqtt:latest`. You can mount your configuration volume at `/config` (and see the included `config.yaml.sample` file) or use the ENV variables:
+Using the [docker image](https://hub.docker.com/repository/docker/graystorm/amcrest2mqtt/general), mount your configuration volume at `/config` (and see the included `config.yaml.sample` file to include in there as `config.yaml`) or use the ENV variables if you must. You can also mount a media volume at `/media` and motion recordings (up to a max size you specify) will be stored there to fill up your disk space!
 
-It supports the following environment variables:
+It supports the following environment variables - but these are a pain, the config file is easier!
 
 -   `AMCREST_HOSTS` (required, 1+ space-separated list of hostnames/ips)
 -   `AMCREST_NAMES` (required, 1+ space-separated list of device names - must match count of AMCREST_HOSTS)
@@ -47,26 +44,16 @@ It supports the following environment variables:
 -   `STORAGE_UPDATE_INTERVAL` (optional, default = 900) - how often to fetch storage stats (in seconds)
 -   `SNAPSHOT_UPDATE_INTERVAL` (optional, default = 60) - how often to fetch camera snapshot (in seconds)
 
-It exposes through device discovery a `service` and a `device` with components for each camera:
+It exposes through the new 2024 HomeAssistant `device` discovery a `service` plus a `camera` with multiple components for each camera you specify:
 
--   `homeassistant/device/amcrest-service` - service config
-
--   `homeassistant/device/amcrest-[SERIAL_NUMBER]` per camera, with components:
--    `event`            - most all "other" events, not exposed below
--    `camera`           - a snapshot is saved every SNAPSHOT_UPDATE_INTERVAL (also based on how often camera saves snapshot image), also an "eventshot" is stored at the time an "event" is triggered in the camera. This is collected by filename, when the Amcrest camera logs a snapshot was saved because of an event (rather than just a routine timed snapshot)
--    `doorbell`         - doorbell status (if AD110 or AD410)
--    `human`            - human detection (if AD410)
--    `motion`           - motion events (if supported)
--    `config`           - device configuration information
--    `storage`          - storage stats
--    `privacy_mode`     - get (and set) the privacy mode switch of the camera
--    `motion_detection` - get (and set) the motion detection switch of the camera
+-   `homeassistant/device/amcrest2mqtt_service` - service config
+-   `homeassistant/device/amcrest2mqtt_[SERIAL_NUMBER]` per camera, with components:
 
 ## Snapshots/Eventshots plus Home Assistant Area Cards
 
-The `camera` snapshots work really well for the HomeAssistant `Area` cards on a dashboard - just make this MQTT camera device the only camera for an area and place an `Area` card for that location.
+The `camera` snapshots work really well for the HomeAssistant `Area` cards on a dashboard - just make this MQTT camera device is the only camera for an area and place an `Area` card for that location on a dashboard.
 
-An "event snapshot" (`eventshot`) is separately (and specifically, by filename) collected when the camera automatically records a snapshot because of an event. Note, that if the Amcrest camera is configured to record 3 or 5 snapshots on an event - each of those will be updated by `amcrest2mqtt` and you will very quickly end up with (only) the last snapshot stored. This might alter you decision on how to configure your camera for this setting. (Or perhaps I can turn the snapshots-for-an-event into an animated image on the HA-side, thought that seems like overkill.)
+An "event snapshot" (`eventshot`) is separately (and specifically, by filename) collected IF the camera automatically records a snapshot because of an event. Note, that if the Amcrest camera is configured to record 3 or 5 snapshots on an event - each of those may be seen and updated by `amcrest2mqtt` and you will very quickly end up with the last snapshot.
 
 ## WebRTC
 
@@ -76,25 +63,24 @@ The WebRTC option works with the <a href="https://github.com/AlexxIT/go2rtc">go2
 
 The app supports events for any Amcrest device supported by [`python-amcrest`](https://github.com/tchellomello/python-amcrest).
 
-## Home Assistant
-
-The app has built-in support for Home Assistant discovery. Set the `MQTT_HOMEASSISTANT` environment variable to `true` to enable support.
-If you are using a different MQTT prefix to the default, you will need to set the `MQTT_DISCOVERY_PREFIX` environment variable.
-
 ## Running the app
 
 To run via env variables with Docker Compose, see docker-compose.yaml
 or make sure you attach a volume with the config file and point to that directory, for example:
 ```
-CMD [ "python", "-u", "./app.py", "-c", "/config" ]
+CMD [ "python", "-m", "amcrest2mqtt", "-c", "/config" ]
 ```
+
+## Healthcheck
+
+There is a simple healthcheck that can be run, as seen in the sample docker-compose. The app simply touches a file in /tmp every 60 seconds, so while the app is functional, that file should keep getting hit. /app/src/healthcheck.py will check that and return true or false.
 
 ## Mounted Volume Permissions (Synology)
 
 If you mount a host folder into /media for saving recordings, ensure the container has write access.
 On Synology NAS, shared folders use ACLs that can block Docker containers even when chmod 777 appears open.
 
-To reset permissions and make the volume writable by the container’s default user (uid=1000, gid=1000), run the following via SSH:
+To reset permissions and make the volume writable by the container’s default user (uid=1000, gid=1000), run the following via SSH (alter for your path):
 ```
 sudo synoacltool -del /volume1/photo/Amcrest
 sudo chmod 777 /volume1/photo/Amcrest
@@ -127,14 +113,10 @@ in your docker-compose if you want the recording filenames to by local time and 
 Docker is the only supported way of deploying the application. The app should run directly via Python but this is not supported.
 
 ## See also
-* [amcrest2mqtt](https://github.com/weirdtangent/amcrest2mqtt)
 * [blink2mqtt](https://github.com/weirdtangent/blink2mqtt)
+* [govee2mqtt](https://github.com/weirdtangent/govee2mqtt)
 
 ## Buy Me A Coffee
-
-A few people have kindly requested a way to donate a small amount of money. If you feel so inclined I've set up a "Buy Me A Coffee"
-page where you can donate a small sum. Please do not feel obligated to donate in any way - I work on the app because it's
-useful to myself and others, not for any financial gain - but any token of appreciation is much appreciated 🙂
 
 <a href="https://buymeacoffee.com/weirdtangent">Buy Me A Coffee</a>
 
