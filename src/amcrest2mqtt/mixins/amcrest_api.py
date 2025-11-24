@@ -151,7 +151,7 @@ class AmcrestAPIMixin:
 
     def reboot_device(self: Amcrest2Mqtt, device_id: str) -> None:
         if device_id not in self.amcrest_devices:
-            self.logger.warning(f"device not found for {device_id}")
+            self.logger.warning(f"device not found for {self.get_device_name(device_id)}")
             return None
         device = self.amcrest_devices[device_id]
         if not device["camera"]:
@@ -185,7 +185,7 @@ class AmcrestAPIMixin:
 
     async def get_storage_stats(self: Amcrest2Mqtt, device_id: str) -> dict[str, str | float]:
         if device_id not in self.amcrest_devices:
-            self.logger.warning(f"device not found for {device_id}")
+            self.logger.warning(f"device not found for {self.get_device_name(device_id)}")
             return {}
 
         device = self.amcrest_devices[device_id]
@@ -227,7 +227,7 @@ class AmcrestAPIMixin:
 
     async def get_privacy_mode(self: Amcrest2Mqtt, device_id: str) -> bool:
         if device_id not in self.amcrest_devices:
-            self.logger.warning(f"device not found for {device_id}")
+            self.logger.warning(f"device not found for {self.get_device_name(device_id)}")
             return False
 
         device = self.amcrest_devices[device_id]
@@ -274,7 +274,7 @@ class AmcrestAPIMixin:
 
     async def set_privacy_mode(self: Amcrest2Mqtt, device_id: str, switch: bool) -> None:
         if device_id not in self.amcrest_devices:
-            self.logger.warning(f"device not found for {device_id}")
+            self.logger.warning(f"device not found for {self.get_device_name(device_id)}")
             return None
 
         device = self.amcrest_devices[device_id]
@@ -303,7 +303,7 @@ class AmcrestAPIMixin:
 
     async def get_motion_detection(self: Amcrest2Mqtt, device_id: str) -> bool:
         if device_id not in self.amcrest_devices:
-            self.logger.warning(f"device not found for {device_id}")
+            self.logger.warning(f"device not found for {self.get_device_name(device_id)}")
             return False
 
         device = self.amcrest_devices[device_id]
@@ -330,7 +330,7 @@ class AmcrestAPIMixin:
 
     async def set_motion_detection(self: Amcrest2Mqtt, device_id: str, switch: bool) -> None:
         if device_id not in self.amcrest_devices:
-            self.logger.warning(f"device not found for {device_id}")
+            self.logger.warning(f"device not found for {self.get_device_name(device_id)}")
             return None
 
         device = self.amcrest_devices[device_id]
@@ -357,7 +357,7 @@ class AmcrestAPIMixin:
 
     async def get_snapshot_from_device(self: Amcrest2Mqtt, device_id: str) -> str | None:
         if device_id not in self.amcrest_devices:
-            self.logger.warning(f"device not found for {device_id}")
+            self.logger.warning(f"device not found for {self.get_device_name(device_id)}")
             return None
 
         device = self.amcrest_devices[device_id]
@@ -418,7 +418,7 @@ class AmcrestAPIMixin:
 
     async def get_recorded_file(self: Amcrest2Mqtt, device_id: str, file: str, encode: bool = True) -> str | None:
         if device_id not in self.amcrest_devices:
-            self.logger.warning(f"device not found for {device_id}")
+            self.logger.warning(f"device not found for {self.get_device_name(device_id)}")
             return None
 
         device = self.amcrest_devices[device_id]
@@ -488,7 +488,7 @@ class AmcrestAPIMixin:
 
     async def process_device_event(self: Amcrest2Mqtt, device_id: str, code: str, payload: Any) -> None:
         if device_id not in self.amcrest_devices:
-            self.logger.warning(f"device not found for {device_id}")
+            self.logger.warning(f"device not found for {self.get_device_name(device_id)}")
             return None
 
         device = self.amcrest_devices[device_id]

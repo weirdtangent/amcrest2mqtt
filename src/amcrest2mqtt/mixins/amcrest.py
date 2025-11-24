@@ -26,7 +26,11 @@ class AmcrestMixin:
                 device_name = device.get("device_name", "unknown")
                 device_id = device.get("serial_number", "unknown")
                 exception_type = type(result).__name__
-                self.logger.error(f"error during build_component for device '{device_name}' ({device_id}): " f"{exception_type}: {result}", exc_info=True)
+                try:
+                    device_display_name = self.get_device_name(device_id)
+                except KeyError:
+                    device_display_name = device_id
+                self.logger.error(f"error during build_component for device '{device_name}' ({device_display_name}): " f"{exception_type}: {result}", exc_info=True)
             elif result and isinstance(result, str):
                 seen_devices.add(result)
 
@@ -34,7 +38,7 @@ class AmcrestMixin:
         missing_devices = set(self.devices.keys()) - seen_devices
         for device_id in missing_devices:
             await self.publish_device_availability(device_id, online=False)
-            self.logger.warning(f"device {device_id} not seen in Amcrest API list — marked offline")
+            self.logger.warning(f"device {self.get_device_name(device_id)} not seen in Amcrest API list — marked offline")
 
         # Handle first discovery completion
         if not self.discovery_complete:
@@ -275,7 +279,7 @@ class AmcrestMixin:
         )
 
         if not self.is_discovered(device_id):
-            self.logger.info(f'added new camera: "{camera["device_name"]}" {camera["vendor"]} {camera["device_type"]}] ({device_id})')
+            self.logger.info(f'added new camera: "{camera["device_name"]}" {camera["vendor"]} {camera["device_type"]}] ({self.get_device_name(device_id)})')
             await self.publish_device_discovery(device_id)
 
         await self.publish_device_availability(device_id, online=True)
