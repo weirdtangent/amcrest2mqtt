@@ -1,3 +1,12 @@
+## [2.3.3](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.3.2...v2.3.3) (2025-11-24)
+
+
+### Bug Fixes
+
+* always try to log device_name in preference to device_id ([41ec32a](https://github.com/weirdtangent/amcrest2mqtt/commit/41ec32af471c25e4e65451363e09c83099956140))
+* formatting ([cd4e1aa](https://github.com/weirdtangent/amcrest2mqtt/commit/cd4e1aa62827e14a103fdd1a1b1e96d4b3294f94))
+* make sure all device_names logged are in quotes ([b0100f0](https://github.com/weirdtangent/amcrest2mqtt/commit/b0100f09318873346c82acb4cf5cfc7deee47dd0))
+
 ## [2.3.2](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.3.1...v2.3.2) (2025-11-18)
 
 
