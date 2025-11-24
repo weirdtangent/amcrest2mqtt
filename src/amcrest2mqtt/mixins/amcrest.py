@@ -30,7 +30,9 @@ class AmcrestMixin:
                     device_display_name = f"'{self.get_device_name(device_id)}'"
                 except KeyError:
                     device_display_name = f"({device_id})"
-                self.logger.error(f"error during build_component for device '{device_name}' {device_display_name}: " f"{exception_type}: {result}", exc_info=True)
+                self.logger.error(
+                    f"error during build_component for device '{device_name}' {device_display_name}: " f"{exception_type}: {result}", exc_info=True
+                )
             elif result and isinstance(result, str):
                 seen_devices.add(result)
 
