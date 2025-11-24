@@ -22,7 +22,7 @@ class RefreshMixin:
         tasks = []
         for device_id in self.devices:
             if self.is_rebooting(device_id):
-                self.logger.debug(f"skipping refresh for {self.get_device_name(device_id)}, still rebooting")
+                self.logger.debug(f"skipping refresh for '{self.get_device_name(device_id)}', still rebooting")
                 continue
             tasks.append(_refresh(device_id))
         if tasks:
@@ -32,7 +32,7 @@ class RefreshMixin:
         tasks = []
         for device_id in self.amcrest_devices:
             if self.is_rebooting(device_id):
-                self.logger.debug(f"skipping collecting events for {self.get_device_name(device_id)}, still rebooting")
+                self.logger.debug(f"skipping collecting events for '{self.get_device_name(device_id)}', still rebooting")
                 continue
 
             tasks.append(self.get_events_from_device(device_id))
@@ -44,7 +44,7 @@ class RefreshMixin:
         tasks = []
         for device_id in self.amcrest_devices:
             if self.is_rebooting(device_id):
-                self.logger.debug(f"skipping snapshot for {self.get_device_name(device_id)}, still rebooting")
+                self.logger.debug(f"skipping snapshot for '{self.get_device_name(device_id)}', still rebooting")
                 continue
             tasks.append(self.get_snapshot_from_device(device_id))
 

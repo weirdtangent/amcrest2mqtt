@@ -23,7 +23,7 @@ class EventsMixin:
             # if one of our known sensors
             if event in ["motion", "human", "doorbell", "recording", "privacy_mode", "Reboot"]:
                 if event == "recording" and "file" in payload:
-                    self.logger.debug(f'recording event for "{self.get_device_name(device_id)}": {payload["file"]}')
+                    self.logger.debug(f'recording event for \'{self.get_device_name(device_id)}\': {payload["file"]}')
                     if payload["file"].endswith(".jpg"):
                         image = await self.get_recorded_file(device_id, payload["file"])
                         if image:
@@ -65,11 +65,11 @@ class EventsMixin:
                 # record just these "events": text and time
                 self.upsert_state(device_id, sensor={"event_text": event})
                 needs_publish.add(device_id)
-                self.logger.debug(f'processed event for "{self.get_device_name(device_id)}": {event} with {payload}')
+                self.logger.debug(f'processed event for \'{self.get_device_name(device_id)}\': {event} with {payload}')
             else:
                 # we ignore these on purpose, but log if something unexpected comes through
                 if event not in ["NtpAdjustTime", "TimeChange", "RtspSessionDisconnect"]:
-                    self.logger.debug(f'ignored unexpected event for "{self.get_device_name(device_id)}": {event} with {payload}')
+                    self.logger.debug(f'ignored unexpected event for \'{self.get_device_name(device_id)}\': {event} with {payload}')
 
         tasks = [self.publish_device_state(device_id) for device_id in needs_publish]
         if tasks:

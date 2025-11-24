@@ -30,7 +30,7 @@ class ConfigError(ValueError):
 class HelpersMixin:
     async def build_device_states(self: Amcrest2Mqtt, device_id: str) -> bool:
         if self.is_rebooting(device_id):
-            self.logger.debug(f"skipping device states for {self.get_device_name(device_id)}, still rebooting")
+            self.logger.debug(f"skipping device states for '{self.get_device_name(device_id)}', still rebooting")
             return False
 
         # get properties from device
