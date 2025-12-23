@@ -33,4 +33,5 @@ amcrest:
 media:
   path: /media
   max_size: 25 # per recording, in MB; default is 25
+  retention_days: 7 # days to keep recordings; 0 = disabled; default is 7
   media_source: media-source://media_source/local/videos

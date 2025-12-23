@@ -12,7 +12,7 @@ import threading
 from types import FrameType
 import yaml
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
@@ -186,7 +186,12 @@ class HelpersMixin:
             if os.path.exists(media_path) and os.access(media_path, os.W_OK):
                 media["path"] = media_path
                 media.setdefault("max_size", 25)
-                self.logger.info(f"storing recordings in {media_path} up to {media["max_size"]} MB per file. Watch that it doesn't fill up the file system")
+                media["retention_days"] = int(str(media.get("retention_days") or os.getenv("MEDIA_RETENTION_DAYS", 7)))
+                self.logger.info(f"storing recordings in {media_path} up to {media["max_size"]} MB per file")
+                if media["retention_days"] > 0:
+                    self.logger.info(f"recordings will be retained for {media["retention_days"]} days")
+                else:
+                    self.logger.info("recording retention is disabled (retention_days=0). Watch that it doesn't fill up the file system")
             else:
                 self.logger.info("media_path not configured, not found, or is not writable. Will not be saving recordings")
 
@@ -285,6 +290,40 @@ class HelpersMixin:
                 pass
 
         return file_name
+
+    async def cleanup_old_recordings(self: Amcrest2Mqtt) -> None:
+        media_path = self.config["media"].get("path")
+        retention_days = self.config["media"].get("retention_days", 7)
+
+        if not media_path or retention_days <= 0:
+            return
+
+        cutoff = datetime.now() - timedelta(days=retention_days)
+        path = Path(media_path)
+
+        for file in path.glob("*.mp4"):
+            if file.is_symlink():
+                continue
+
+            # Extract timestamp from filename: {name}-YYYYMMDD-HHMMSS.mp4
+            match = re.search(r"-(\d{8}-\d{6})\.mp4$", file.name)
+            if match:
+                file_time = datetime.strptime(match.group(1), "%Y%m%d-%H%M%S")
+                if file_time < cutoff:
+                    try:
+                        file.unlink()
+                        self.logger.info(f"deleted old recording: {file.name}")
+                    except Exception as err:
+                        self.logger.error(f"failed to delete old recording {file.name}: {err!r}")
+
+        # Clean up dangling symlinks (symlinks pointing to deleted files)
+        for link in path.glob("*-latest.mp4"):
+            if link.is_symlink() and not link.exists():
+                try:
+                    link.unlink()
+                    self.logger.info(f"deleted dangling symlink: {link.name}")
+                except Exception as err:
+                    self.logger.error(f"failed to delete dangling symlink {link.name}: {err!r}")
 
     def handle_signal(self: Amcrest2Mqtt, signum: int, _: FrameType | None) -> Any:
         sig_name = signal.Signals(signum).name

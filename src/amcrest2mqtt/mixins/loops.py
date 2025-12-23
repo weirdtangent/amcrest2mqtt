@@ -54,6 +54,15 @@ class LoopsMixin:
                 self.logger.debug("heartbeat cancelled during sleep")
                 break
 
+    async def cleanup_recordings_loop(self: Amcrest2Mqtt) -> None:
+        while self.running:
+            await self.cleanup_old_recordings()
+            try:
+                await asyncio.sleep(86400)  # once per day
+            except asyncio.CancelledError:
+                self.logger.debug("cleanup_recordings_loop cancelled during sleep")
+                break
+
     # main loop
     async def main_loop(self: Amcrest2Mqtt) -> None:
         for sig in (signal.SIGTERM, signal.SIGINT):
@@ -71,6 +80,7 @@ class LoopsMixin:
             asyncio.create_task(self.collect_events_loop(), name="collect events loop"),
             asyncio.create_task(self.check_event_queue_loop(), name="check events queue loop"),
             asyncio.create_task(self.collect_snapshots_loop(), name="collect snapshot loop"),
+            asyncio.create_task(self.cleanup_recordings_loop(), name="cleanup recordings loop"),
             asyncio.create_task(self.heartbeat(), name="heartbeat"),
         ]
 
