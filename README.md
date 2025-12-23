@@ -132,3 +132,10 @@ Docker is the only supported way of deploying the application. The app should ru
 ![Docker Image Version](https://img.shields.io/docker/v/graystorm/amcrest2mqtt?sort=semver&logo=docker)
 ![Docker Pulls](https://img.shields.io/docker/pulls/graystorm/amcrest2mqtt?logo=docker)
 ![License](https://img.shields.io/github/license/weirdtangent/amcrest2mqtt)
+
+### Security
+
+![SBOM](https://img.shields.io/badge/SBOM-included-green?logo=docker)
+![Provenance](https://img.shields.io/badge/provenance-attested-green?logo=sigstore)
+![Signed](https://img.shields.io/badge/cosign-signed-green?logo=sigstore)
+![Trivy](https://img.shields.io/badge/trivy-scanned-green?logo=aquasecurity)
