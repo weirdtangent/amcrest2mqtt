@@ -1,3 +1,15 @@
+# [2.4.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.3.3...v2.4.0) (2025-12-23)
+
+
+### Bug Fixes
+
+* add cleanup methods to protocol interface ([8c195f1](https://github.com/weirdtangent/amcrest2mqtt/commit/8c195f1eb1acb70b4461e6cd9b1d668a818860d4))
+
+
+### Features
+
+* add automatic cleanup of old media recordings ([ebe8d04](https://github.com/weirdtangent/amcrest2mqtt/commit/ebe8d04332ed1fbd861ddd62f9af8b7750a40aa1))
+
 ## [2.3.3](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.3.2...v2.3.3) (2025-11-24)
 
 
