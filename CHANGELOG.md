@@ -1,3 +1,10 @@
+# [2.5.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.4.0...v2.5.0) (2025-12-23)
+
+
+### Features
+
+* add image signing, vulnerability scanning, and security policy ([291bf7d](https://github.com/weirdtangent/amcrest2mqtt/commit/291bf7d7650f112b1682f7e5f59b60c8fbdfe114))
+
 # [2.4.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.3.3...v2.4.0) (2025-12-23)
 
 
