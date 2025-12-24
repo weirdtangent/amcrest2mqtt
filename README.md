@@ -129,7 +129,7 @@ Docker is the only supported way of deploying the application. The app should ru
 ![Docker Build](https://img.shields.io/github/actions/workflow/status/weirdtangent/amcrest2mqtt/deploy.yaml?branch=main&label=docker%20build&logo=docker)
 ![Python](https://img.shields.io/badge/python-3.12%20|%203.13%20|%203.14-blue?logo=python)
 ![Release](https://img.shields.io/github/v/release/weirdtangent/amcrest2mqtt?sort=semver)
-![Docker Image Version](https://img.shields.io/docker/v/graystorm/amcrest2mqtt?sort=semver&logo=docker)
+![Docker Image Tag](https://img.shields.io/github/v/release/weirdtangent/amcrest2mqtt?label=docker%20tag&sort=semver&logo=docker)
 ![Docker Pulls](https://img.shields.io/docker/pulls/graystorm/amcrest2mqtt?logo=docker)
 ![License](https://img.shields.io/github/license/weirdtangent/amcrest2mqtt)
 
