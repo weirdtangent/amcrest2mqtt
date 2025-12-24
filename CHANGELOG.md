@@ -1,3 +1,10 @@
+## [2.5.1](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.5.0...v2.5.1) (2025-12-24)
+
+
+### Bug Fixes
+
+* skip release and docker jobs on pull requests ([e7852b0](https://github.com/weirdtangent/amcrest2mqtt/commit/e7852b0c36db015ef35662d47474ab02393b8b3a))
+
 # [2.5.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.4.0...v2.5.0) (2025-12-23)
 
 
