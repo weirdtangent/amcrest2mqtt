@@ -1,3 +1,15 @@
+# [2.6.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.5.1...v2.6.0) (2026-01-06)
+
+
+### Bug Fixes
+
+* use consistent fallback pattern and clarify documentation ([b027579](https://github.com/weirdtangent/amcrest2mqtt/commit/b02757938a8a42924c5d7b48d75fe39b2c2572df)), closes [#3](https://github.com/weirdtangent/amcrest2mqtt/issues/3)
+
+
+### Features
+
+* add support for MQTT v3.1.1 protocol version ([58a0954](https://github.com/weirdtangent/amcrest2mqtt/commit/58a09548dd0d1b8a4d4f9c60e7ec37b2085bf59d))
+
 ## [2.5.1](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.5.0...v2.5.1) (2025-12-24)
 
 
