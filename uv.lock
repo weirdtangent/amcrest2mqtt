@@ -464,7 +464,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/93/4b/979db9e44be09f71e
 [[package]]
 name = "mqtt-helper-graystorm"
 version = "0.1.0"
-source = { git = "https://github.com/weirdtangent/mqtt-helper.git?branch=main#44eeeb0d2559cfa6ae141c623ecda72502a891e5" }
+source = { git = "https://github.com/weirdtangent/mqtt-helper.git?branch=main#58cd02c2c9675830feb5b433aff5b5a517572c56" }
 dependencies = [
     { name = "logging" },
     { name = "paho-mqtt" },
