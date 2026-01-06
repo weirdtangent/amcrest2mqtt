@@ -31,6 +31,7 @@ It supports the following environment variables - but these are a pain, the conf
 -   `MQTT_HOST` (optional, default = 'localhost')
 -   `MQTT_QOS` (optional, default = 0)
 -   `MQTT_PORT` (optional, default = 1883)
+-   `MQTT_PROTOCOL` (optional, default = '5') - MQTT protocol version: '3.1.1' or '5'
 -   `MQTT_TLS_ENABLED` (required if using TLS) - set to `true` to enable
 -   `MQTT_TLS_CA_CERT` (required if using TLS) - path to the ca certs
 -   `MQTT_TLS_CERT` (required if using TLS) - path to the private cert

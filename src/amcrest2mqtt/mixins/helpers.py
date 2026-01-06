@@ -200,6 +200,7 @@ class HelpersMixin:
             "host":             str(mqtt.get("host")             or os.getenv("MQTT_HOST", "localhost")),
             "port":         int(str(mqtt.get("port")             or os.getenv("MQTT_PORT", 1883))),
             "qos":          int(str(mqtt.get("qos")              or os.getenv("MQTT_QOS", 0))),
+            "protocol_version": str(mqtt.get("protocol_version", os.getenv("MQTT_PROTOCOL", "5"))),
             "username":         str(mqtt.get("username")         or os.getenv("MQTT_USERNAME", "")),
             "password":         str(mqtt.get("password")         or os.getenv("MQTT_PASSWORD", "")),
             "tls_enabled":     bool(mqtt.get("tls_enabled")      or (os.getenv("MQTT_TLS_ENABLED", "false").lower() == "true")),
