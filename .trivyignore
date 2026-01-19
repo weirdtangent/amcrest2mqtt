@@ -1,3 +1,34 @@
+# =============================================================================
+# System Libraries - Waiting for upstream fixes in python:3.14-slim base image
+# =============================================================================
+
+# glibc vulnerabilities - system library, waiting for Debian/Python base image updates
+CVE-2026-0861  # glibc: Integer overflow in memalign leads to heap corruption
+CVE-2026-0915  # glibc: Information disclosure via zero-valued network query
+
+# libtasn1 - system library dependency, not directly used by amcrest2mqtt
+CVE-2025-13151  # libtasn1: DoS via stack-based buffer overflow in asn1_expend_octet_string
+
+# =============================================================================
+# curl - Pulled in as system dependency but specific vulnerable features not used
+# =============================================================================
+# amcrest2mqtt uses Python requests library for HTTP, not curl directly
+# These CVEs relate to curl features (SSH, OAuth2, LDAP, cert pinning) not used by this app
+
+CVE-2025-15224  # curl: SSH/SCP/SFTP transfers - not used
+CVE-2025-15079  # curl: SSH transfers with specific options - not used
+CVE-2025-14819  # curl: TLS with reused easy/multi handles - not used
+CVE-2025-14524  # curl: OAuth2 bearer tokens - not used
+CVE-2025-14017  # curl: Multi-threaded LDAPS transfers - not used
+CVE-2025-13034  # curl: CURLOPT_PINNEDPUBLICKEY option - not used
+
+# =============================================================================
+# Other system dependencies not used by application
+# =============================================================================
+
+# OpenLDAP - not used by amcrest2mqtt (connects to Amcrest cameras and MQTT only)
+CVE-2026-22185  # OpenLDAP LMDB: DoS and Info Disclosure via Heap Buffer Underflow
+
 # libexpat is only pulled in via apt-get install git during build.
 # It is not used in the final runtime image or by amcrest2mqtt at all.
 CVE-2025-59375
