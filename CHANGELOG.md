@@ -1,3 +1,10 @@
+## [2.6.1](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.6.0...v2.6.1) (2026-01-20)
+
+
+### Bug Fixes
+
+* prevent UnboundLocalError when large recordings are skipped ([5973fe2](https://github.com/weirdtangent/amcrest2mqtt/commit/5973fe24442c4015927ace05dd9afe81ea30e761))
+
 # [2.6.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.5.1...v2.6.0) (2026-01-06)
 
 
