@@ -290,7 +290,9 @@ class HelpersMixin:
                 self.logger.error(f"failed to save symlink {latest_link} -> {local_file}: {err!r}")
                 pass
 
-        return file_name
+            return file_name
+
+        return None
 
     async def cleanup_old_recordings(self: Amcrest2Mqtt) -> None:
         media_path = self.config["media"].get("path")
