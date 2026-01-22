@@ -11,39 +11,70 @@ Forked from [dchesterton/amcrest2mqtt](https://github.com/dchesterton/amcrest2mq
 ## Docker
 For `docker-compose`, use the [configuration included](https://github.com/weirdtangent/amcrest2mqtt/blob/master/docker-compose.yaml) in this repository.
 
-Using the [docker image](https://hub.docker.com/repository/docker/graystorm/amcrest2mqtt/general), mount your configuration volume at `/config` (and see the included `config.yaml.sample` file to include in there as `config.yaml`) or use the ENV variables if you must. You can also mount a media volume at `/media` and motion recordings (up to a max size you specify) will be stored there to fill up your disk space!
+Using the [docker image](https://hub.docker.com/repository/docker/graystorm/amcrest2mqtt/general), mount your configuration volume at `/config` and include a `config.yaml` file (see the included [config.yaml.sample](config.yaml.sample) file as a template).
 
-It supports the following environment variables - but these are a pain, the config file is easier!
+## Configuration
 
--   `AMCREST_HOSTS` (required, 1+ space-separated list of hostnames/ips)
--   `AMCREST_NAMES` (required, 1+ space-separated list of device names - must match count of AMCREST_HOSTS)
--   `AMCREST_PORT` (optional, default = 80)
--   `AMCREST_USERNAME` (optional, default = admin)
--   `AMCREST_PASSWORD` (required)
+The recommended way to configure amcrest2mqtt is via the `config.yaml` file. See [config.yaml.sample](config.yaml.sample) for a complete example with all available options.
 
--   `AMCREST_WEBRTC_HOST` (optional, webrtc hostname for link, but then link/sources below become required:)
--   `AMCREST_WEBRTC_PORT` (webrtc port, default = 1984)
--   `AMCREST_WEBRTC_LINK` (webrtc stream link, default = 'stream.html')
--   `AMCREST_WEBRTC_SOURCES` (webrtc "Source" param for each camera, same count and order of AMCREST_HOSTS above)
+### MQTT Settings
 
--   `MQTT_USERNAME` (required)
--   `MQTT_PASSWORD` (optional, default = empty password)
--   `MQTT_HOST` (optional, default = 'localhost')
--   `MQTT_QOS` (optional, default = 0)
--   `MQTT_PORT` (optional, default = 1883)
--   `MQTT_PROTOCOL` (optional, default = '5') - MQTT protocol version: '3.1.1' or '5'
--   `MQTT_TLS_ENABLED` (required if using TLS) - set to `true` to enable
--   `MQTT_TLS_CA_CERT` (required if using TLS) - path to the ca certs
--   `MQTT_TLS_CERT` (required if using TLS) - path to the private cert
--   `MQTT_TLS_KEY` (required if using TLS) - path to the private key
--   `MQTT_PREFIX` (optional, default = amgrest2mqtt)
--   `MQTT_DISCOVERY_PREFIX` (optional, default = 'homeassistant')
+```yaml
+mqtt:
+  host: 10.10.10.1
+  port: 1883
+  username: mqtt
+  password: password
+  qos: 0
+  protocol_version: "5"  # MQTT protocol version: 3.1.1/3 or 5
+  prefix: amcrest2mqtt
+  discovery_prefix: homeassistant
+  # TLS settings (optional)
+  tls_enabled: false
+  tls_ca_cert: filename
+  tls_cert: filename
+  tls_key: filename
+```
 
--   `MEDIA_PATH` (optional) - path to store motion recordings (mp4) files
--   `MEDIA_SOURCE` (optional) - HomeAssistant url for accessing those recordings (see config.yaml.sample)
+### Amcrest Camera Settings
 
--   `STORAGE_UPDATE_INTERVAL` (optional, default = 900) - how often to fetch storage stats (in seconds)
--   `SNAPSHOT_UPDATE_INTERVAL` (optional, default = 60) - how often to fetch camera snapshot (in seconds)
+```yaml
+amcrest:
+  hosts:
+    - 10.10.10.20
+    - camera2.local
+  names:
+    - camera.front
+    - camera.patio
+  port: 80
+  username: admin
+  password: password
+  storage_update_interval: 900  # seconds, default = 900
+  snapshot_update_interval: 60  # seconds, default = 60
+  # WebRTC settings (optional)
+  webrtc:
+    host: webrtc.local
+    port: 1984
+    sources:
+      - FrontYard
+      - Patio
+```
+
+### Media/Recording Settings
+
+You can optionally mount a media volume at `/media` to store motion recordings.
+
+```yaml
+media:
+  path: /media
+  max_size: 25          # per recording, in MB; default is 25
+  retention_days: 7     # days to keep recordings; 0 = disabled; default is 7
+  media_source: media-source://media_source/local/videos  # HomeAssistant media source URL
+```
+
+### Environment Variables
+
+While the config file is recommended, environment variables are also supported. See [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md) for the full list of available environment variables.
 
 It exposes through the new 2024 HomeAssistant `device` discovery a `service` plus a `camera` with multiple components for each camera you specify:
 
@@ -66,8 +97,9 @@ The app supports events for any Amcrest device supported by [`python-amcrest`](h
 
 ## Running the app
 
-To run via env variables with Docker Compose, see docker-compose.yaml
-or make sure you attach a volume with the config file and point to that directory, for example:
+For Docker Compose, see the included [docker-compose.yaml](docker-compose.yaml).
+
+The app expects the config directory to be mounted at `/config`:
 ```
 CMD [ "python", "-m", "amcrest2mqtt", "-c", "/config" ]
 ```
