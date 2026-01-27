@@ -191,7 +191,7 @@ class AmcrestAPIMixin:
         device = self.amcrest_devices[device_id]
         states = self.states[device_id]
 
-        # return our last known state if something fails
+        # return our last known state if something fails, or defaults for cameras without storage
         current: dict[str, str | float] = (
             {
                 "used_percent": states["sensor"].get("storage_used_pct", 0),
@@ -199,7 +199,7 @@ class AmcrestAPIMixin:
                 "total": states["sensor"].get("storage_total", 0),
             }
             if "sensor" in states
-            else {}
+            else {"used_percent": 0, "used": 0, "total": 0}
         )
 
         if not device["camera"]:
