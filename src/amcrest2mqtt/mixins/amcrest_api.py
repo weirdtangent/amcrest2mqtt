@@ -209,7 +209,8 @@ class AmcrestAPIMixin:
         try:
             storage = cast(dict, await device["camera"].async_storage_all)
         except CommError as err:
-            self.logger.error(f"failed to get storage stats from ('{self.get_device_name(device_id)}'): {err!r}")
+            # 400 Bad Request typically means no SD card - not an error, just no storage
+            self.logger.debug(f"no storage stats from '{self.get_device_name(device_id)}' (no SD card?): {err!r}")
             return current
         except LoginError as err:
             self.logger.error(f"failed to auth to ('{self.get_device_name(device_id)}'): {err!r}")
