@@ -30,7 +30,7 @@ class RefreshMixin:
 
     async def collect_all_device_events(self: Amcrest2Mqtt) -> None:
         tasks = []
-        for device_id in self.amcrest_devices:
+        for device_id in self.devices:
             if self.is_rebooting(device_id):
                 self.logger.debug(f"skipping collecting events for '{self.get_device_name(device_id)}', still rebooting")
                 continue
@@ -42,7 +42,7 @@ class RefreshMixin:
 
     async def collect_all_device_snapshots(self: Amcrest2Mqtt) -> None:
         tasks = []
-        for device_id in self.amcrest_devices:
+        for device_id in self.devices:
             if self.is_rebooting(device_id):
                 self.logger.debug(f"skipping snapshot for '{self.get_device_name(device_id)}', still rebooting")
                 continue
