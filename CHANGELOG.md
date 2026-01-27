@@ -1,3 +1,10 @@
+## [2.6.2](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.6.1...v2.6.2) (2026-01-27)
+
+
+### Bug Fixes
+
+* use pattern matching for camera model validation ([83f48c2](https://github.com/weirdtangent/amcrest2mqtt/commit/83f48c281e5d1da52e9cee8b848a11fd7f286211))
+
 ## [2.6.1](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.6.0...v2.6.1) (2026-01-20)
 
 
