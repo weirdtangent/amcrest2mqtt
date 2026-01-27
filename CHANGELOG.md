@@ -1,3 +1,10 @@
+## [2.6.4](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.6.3...v2.6.4) (2026-01-27)
+
+
+### Bug Fixes
+
+* handle cameras without SD card storage ([af666c1](https://github.com/weirdtangent/amcrest2mqtt/commit/af666c119ba67ac713925a505428d94b77b8f2da))
+
 ## [2.6.3](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.6.2...v2.6.3) (2026-01-27)
 
 
