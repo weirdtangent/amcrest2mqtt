@@ -57,7 +57,8 @@ class AmcrestMixin:
         return ""
 
     def classify_device(self: Amcrest2Mqtt, device: dict) -> str:
-        if device["device_type"].upper() in [
+        # Base model patterns - suffix variants (B/W/E/EB/EW etc.) are accepted
+        supported_base_models = [
             "IPM-721",
             "IPM-HX1",
             "IP2M-841",
@@ -65,19 +66,20 @@ class AmcrestMixin:
             "IP3M-941",
             "IP3M-943",
             "IP3M-956",
-            "IP3M-956E",
             "IP3M-HX2",
-            "IP4M-1026B",
-            "IP4M-1041B",
-            "IP4M-1051B",
-            "IP5M-1176EB",
-            "IP8M-2496EB",
-            "IP8M-T2499EW-28M",
+            "IP4M-1026",
+            "IP4M-1041",
+            "IP4M-1051",
+            "IP5M-1176",
+            "IP8M-2496",
+            "IP8M-T2499",
             "XVR DAHUA 5104S",
-        ]:
+        ]
+        device_type = device["device_type"].upper()
+        if any(device_type.startswith(model) for model in supported_base_models):
             return "camera"
         else:
-            self.logger.error(f"device you specified is not a supported model: {device["device_type"]}")
+            self.logger.error(f"device you specified is not a supported model: {device_type}")
             return ""
 
     async def build_camera(self: Amcrest2Mqtt, camera: dict) -> str:
