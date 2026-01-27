@@ -1,3 +1,10 @@
+## [2.6.3](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.6.2...v2.6.3) (2026-01-27)
+
+
+### Bug Fixes
+
+* prevent crash when unsupported device model is configured ([a1a41f3](https://github.com/weirdtangent/amcrest2mqtt/commit/a1a41f327694de3ce4519f517b977930f3e88971))
+
 ## [2.6.2](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.6.1...v2.6.2) (2026-01-27)
 
 
