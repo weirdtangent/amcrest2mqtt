@@ -15,9 +15,12 @@ class RefreshMixin:
 
         async def _refresh(device_id: str) -> None:
             async with semaphore:
-                changed = await self.build_device_states(device_id)
-                if changed:
-                    await self.publish_device_state(device_id)
+                try:
+                    changed = await self.build_device_states(device_id)
+                    if changed:
+                        await self.publish_device_state(device_id)
+                except Exception as err:
+                    self.logger.error(f"error refreshing device '{self.get_device_name(device_id)}': {err!r}")
 
         tasks = []
         for device_id in self.devices:
@@ -29,24 +32,36 @@ class RefreshMixin:
             await asyncio.gather(*tasks)
 
     async def collect_all_device_events(self: Amcrest2Mqtt) -> None:
+        async def _collect_events(device_id: str) -> None:
+            try:
+                await self.get_events_from_device(device_id)
+            except Exception as err:
+                self.logger.error(f"error collecting events for device '{self.get_device_name(device_id)}': {err!r}")
+
         tasks = []
         for device_id in self.devices:
             if self.is_rebooting(device_id):
                 self.logger.debug(f"skipping collecting events for '{self.get_device_name(device_id)}', still rebooting")
                 continue
 
-            tasks.append(self.get_events_from_device(device_id))
+            tasks.append(_collect_events(device_id))
 
         if tasks:
             await asyncio.gather(*tasks)
 
     async def collect_all_device_snapshots(self: Amcrest2Mqtt) -> None:
+        async def _collect_snapshot(device_id: str) -> None:
+            try:
+                await self.get_snapshot_from_device(device_id)
+            except Exception as err:
+                self.logger.error(f"error collecting snapshot for device '{self.get_device_name(device_id)}': {err!r}")
+
         tasks = []
         for device_id in self.devices:
             if self.is_rebooting(device_id):
                 self.logger.debug(f"skipping snapshot for '{self.get_device_name(device_id)}', still rebooting")
                 continue
-            tasks.append(self.get_snapshot_from_device(device_id))
+            tasks.append(_collect_snapshot(device_id))
 
         if tasks:
             await asyncio.gather(*tasks)
