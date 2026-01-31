@@ -1,3 +1,10 @@
+## [2.6.5](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.6.4...v2.6.5) (2026-01-31)
+
+
+### Bug Fixes
+
+* prevent dictionary-changed-size-during-iteration crash and handle PermissionError on shutdown ([90958b9](https://github.com/weirdtangent/amcrest2mqtt/commit/90958b99a6d4dfe800fc1f4a531e043a7d017e3a))
+
 ## [2.6.4](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.6.3...v2.6.4) (2026-01-27)
 
 
