@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(uv pip show:*)"
+      "Bash(uv pip show:*)",
+      "Bash(git fetch:*)"
     ]
   }
 }
