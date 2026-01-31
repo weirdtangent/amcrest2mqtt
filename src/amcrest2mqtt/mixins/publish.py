@@ -166,7 +166,7 @@ class PublishMixin:
         await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, payload)
 
     async def publish_device_state(self: Amcrest2Mqtt, device_id: str, subject: str = "", sub: str = "") -> None:
-        for state, value in self.states[device_id].items():
+        for state, value in list(self.states[device_id].items()):
             if subject and state != subject:
                 continue
             # Attributes need to be published as a single JSON object to the attributes topic
@@ -174,7 +174,7 @@ class PublishMixin:
                 topic = self.mqtt_helper.stat_t(device_id, "attributes")
                 await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(value))
             elif isinstance(value, dict):
-                for k, v in value.items():
+                for k, v in list(value.items()):
                     if sub and k != sub:
                         continue
                     topic = self.mqtt_helper.stat_t(device_id, state, k)

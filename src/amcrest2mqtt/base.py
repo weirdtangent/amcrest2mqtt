@@ -111,9 +111,12 @@ class Base:
             "api_calls": self.api_calls,
             "last_call_date": str(self.last_call_date),
         }
-        with open(data_file, "w", encoding="utf-8") as file:
-            json.dump(state, file, indent=4)
-        self.logger.info(f"saved state to {data_file}")
+        try:
+            with open(data_file, "w", encoding="utf-8") as file:
+                json.dump(state, file, indent=4)
+            self.logger.info(f"saved state to {data_file}")
+        except PermissionError as err:
+            self.logger.error(f"permission error saving state to {data_file}: {err!r}")
 
     def restore_state(self: Amcrest2Mqtt) -> None:
         data_file = Path(self.config["config_path"]) / "amcrest2mqtt.dat"

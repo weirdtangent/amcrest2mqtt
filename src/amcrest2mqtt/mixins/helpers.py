@@ -90,7 +90,7 @@ class HelpersMixin:
     async def rediscover_all(self: Amcrest2Mqtt) -> None:
         await self.publish_service_discovery()
         await self.publish_service_state()
-        for device_id in self.devices:
+        for device_id in list(self.devices):
             await self.publish_device_discovery(device_id)
             await self.publish_device_state(device_id)
 
