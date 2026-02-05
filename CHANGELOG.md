@@ -1,3 +1,10 @@
+## [2.6.6](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.6.5...v2.6.6) (2026-02-05)
+
+
+### Bug Fixes
+
+* motion sensor state published as correct JSON boolean ([e83867b](https://github.com/weirdtangent/amcrest2mqtt/commit/e83867b6057fa210af52ff141933d2b3b5e92a7c))
+
 ## [2.6.5](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.6.4...v2.6.5) (2026-01-31)
 
 
