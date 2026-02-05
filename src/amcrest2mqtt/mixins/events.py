@@ -43,7 +43,7 @@ class EventsMixin:
 
                     self.upsert_state(
                         device_id,
-                        binary_sensor={"motion": payload["state"]},
+                        binary_sensor={"motion": payload["state"] == "on"},
                         attributes={"region": region},
                     )
                     needs_publish.add(device_id)
