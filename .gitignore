@@ -28,5 +28,8 @@ NOTES
 coverage/
 dist/
 
+# Claude Code
+.claude/
+
 # Apple
 .DS_Store
