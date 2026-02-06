@@ -1,3 +1,10 @@
+## [2.6.7](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.6.6...v2.6.7) (2026-02-06)
+
+
+### Bug Fixes
+
+* upgrade pip in Docker build to patch CVE-2026-1703 ([73ef94d](https://github.com/weirdtangent/amcrest2mqtt/commit/73ef94d4505d5ea3da22a66062ccbef9f43e67f5))
+
 ## [2.6.6](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.6.5...v2.6.6) (2026-02-05)
 
 
