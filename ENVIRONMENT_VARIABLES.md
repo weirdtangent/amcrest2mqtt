@@ -39,6 +39,10 @@ While using a config.yaml file is the recommended approach, amcrest2mqtt also su
 -   `MEDIA_RETENTION_DAYS` (optional, default = 7) - days to keep recordings, 0 = disabled
 -   `MEDIA_SOURCE` (optional) - HomeAssistant url for accessing those recordings (see config.yaml.sample)
 
+## Vision Settings
+
+-   `VISION_REQUEST` (optional, default = false) - publish vision request on motion events for use with [vision2mqtt](https://github.com/weirdtangent/vision2mqtt)
+
 ## Update Intervals
 
 -   `STORAGE_UPDATE_INTERVAL` (optional, default = 900) - how often to fetch storage stats (in seconds)
