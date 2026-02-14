@@ -1,3 +1,16 @@
+# [2.7.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.6.7...v2.7.0) (2026-02-14)
+
+
+### Bug Fixes
+
+* address review feedback for vision request ([3f477e8](https://github.com/weirdtangent/amcrest2mqtt/commit/3f477e8b788accc2c3a0895e51fb1ab07801ecc7))
+* return base64 data instead of raw bytes from get_recorded_file ([783bcbb](https://github.com/weirdtangent/amcrest2mqtt/commit/783bcbb14ee648bd5451eda89da10f3a76ad0b54))
+
+
+### Features
+
+* publish vision request on motion events ([2f054aa](https://github.com/weirdtangent/amcrest2mqtt/commit/2f054aa2882e525fab26bf8cee30652cd70d7e5e))
+
 ## [2.6.7](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.6.6...v2.6.7) (2026-02-06)
 
 
