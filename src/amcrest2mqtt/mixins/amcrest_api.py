@@ -444,7 +444,7 @@ class AmcrestAPIMixin:
                         f"processed recording from ('{self.get_device_name(device_id)}') {len(data_raw)} bytes raw, and {len(data_base64)} bytes base64"
                     )
                     if len(data_base64) < self.mb_to_b(100):
-                        return data_raw.decode("latin-1")
+                        return data_base64.decode("ascii")
                     else:
                         self.logger.error(f"skipping recording, too large: {self.b_to_mb(len(data_base64))} MB")
                         return None
