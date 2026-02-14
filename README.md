@@ -95,7 +95,7 @@ The WebRTC option works with the <a href="https://github.com/AlexxIT/go2rtc">go2
 
 When enabled, amcrest2mqtt publishes motion event snapshots to MQTT for AI-powered object detection via [vision2mqtt](https://github.com/weirdtangent/vision2mqtt). Detection results (person, vehicle, animal, bird) are published back to MQTT and auto-discovered by Home Assistant.
 
-This has been specifically tested with the [M5Stack LLM-8850 Pi HAT](https://docs.m5stack.com/en/ai_hardware/LLM-8850_Card) kit on a Raspberry Pi 5, which provides ~8ms/frame inference via the AXera AX8850 NPU (24 TOPS).
+This has been specifically tested with the [M5Stack LLM-8850 Pi HAT](https://docs.m5stack.com/en/ai_hardware/LLM-8850_Card) kit on a Raspberry Pi 5, which provides ~8ms/frame inference via the Axera AX8850 NPU (24 TOPS).
 
 ### Enable vision requests
 
