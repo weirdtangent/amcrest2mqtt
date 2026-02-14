@@ -91,6 +91,28 @@ An "event snapshot" (`eventshot`) is separately (and specifically, by filename) 
 
 The WebRTC option works with the <a href="https://github.com/AlexxIT/go2rtc">go2rtc</a> package which is a streaming server that works very well for (my) Amcrest cameras. If you setup the WebRTC config here, there will be a `camera.<name> webrtc` which you can put on a dashboard with the entity card. It will show a small camera icon and likely say "Idle", but if you click on it (and give it a little time to warm up) you will see the live-streaming feed from the webrtc server.
 
+## Object Detection with vision2mqtt
+
+When enabled, amcrest2mqtt publishes motion event snapshots to MQTT for AI-powered object detection via [vision2mqtt](https://github.com/weirdtangent/vision2mqtt). Detection results (person, vehicle, animal, bird) are published back to MQTT and auto-discovered by Home Assistant.
+
+This has been specifically tested with the [M5Stack LLM-8850 Pi HAT](https://docs.m5stack.com/en/ai_hardware/LLM-8850_Card) kit on a Raspberry Pi 5, which provides ~8ms/frame inference via the AXera AX8850 NPU (24 TOPS).
+
+### Enable vision requests
+
+In `config.yaml`:
+```yaml
+vision_request: true
+```
+
+Or via environment variable:
+```
+VISION_REQUEST=true
+```
+
+When a motion event occurs, amcrest2mqtt publishes a JSON message to `amcrest2mqtt/vision/request` containing the camera snapshot as a base64-encoded image. vision2mqtt subscribes to `+/vision/request`, runs YOLO11 inference, and publishes detection results back to MQTT — including per-camera presence sensors that appear automatically in Home Assistant.
+
+See the [vision2mqtt README](https://github.com/weirdtangent/vision2mqtt) for full setup instructions, including the Raspberry Pi 5 + LLM-8850 hardware setup guide.
+
 ## Device Support
 
 The app supports events for any Amcrest device supported by [`python-amcrest`](https://github.com/tchellomello/python-amcrest).
