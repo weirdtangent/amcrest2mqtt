@@ -232,14 +232,15 @@ class HelpersMixin:
         }
 
         config = {
-            "mqtt":        mqtt,
-            "amcrest":     amcrest,
-            "debug":       bool(config.get("debug", os.getenv("DEBUG", "").lower() == "true")),
-            "hide_ts":     bool(config.get("hide_ts", os.getenv("HIDE_TS", "").lower() == "true")),
-            "media":       media,
-            "config_from": config_from,
-            "config_path": config_path,
-            "version":     version,
+            "mqtt":             mqtt,
+            "amcrest":          amcrest,
+            "debug":            bool(config.get("debug", os.getenv("DEBUG", "").lower() == "true")),
+            "hide_ts":          bool(config.get("hide_ts", os.getenv("HIDE_TS", "").lower() == "true")),
+            "vision_request":   bool(config.get("vision_request", os.getenv("VISION_REQUEST", "").lower() == "true")),
+            "media":            media,
+            "config_from":      config_from,
+            "config_path":      config_path,
+            "version":          version,
         }
         # fmt: on
 

@@ -31,6 +31,8 @@ amcrest:
       - FrontYard
       - Patio
 
+vision_request: false  # publish vision requests to MQTT on motion events (for vision2mqtt)
+
 media:
   path: /media
   max_size: 25 # per recording, in MB; default is 25
