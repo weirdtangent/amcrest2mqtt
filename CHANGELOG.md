@@ -1,3 +1,10 @@
+## [2.7.3](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.7.2...v2.7.3) (2026-02-15)
+
+
+### Bug Fixes
+
+* only trigger Claude review on [@claude](https://github.com/claude) mention ([b1294b4](https://github.com/weirdtangent/amcrest2mqtt/commit/b1294b42ede3a04ef585a0af9eb7296e754e5e1d))
+
 ## [2.7.2](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.7.1...v2.7.2) (2026-02-15)
 
 
