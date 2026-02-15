@@ -140,8 +140,15 @@ class HelpersMixin:
         v = os.getenv(env_name)
         return [] if not v else [s.strip() for s in v.split(",") if s.strip()]
 
+    def _read_version_file(self: Amcrest2Mqtt) -> str:
+        try:
+            with open("VERSION", "r", encoding="utf-8") as f:
+                return f.read().strip()
+        except FileNotFoundError:
+            return "dev"
+
     def load_config(self: Amcrest2Mqtt, config_arg: Any | None) -> dict[str, Any]:
-        version = os.getenv("APP_VERSION", self.read_file("VERSION"))
+        version = os.getenv("APP_VERSION") or self._read_version_file()
         tier = os.getenv("APP_TIER", "prod")
         if tier == "dev":
             version += ":DEV"
