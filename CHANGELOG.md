@@ -1,3 +1,10 @@
+## [2.7.2](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.7.1...v2.7.2) (2026-02-15)
+
+
+### Bug Fixes
+
+* add checkout step to claude-code-review workflow ([cf800a5](https://github.com/weirdtangent/amcrest2mqtt/commit/cf800a597a1832a33174552c689b4aded76ab134))
+
 ## [2.7.1](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.7.0...v2.7.1) (2026-02-15)
 
 
