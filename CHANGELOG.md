@@ -1,3 +1,10 @@
+## [2.7.1](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.7.0...v2.7.1) (2026-02-15)
+
+
+### Bug Fixes
+
+* add id-token: write permission for claude-code-action ([6cffaff](https://github.com/weirdtangent/amcrest2mqtt/commit/6cffaff6ca6d99c181fd34729bd1f861a2319462))
+
 # [2.7.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.6.7...v2.7.0) (2026-02-14)
 
 
