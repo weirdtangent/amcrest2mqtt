@@ -1,3 +1,10 @@
+# [2.8.0](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.7.3...v2.8.0) (2026-02-15)
+
+
+### Features
+
+* upgrade Claude review with auto-PR review and GitHub App token ([85c1373](https://github.com/weirdtangent/amcrest2mqtt/commit/85c1373370cb3574c01b0458a16d89b587049528))
+
 ## [2.7.3](https://github.com/weirdtangent/amcrest2mqtt/compare/v2.7.2...v2.7.3) (2026-02-15)
 
 
