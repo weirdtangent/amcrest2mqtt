@@ -121,7 +121,7 @@ class Base:
     def restore_state(self: Amcrest2Mqtt) -> None:
         data_file = Path(self.config["config_path"]) / "amcrest2mqtt.dat"
         if os.path.exists(data_file):
-            with open(data_file, "r") as file:
+            with open(data_file, "r", encoding="utf-8") as file:
                 state = json.loads(file.read())
                 self.api_calls = state["api_calls"]
                 self.last_call_date = datetime.strptime(state["last_call_date"], "%Y-%m-%d %H:%M:%S.%f")

@@ -9,6 +9,7 @@ import os
 import pathlib
 import re
 import signal
+import sys
 import socket
 import threading
 from types import FrameType
@@ -105,7 +106,7 @@ class HelpersMixin:
         pathlib.Path(READY_FILE).touch()
 
     def read_file(self: Amcrest2Mqtt, file_name: str) -> str:
-        with open(file_name, "r") as file:
+        with open(file_name, "r", encoding="utf-8") as file:
             data = file.read().replace("\n", "")
         return data
 
@@ -168,11 +169,13 @@ class HelpersMixin:
         elif os.path.isfile(config_path):
             config_file = config_path
             config_path = os.path.dirname(config_file)
+        else:
+            raise ConfigError(f"config path not found: {config_path}")
 
         # Try to load from YAML
         if os.path.exists(config_file):
             try:
-                with open(config_file, "r") as f:
+                with open(config_file, "r", encoding="utf-8") as f:
                     config = yaml.safe_load(f) or {}
                 config_from = "file"
             except Exception as err:
@@ -345,7 +348,7 @@ class HelpersMixin:
 
         def _force_exit() -> None:
             self.logger.warning("force-exiting process after signal")
-            os._exit(0)
+            sys.exit(0)
 
         threading.Timer(5.0, _force_exit).start()
 
