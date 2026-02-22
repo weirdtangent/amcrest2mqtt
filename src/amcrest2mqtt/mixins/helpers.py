@@ -9,7 +9,6 @@ import os
 import pathlib
 import re
 import signal
-import sys
 import socket
 import threading
 from types import FrameType
@@ -348,7 +347,7 @@ class HelpersMixin:
 
         def _force_exit() -> None:
             self.logger.warning("force-exiting process after signal")
-            sys.exit(0)
+            os._exit(0)
 
         threading.Timer(5.0, _force_exit).start()
 
