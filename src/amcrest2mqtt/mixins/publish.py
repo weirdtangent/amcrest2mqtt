@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Jeff Culverhouse
 from __future__ import annotations
 
 import asyncio
