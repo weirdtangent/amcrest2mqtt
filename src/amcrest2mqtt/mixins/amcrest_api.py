@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
+from __future__ import annotations
+
 from amcrest import AmcrestCamera, ApiWrapper
 from amcrest.exceptions import LoginError, AmcrestError, CommError
 import asyncio
