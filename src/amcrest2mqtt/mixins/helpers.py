@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from deepmerge.merger import Merger
 import ipaddress
+from mqtt_helper import ConfigError
 import os
 import pathlib
 import re
@@ -21,12 +22,6 @@ if TYPE_CHECKING:
     from amcrest2mqtt.interface import AmcrestServiceProtocol as Amcrest2Mqtt
 
 READY_FILE = os.getenv("READY_FILE", "/tmp/amcrest2mqtt.ready")
-
-
-class ConfigError(ValueError):
-    """Raised when the configuration file is invalid."""
-
-    pass
 
 
 class HelpersMixin:
