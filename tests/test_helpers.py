@@ -4,7 +4,8 @@ import os
 import pytest
 from unittest.mock import MagicMock
 
-from amcrest2mqtt.mixins.helpers import ConfigError, HelpersMixin
+from mqtt_helper import ConfigError
+from amcrest2mqtt.mixins.helpers import HelpersMixin
 
 
 class FakeHelpers(HelpersMixin):
