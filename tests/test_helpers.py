@@ -212,6 +212,16 @@ class TestHandleSignal:
         helpers.logger.warning.assert_called_once()
 
 
+class TestLoadConfigPathNotFound:
+    def test_nonexistent_path_raises_config_error(self, tmp_path):
+        """Config path that is neither file nor directory should raise ConfigError."""
+        helpers = FakeHelpers()
+        nonexistent = str(tmp_path / "does_not_exist")
+
+        with pytest.raises(ConfigError, match="config path not found"):
+            helpers.load_config(nonexistent)
+
+
 class TestUpsertDevice:
     def test_upsert_creates_new_entry(self):
         helpers = FakeHelpers()
