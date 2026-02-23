@@ -92,13 +92,17 @@ class AmcrestMixin:
         if "webrtc" in self.amcrest_config:
             webrtc_config = self.amcrest_config["webrtc"]
 
-            rtc_host = webrtc_config["host"]
-            rtc_port = webrtc_config["port"]
-            rtc_link = webrtc_config["link"]
-            rtc_source = self.amcrest_config["webrtc"]["sources"][self.amcrest_devices[device_id]["config"]["index"]]
+            sources = webrtc_config.get("sources", [])
+            index = self.amcrest_devices[device_id]["config"]["index"]
 
-            if rtc_source:
-                rtc_url = f"http://{rtc_host}:{rtc_port}/{rtc_link}?src={rtc_source}"
+            if sources and index < len(sources):
+                rtc_host = webrtc_config["host"]
+                rtc_port = webrtc_config["port"]
+                rtc_link = webrtc_config["link"]
+                rtc_source = sources[index]
+
+                if rtc_source:
+                    rtc_url = f"http://{rtc_host}:{rtc_port}/{rtc_link}?src={rtc_source}"
 
         device = {
             "stat_t": self.mqtt_helper.stat_t(device_id, "state"),
@@ -278,7 +282,7 @@ class AmcrestMixin:
             switch={"save_recordings": "ON" if "path" in self.config["media"] else "OFF"},
             binary_sensor={"motion": False},
             attributes={
-                "recording_url": f"{self.config["media"]["media_source"]}/{camera["device_name"]}-latest.mp4",
+                "recording_url": f"{self.config["media"].get("media_source", "")}/{camera["device_name"]}-latest.mp4" if self.config["media"].get("media_source") else "",
                 "region": "",
             },
             image={"motion_snapshot": ""},
