@@ -507,6 +507,9 @@ class AmcrestAPIMixin:
             elif code == "_DoTalkAction_":
                 doorbell_payload = "on" if payload["data"]["Action"] == "Invite" else "off"
                 self.events.append({"device_id": device_id, "event": "doorbell", "payload": doorbell_payload})
+            elif code == "AlarmLocal" and config["is_ad410"]:
+                doorbell_payload = "on" if payload["action"] == "Start" else "off"
+                self.events.append({"device_id": device_id, "event": "doorbell", "payload": doorbell_payload})
             elif code == "NewFile":
                 if (
                     "File" in payload["data"]

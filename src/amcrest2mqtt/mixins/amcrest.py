@@ -54,7 +54,7 @@ class AmcrestMixin:
     async def build_component(self: Amcrest2Mqtt, device: dict) -> str:
         device_class = self.classify_device(device)
         match device_class:
-            case "camera":
+            case "doorbell" | "camera":
                 return await self.build_camera(device)
         return ""
 
@@ -77,8 +77,15 @@ class AmcrestMixin:
             "IP8M-T2499",
             "XVR DAHUA 5104S",
         ]
+        doorbell_models = [
+            "AD110",
+            "AD410",
+        ]
+
         device_type = device["device_type"].upper()
-        if any(device_type.startswith(model) for model in supported_base_models):
+        if any(device_type.startswith(model) for model in doorbell_models):
+            return "doorbell"
+        elif any(device_type.startswith(model) for model in supported_base_models):
             return "camera"
         else:
             self.logger.error(f"device you specified is not a supported model: {device_type}")
@@ -276,7 +283,7 @@ class AmcrestMixin:
             internal={},
             webrtc=rtc_url,
             switch={"save_recordings": "ON" if "path" in self.config["media"] else "OFF"},
-            binary_sensor={"motion": False},
+            binary_sensor={"motion": False, "doorbell": False},
             attributes={
                 "recording_url": f"{self.config["media"]["media_source"]}/{camera["device_name"]}-latest.mp4",
                 "region": "",

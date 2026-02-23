@@ -74,6 +74,13 @@ class EventsMixin:
                         snapshot = states.get("image", {}).get("snapshot")
                         if snapshot:
                             await self.publish_vision_request(device_id, snapshot, "motion_snapshot")
+                elif event == "doorbell":
+                    event += ": " + payload
+                    self.upsert_state(
+                        device_id,
+                        binary_sensor={"doorbell": "ON" if payload == "on" else "OFF"},
+                    )
+                    needs_publish.add(device_id)
                 else:
                     if isinstance(payload, str):
                         event += ": " + payload
