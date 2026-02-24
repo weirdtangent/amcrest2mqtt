@@ -100,8 +100,8 @@ class AmcrestAPIMixin:
         device_class = clean_value(device_class, "deviceClass=")
         device_type = clean_value(device_type, "type=")
 
-        is_ad110 = device_type == "AD110"
-        is_ad410 = device_type == "AD410"
+        is_ad110 = device_type.startswith("AD110")
+        is_ad410 = device_type.startswith("AD410")
         is_doorbell = is_ad110 or is_ad410
 
         version = sw_info[0].replace("version=", "").strip()
