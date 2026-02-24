@@ -105,6 +105,7 @@ class FakeEventProcessor(AmcrestAPIMixin):
 class TestProcessDeviceEvent:
     def _run(self, coro):
         import asyncio
+
         return asyncio.run(coro)
 
     def test_alarm_local_ad410_start_creates_doorbell_on(self):
