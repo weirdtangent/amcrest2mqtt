@@ -54,7 +54,9 @@ class EventsMixin:
                         if "path" in self.config["media"] and self.states[device_id]["switch"].get("save_recordings", "OFF") == "ON":
                             file_name = await self.store_recording_in_media(device_id, payload["file"])
                             if file_name:
-                                self.upsert_state(device_id, attributes={"recording_url": f"{self.config["media"]["media_source"]}/{file_name}"})
+                                media_source = self.config["media"].get("media_source")
+                                if media_source:
+                                    self.upsert_state(device_id, attributes={"recording_url": f"{media_source}/{file_name}"})
                                 needs_publish.add(device_id)
                         event += ": video"
                 elif event == "motion":
