@@ -4,6 +4,7 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+from mqtt_helper import parse_device_topic
 from amcrest2mqtt.mixins.mqtt import MqttMixin
 
 
@@ -98,28 +99,23 @@ class TestMqttOnMessage:
 
 class TestParseDeviceTopic:
     def test_parses_valid_switch_topic(self):
-        mqtt = FakeMqtt()
         components = "amcrest2mqtt/amcrest2mqtt_SERIAL123/switch/privacy/set".split("/")
-        result = mqtt._parse_device_topic(components)
+        result = parse_device_topic(components)
 
-        assert result == ["amcrest2mqtt", "SERIAL123", "privacy"]
+        assert result == ("amcrest2mqtt", "SERIAL123", "privacy")
 
     def test_non_set_suffix_returns_none(self):
-        mqtt = FakeMqtt()
         components = "amcrest2mqtt/amcrest2mqtt_SERIAL123/switch/privacy/get".split("/")
-        result = mqtt._parse_device_topic(components)
+        result = parse_device_topic(components)
 
         assert result is None
 
-    def test_malformed_topic_returns_empty_or_none(self):
-        mqtt = FakeMqtt()
+    def test_malformed_topic_returns_none(self):
         # Topic with no underscore in second component will raise in split("_", 1)
         components = ["amcrest2mqtt", "malformed", "switch", "privacy", "set"]
-        result = mqtt._parse_device_topic(components)
+        result = parse_device_topic(components)
 
-        # Malformed topics return empty list per the except handler
-        assert result is not None
-        assert result == []
+        assert result is None
 
 
 class TestHandleHomeassistantMessage:
