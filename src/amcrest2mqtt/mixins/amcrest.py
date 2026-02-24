@@ -282,7 +282,9 @@ class AmcrestMixin:
             switch={"save_recordings": "ON" if "path" in self.config["media"] else "OFF"},
             binary_sensor={"motion": False},
             attributes={
-                "recording_url": f"{self.config["media"].get("media_source", "")}/{camera["device_name"]}-latest.mp4" if self.config["media"].get("media_source") else "",
+                "recording_url": (
+                    f"{self.config["media"].get("media_source", "")}/{camera["device_name"]}-latest.mp4" if self.config["media"].get("media_source") else ""
+                ),
                 "region": "",
             },
             image={"motion_snapshot": ""},
