@@ -42,6 +42,7 @@ class EventsMixin:
 
             # if one of our known sensors
             if event in ["motion", "human", "doorbell", "recording", "privacy_mode", "Reboot"]:
+                event_type = event
                 if event == "recording" and "file" in payload:
                     self.logger.debug(f'recording event for \'{self.get_device_name(device_id)}\': {payload["file"]}')
                     if payload["file"].endswith(".jpg"):
@@ -75,12 +76,12 @@ class EventsMixin:
                         if snapshot:
                             await self.publish_vision_request(device_id, snapshot, "motion_snapshot")
                 elif event == "doorbell":
-                    event += ": " + payload
                     self.upsert_state(
                         device_id,
                         binary_sensor={"doorbell": "ON" if payload == "on" else "OFF"},
                     )
                     needs_publish.add(device_id)
+                    event += ": " + payload
                 else:
                     if isinstance(payload, str):
                         event += ": " + payload
@@ -91,7 +92,7 @@ class EventsMixin:
                             event += ": " + payload["action"]
 
                 # other ways to infer "privacy mode" has been turned off and we need to update
-                if event in ["motion", "human", "doorbell"] and states["switch"]["privacy"] != "OFF":
+                if event_type in ["motion", "human", "doorbell"] and states["switch"]["privacy"] != "OFF":
                     if self.upsert_state(device_id, switch={"privacy_mode": "OFF"}):
                         needs_publish.add(device_id)
 

@@ -283,7 +283,7 @@ class AmcrestMixin:
             internal={},
             webrtc=rtc_url,
             switch={"save_recordings": "ON" if "path" in self.config["media"] else "OFF"},
-            binary_sensor={"motion": False, "doorbell": False},
+            binary_sensor={"motion": False, **({"doorbell": "OFF"} if camera.get("is_doorbell") else {})},
             attributes={
                 "recording_url": f"{self.config["media"]["media_source"]}/{camera["device_name"]}-latest.mp4",
                 "region": "",

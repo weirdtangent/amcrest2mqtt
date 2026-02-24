@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock
 
 from amcrest2mqtt.mixins.amcrest import AmcrestMixin
+from amcrest2mqtt.mixins.amcrest_api import AmcrestAPIMixin
 
 
 class FakeAmcrest(AmcrestMixin):
@@ -55,8 +56,89 @@ class TestClassifyDevice:
         amcrest.classify_device(device)
         amcrest.logger.error.assert_called_once()
 
+    def test_ad110_returns_doorbell(self):
+        amcrest = FakeAmcrest()
+        device = {"device_type": "AD110"}
+        assert amcrest.classify_device(device) == "doorbell"
+
+    def test_ad410_returns_doorbell(self):
+        amcrest = FakeAmcrest()
+        device = {"device_type": "AD410"}
+        assert amcrest.classify_device(device) == "doorbell"
+
     def test_case_insensitive_matching(self):
         amcrest = FakeAmcrest()
         # classify_device uppercases device_type before matching
         device = {"device_type": "ip2m-841b"}
         assert amcrest.classify_device(device) == "camera"
+
+    def test_doorbell_case_insensitive(self):
+        amcrest = FakeAmcrest()
+        device = {"device_type": "ad410"}
+        assert amcrest.classify_device(device) == "doorbell"
+
+
+class FakeEventProcessor(AmcrestAPIMixin):
+    def __init__(self):
+        self.logger = MagicMock()
+        self.devices = {}
+        self.states = {}
+        self.events = []
+        self.amcrest_devices = {}
+
+    def get_device_name(self, device_id):
+        return self.devices.get(device_id, {}).get("name", device_id)
+
+    def _add_device(self, device_id, is_ad110=False, is_ad410=False):
+        self.amcrest_devices[device_id] = {
+            "camera": MagicMock(),
+            "config": {
+                "is_ad110": is_ad110,
+                "is_ad410": is_ad410,
+                "is_doorbell": is_ad110 or is_ad410,
+            },
+        }
+        self.devices[device_id] = {"name": "Test Device"}
+        self.states[device_id] = {}
+
+
+class TestProcessDeviceEvent:
+    def _run(self, coro):
+        import asyncio
+        return asyncio.run(coro)
+
+    def test_alarm_local_ad410_start_creates_doorbell_on(self):
+        ep = FakeEventProcessor()
+        ep._add_device("DB001", is_ad410=True)
+        payload = {"action": "Start", "data": {}}
+        self._run(ep.process_device_event("DB001", "AlarmLocal", payload))
+        assert len(ep.events) == 1
+        assert ep.events[0]["event"] == "doorbell"
+        assert ep.events[0]["payload"] == "on"
+
+    def test_alarm_local_ad410_stop_creates_doorbell_off(self):
+        ep = FakeEventProcessor()
+        ep._add_device("DB001", is_ad410=True)
+        payload = {"action": "Stop", "data": {}}
+        self._run(ep.process_device_event("DB001", "AlarmLocal", payload))
+        assert len(ep.events) == 1
+        assert ep.events[0]["event"] == "doorbell"
+        assert ep.events[0]["payload"] == "off"
+
+    def test_alarm_local_ignored_for_non_ad410(self):
+        ep = FakeEventProcessor()
+        ep._add_device("CAM001")
+        payload = {"action": "Start", "data": {}}
+        self._run(ep.process_device_event("CAM001", "AlarmLocal", payload))
+        # should fall through to generic event, not doorbell
+        assert len(ep.events) == 1
+        assert ep.events[0]["event"] == "AlarmLocal"
+
+    def test_do_talk_action_creates_doorbell_event(self):
+        ep = FakeEventProcessor()
+        ep._add_device("DB001", is_ad110=True)
+        payload = {"action": "Start", "data": {"Action": "Invite"}}
+        self._run(ep.process_device_event("DB001", "_DoTalkAction_", payload))
+        assert len(ep.events) == 1
+        assert ep.events[0]["event"] == "doorbell"
+        assert ep.events[0]["payload"] == "on"
