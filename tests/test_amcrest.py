@@ -72,6 +72,11 @@ class TestClassifyDevice:
         device = {"device_type": "ip2m-841b"}
         assert amcrest.classify_device(device) == "camera"
 
+    def test_ad110_sh_variant_returns_doorbell(self):
+        amcrest = FakeAmcrest()
+        device = {"device_type": "AD110-SH"}
+        assert amcrest.classify_device(device) == "doorbell"
+
     def test_doorbell_case_insensitive(self):
         amcrest = FakeAmcrest()
         device = {"device_type": "ad410"}
