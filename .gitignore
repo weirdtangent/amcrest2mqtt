@@ -29,7 +29,9 @@ coverage/
 dist/
 
 # Claude Code
-.claude/
+.claude/*
+!.claude/settings.json
+!.claude/CLAUDE.md
 
 # Apple
 .DS_Store
