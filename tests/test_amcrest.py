@@ -140,7 +140,7 @@ class TestProcessDeviceEvent:
         assert len(ep.events) == 1
         assert ep.events[0]["event"] == "AlarmLocal"
 
-    def test_do_talk_action_creates_doorbell_event(self):
+    def test_do_talk_action_creates_doorbell_event_for_ad110(self):
         ep = FakeEventProcessor()
         ep._add_device("DB001", is_ad110=True)
         payload = {"action": "Start", "data": {"Action": "Invite"}}
@@ -148,3 +148,11 @@ class TestProcessDeviceEvent:
         assert len(ep.events) == 1
         assert ep.events[0]["event"] == "doorbell"
         assert ep.events[0]["payload"] == "on"
+
+    def test_do_talk_action_ignored_for_ad410(self):
+        ep = FakeEventProcessor()
+        ep._add_device("DB001", is_ad410=True)
+        payload = {"action": "Start", "data": {"Action": "Invite"}}
+        self._run(ep.process_device_event("DB001", "_DoTalkAction_", payload))
+        # AD410 uses AlarmLocal for doorbell, _DoTalkAction_ should be ignored
+        assert all(e["event"] != "doorbell" for e in ep.events)

@@ -504,7 +504,9 @@ class AmcrestAPIMixin:
             elif code == "CrossRegionDetection" and payload["data"]["ObjectType"] == "Human":
                 human_payload = "on" if payload["action"] == "Start" else "off"
                 self.events.append({"device_id": device_id, "event": "human", "payload": human_payload})
-            elif code == "_DoTalkAction_":
+            elif code == "_DoTalkAction_" and not config["is_ad410"]:
+                # AD410 fires both _DoTalkAction_ and AlarmLocal on a doorbell press;
+                # only AlarmLocal has a clean Start/Stop lifecycle, so skip this for AD410
                 doorbell_payload = "on" if payload["data"]["Action"] == "Invite" else "off"
                 self.events.append({"device_id": device_id, "event": "doorbell", "payload": doorbell_payload})
             elif code == "AlarmLocal" and config["is_ad410"]:
