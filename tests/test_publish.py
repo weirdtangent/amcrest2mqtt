@@ -119,7 +119,7 @@ class TestServiceState:
         pub.rate_limited = False
         pub.device_interval = 30
         pub.storage_update_interval = 900
-        pub.snapshot_update_interval = 60
+        pub.snapshot_update_interval = 1
 
         with patch("amcrest2mqtt.mixins.publish.asyncio") as mock_asyncio:
             mock_asyncio.to_thread = _fake_to_thread
@@ -141,7 +141,7 @@ class TestServiceState:
         pub.rate_limited = False
         pub.device_interval = 30
         pub.storage_update_interval = 900
-        pub.snapshot_update_interval = 60
+        pub.snapshot_update_interval = 1
 
         with patch("amcrest2mqtt.mixins.publish.asyncio") as mock_asyncio:
             mock_asyncio.to_thread = _fake_to_thread
@@ -165,7 +165,7 @@ class TestServiceState:
         pub.rate_limited = True
         pub.device_interval = 30
         pub.storage_update_interval = 900
-        pub.snapshot_update_interval = 60
+        pub.snapshot_update_interval = 1
 
         with patch("amcrest2mqtt.mixins.publish.asyncio") as mock_asyncio:
             mock_asyncio.to_thread = _fake_to_thread
