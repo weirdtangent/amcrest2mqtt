@@ -50,7 +50,7 @@ amcrest:
   username: admin
   password: password
   storage_update_interval: 900  # seconds, default = 900
-  snapshot_update_interval: 60  # seconds, default = 60
+  snapshot_update_interval: 60  # minutes, default = 60
   # WebRTC settings (optional)
   webrtc:
     host: webrtc.local
