@@ -175,6 +175,8 @@ class PublishMixin:
         dirty = self.dirty.get(device_id, set())
         all_state = self.states[device_id]
 
+        # generate items to publish, either the full device state or objects modified since 
+        # the last publish (dirty)
         if publish_all:
             items = all_state
         else:
@@ -182,6 +184,8 @@ class PublishMixin:
             for section, key in dirty:
                 if section not in all_state:
                     continue
+                # if this section is a dict, grab the state value of the key that was dirtied
+                # and insert into new dict for publishing
                 if key and isinstance(all_state[section], dict):
                     items.setdefault(section, {})[key] = all_state[section][key]
                 else:
@@ -205,5 +209,6 @@ class PublishMixin:
             else:
                 topic = self.mqtt_helper.stat_t(device_id, state)
                 await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, value)
+
         # clear dirty keys for this device after publishing
         self.dirty.pop(device_id, None)

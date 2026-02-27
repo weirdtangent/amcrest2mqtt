@@ -406,7 +406,7 @@ class HelpersMixin:
             merged = MERGER.merge(self.states.get(device_id, {}), {section: data})
             self.assert_no_tuples(merged, f"state[{device_id}].{section} (post-merge)")
             self.states[device_id] = merged
-            # track which (section, key) pairs were touched
+            # track which (section, key) pairs were touched for dicts
             if isinstance(data, dict):
                 for k in data:
                     self.dirty[device_id].add((section, k))
