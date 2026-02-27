@@ -71,7 +71,7 @@ class HelpersMixin:
     async def handle_service_command(self: Amcrest2Mqtt, handler: str, message: Any) -> None:
         match handler:
             case "storage_interval":
-                self.device_interval = int(message)
+                self.storage_update_interval = int(message)
                 self.logger.info(f"storage_interval updated to be {message}")
             case "rescan_interval":
                 self.device_list_interval = int(message)
