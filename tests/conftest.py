@@ -23,8 +23,8 @@ def sample_amcrest_config():
             "port": 80,
             "username": "admin",
             "password": "secret",
-            "storage_update_interval": 15,
-            "snapshot_update_interval": 60,
+            "storage_update_interval": 15,  # minutes
+            "snapshot_update_interval": 60,  # minutes
             "webrtc": {
                 "host": "192.168.1.50",
                 "port": 1984,
