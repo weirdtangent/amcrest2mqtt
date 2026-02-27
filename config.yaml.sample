@@ -23,7 +23,7 @@ amcrest:
   username: admin
   password: password
   storage_update_interval: 900
-  snapshot_update_interval: 1
+  snapshot_update_interval: 60
   webrtc:
     host: webrtc.local
     port: 1984
