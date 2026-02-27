@@ -49,7 +49,7 @@ amcrest:
   port: 80
   username: admin
   password: password
-  storage_update_interval: 900  # seconds, default = 900
+  storage_update_interval: 15  # minutes, default = 15
   snapshot_update_interval: 60  # minutes, default = 60
   # WebRTC settings (optional)
   webrtc:
