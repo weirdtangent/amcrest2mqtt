@@ -60,7 +60,7 @@ class Base:
         self.mqtt_connect_time: datetime
         self.client_id = self.mqtt_helper.client_id()
 
-        self.storage_update_interval = self.amcrest_config.get("storage_update_interval", 900)
+        self.storage_update_interval = self.amcrest_config.get("storage_update_interval", 15)
         self.snapshot_update_interval = self.config["amcrest"].get("snapshot_update_interval", 60)
 
         self.device_interval = self.config["amcrest"].get("device_interval", 30)

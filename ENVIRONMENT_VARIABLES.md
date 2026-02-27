@@ -45,5 +45,5 @@ While using a config.yaml file is the recommended approach, amcrest2mqtt also su
 
 ## Update Intervals
 
--   `AMCREST_STORAGE_UPDATE_INTERVAL` (optional, default = 900) - how often to fetch storage stats (in seconds)
+-   `AMCREST_STORAGE_UPDATE_INTERVAL` (optional, default = 15) - how often to fetch storage stats (in minutes)
 -   `AMCREST_SNAPSHOT_UPDATE_INTERVAL` (optional, default = 60) - how often to fetch camera snapshot (in minutes)
