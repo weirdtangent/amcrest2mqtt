@@ -53,6 +53,7 @@ class Base:
 
         self.devices: dict[str, Any] = {}
         self.states: dict[str, Any] = {}
+        self.dirty: dict[str, set[tuple[str, str]]] = {}
         self.amcrest_devices: dict[str, Any] = {}
         self.events: list[str] = []
 
