@@ -4,18 +4,18 @@ While using a config.yaml file is the recommended approach, amcrest2mqtt also su
 
 ## Amcrest Camera Settings
 
--   `AMCREST_HOSTS` (required, 1+ space-separated list of hostnames/ips)
--   `AMCREST_NAMES` (required, 1+ space-separated list of device names - must match count of AMCREST_HOSTS)
+-   `AMCREST_HOSTS` (required, 1+ comma-separated list of hostnames/ips)
+-   `AMCREST_NAMES` (required, 1+ comma-separated list of device names - must match count of AMCREST_HOSTS)
 -   `AMCREST_PORT` (optional, default = 80)
--   `AMCREST_USERNAME` (optional, default = admin)
+-   `AMCREST_USERNAME` (optional, default = empty string)
 -   `AMCREST_PASSWORD` (required)
 
 ## WebRTC Settings
 
 -   `AMCREST_WEBRTC_HOST` (optional, webrtc hostname for link, but then link/sources below become required:)
 -   `AMCREST_WEBRTC_PORT` (webrtc port, default = 1984)
--   `AMCREST_WEBRTC_LINK` (webrtc stream link, default = 'stream.html')
--   `AMCREST_WEBRTC_SOURCES` (webrtc "Source" param for each camera, same count and order of AMCREST_HOSTS above)
+-   `AMCREST_WEBRTC_LINK` (webrtc stream link, default = 'webrtc')
+-   `AMCREST_SOURCES` (webrtc "Source" param for each camera, comma-separated list, same count and order as AMCREST_HOSTS)
 
 ## MQTT Settings
 
@@ -45,5 +45,5 @@ While using a config.yaml file is the recommended approach, amcrest2mqtt also su
 
 ## Update Intervals
 
--   `STORAGE_UPDATE_INTERVAL` (optional, default = 900) - how often to fetch storage stats (in seconds)
--   `SNAPSHOT_UPDATE_INTERVAL` (optional, default = 60) - how often to fetch camera snapshot (in seconds)
+-   `AMCREST_STORAGE_UPDATE_INTERVAL` (optional, default = 15) - how often to fetch storage stats (in minutes)
+-   `AMCREST_SNAPSHOT_UPDATE_INTERVAL` (optional, default = 60) - how often to fetch camera snapshot (in minutes)

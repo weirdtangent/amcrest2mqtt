@@ -118,7 +118,7 @@ class TestServiceState:
         pub.last_call_date = datetime(2026, 1, 15, 10, 30, 0)
         pub.rate_limited = False
         pub.device_interval = 30
-        pub.storage_update_interval = 900
+        pub.storage_update_interval = 15
         pub.snapshot_update_interval = 60
 
         with patch("amcrest2mqtt.mixins.publish.asyncio") as mock_asyncio:
@@ -140,7 +140,7 @@ class TestServiceState:
         pub.last_call_date = datetime(2026, 1, 15, 10, 30, 0)
         pub.rate_limited = False
         pub.device_interval = 30
-        pub.storage_update_interval = 900
+        pub.storage_update_interval = 15
         pub.snapshot_update_interval = 60
 
         with patch("amcrest2mqtt.mixins.publish.asyncio") as mock_asyncio:
@@ -164,7 +164,7 @@ class TestServiceState:
         pub.last_call_date = datetime(2026, 1, 15, 10, 30, 0)
         pub.rate_limited = True
         pub.device_interval = 30
-        pub.storage_update_interval = 900
+        pub.storage_update_interval = 15
         pub.snapshot_update_interval = 60
 
         with patch("amcrest2mqtt.mixins.publish.asyncio") as mock_asyncio:
