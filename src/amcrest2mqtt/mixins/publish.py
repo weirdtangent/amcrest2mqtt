@@ -175,7 +175,7 @@ class PublishMixin:
         dirty = self.dirty.get(device_id, set())
         all_state = self.states[device_id]
 
-        # generate items to publish, either the full device state or objects modified since 
+        # generate items to publish, either the full device state or objects modified since
         # the last publish (dirty)
         if publish_all:
             items = all_state
