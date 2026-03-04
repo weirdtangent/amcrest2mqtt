@@ -169,8 +169,29 @@ class PublishMixin:
 
         await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, payload)
 
-    async def publish_device_state(self: Amcrest2Mqtt, device_id: str, subject: str = "", sub: str = "") -> None:
-        for state, value in list(self.states[device_id].items()):
+    async def publish_device_state(self: Amcrest2Mqtt, device_id: str, subject: str = "", sub: str = "", publish_all: bool = False) -> None:
+        # publish_all=True: publish every state key (used for initial discovery and rediscovery)
+        # publish_all=False (default): publish only keys dirtied since the last publish
+        dirty = self.dirty.get(device_id, set())
+        all_state = self.states[device_id]
+
+        # generate items to publish, either the full device state or objects modified since
+        # the last publish (dirty)
+        if publish_all:
+            items = all_state
+        else:
+            items = {}
+            for section, key in dirty:
+                if section not in all_state:
+                    continue
+                # if this section is a dict, grab the state value of the key that was dirtied
+                # and insert into new dict for publishing
+                if key and isinstance(all_state[section], dict):
+                    items.setdefault(section, {})[key] = all_state[section][key]
+                else:
+                    items[section] = all_state[section]
+
+        for state, value in list(items.items()):
             if subject and state != subject:
                 continue
             # Attributes need to be published as a single JSON object to the attributes topic
@@ -188,3 +209,6 @@ class PublishMixin:
             else:
                 topic = self.mqtt_helper.stat_t(device_id, state)
                 await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, value)
+
+        # clear dirty keys for this device after publishing
+        self.dirty.pop(device_id, None)

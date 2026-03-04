@@ -302,6 +302,6 @@ class AmcrestMixin:
             await self.publish_device_discovery(device_id)
 
         await self.publish_device_availability(device_id, online=True)
-        await self.publish_device_state(device_id)
+        await self.publish_device_state(device_id, publish_all=True)
 
         return device_id
