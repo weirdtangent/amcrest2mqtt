@@ -171,6 +171,12 @@ Docker is the only supported way of deploying the application. The app should ru
 * [blink2mqtt](https://github.com/weirdtangent/blink2mqtt)
 * [govee2mqtt](https://github.com/weirdtangent/govee2mqtt)
 
+## Contributors
+
+* [@dchesterton](https://github.com/dchesterton) — original project author
+* [@hornet-dev](https://github.com/hornet-dev) — doorbell button support and WebRTC fixes
+* [@weirdtangent](https://github.com/weirdtangent) — fork maintainer
+
 ## Buy Me A Coffee
 
 <a href="https://buymeacoffee.com/weirdtangent">Buy Me A Coffee</a>
