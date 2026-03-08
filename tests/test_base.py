@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
 import json
+import stat
 import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, AsyncMock, patch
@@ -33,6 +34,33 @@ class TestSaveState:
         assert data["api_calls"] == 42
         assert "2026-01-15" in data["last_call_date"]
 
+    def test_state_file_has_restrictive_permissions(self, tmp_path):
+        obj = MagicMock()
+        obj.config = {"config_path": str(tmp_path)}
+        obj.api_calls = 1
+        obj.last_call_date = datetime.now()
+        obj.logger = MagicMock()
+
+        Base.save_state(obj)
+
+        state_file = tmp_path / "amcrest2mqtt.dat"
+        assert stat.S_IMODE(state_file.stat().st_mode) == 0o600
+
+    def test_existing_file_permissions_tightened(self, tmp_path):
+        state_file = tmp_path / "amcrest2mqtt.dat"
+        state_file.write_text("{}")
+        state_file.chmod(0o644)
+
+        obj = MagicMock()
+        obj.config = {"config_path": str(tmp_path)}
+        obj.api_calls = 1
+        obj.last_call_date = datetime.now()
+        obj.logger = MagicMock()
+
+        Base.save_state(obj)
+
+        assert stat.S_IMODE(state_file.stat().st_mode) == 0o600
+
     def test_handles_permission_error(self, tmp_path):
         obj = MagicMock()
         obj.config = {"config_path": str(tmp_path)}
@@ -41,7 +69,7 @@ class TestSaveState:
         obj.logger = MagicMock()
 
         # Should not raise - logs error instead
-        with patch("builtins.open", side_effect=PermissionError("mocked")):
+        with patch("os.open", side_effect=PermissionError("mocked")):
             Base.save_state(obj)
         obj.logger.error.assert_called_once()
 
