@@ -41,7 +41,7 @@ class TestSaveState:
         obj.logger = MagicMock()
 
         # Should not raise - logs error instead
-        with patch("builtins.open", side_effect=PermissionError("mocked")):
+        with patch("os.open", side_effect=PermissionError("mocked")):
             Base.save_state(obj)
         obj.logger.error.assert_called_once()
 
