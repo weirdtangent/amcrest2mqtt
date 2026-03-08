@@ -21,6 +21,7 @@ def sample_amcrest_config():
             "hosts": ["192.168.1.100"],
             "names": ["Front Yard"],
             "port": 80,
+            "ssl_verify": True,
             "username": "admin",
             "password": "secret",
             "storage_update_interval": 15,  # minutes

@@ -6,7 +6,8 @@ While using a config.yaml file is the recommended approach, amcrest2mqtt also su
 
 -   `AMCREST_HOSTS` (required, 1+ comma-separated list of hostnames/ips)
 -   `AMCREST_NAMES` (required, 1+ comma-separated list of device names - must match count of AMCREST_HOSTS)
--   `AMCREST_PORT` (optional, default = 80)
+-   `AMCREST_PORT` (optional, default = 80, use 443 for HTTPS)
+-   `AMCREST_SSL_VERIFY` (optional, default = true) - set to `false` for self-signed camera certificates
 -   `AMCREST_USERNAME` (optional, default = empty string)
 -   `AMCREST_PASSWORD` (required)
 

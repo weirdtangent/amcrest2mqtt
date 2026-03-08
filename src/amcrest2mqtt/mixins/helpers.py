@@ -234,6 +234,7 @@ class HelpersMixin:
             "hosts":                    hosts,
             "names":                    names,
             "port":                     int(str(amcrest.get("port") or os.getenv("AMCREST_PORT", 80))),
+            "ssl_verify":              bool(amcrest.get("ssl_verify") if amcrest.get("ssl_verify") is not None else (os.getenv("AMCREST_SSL_VERIFY", "true").lower() == "true")),
             "username":                     str(amcrest.get("username") or os.getenv("AMCREST_USERNAME", "")),
             "password":                     str(amcrest.get("password") or os.getenv("AMCREST_PASSWORD", "")),
             "storage_update_interval":  int(str(amcrest.get("storage_update_interval") or os.getenv("AMCREST_STORAGE_UPDATE_INTERVAL", 15))),
