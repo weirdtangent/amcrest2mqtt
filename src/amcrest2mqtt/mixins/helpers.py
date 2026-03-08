@@ -71,14 +71,14 @@ class HelpersMixin:
     async def handle_service_command(self: Amcrest2Mqtt, handler: str, message: Any) -> None:
         match handler:
             case "storage_interval":
-                self.storage_update_interval = int(message)
-                self.logger.info(f"storage_interval updated to be {message}")
+                self.storage_update_interval = max(1, min(3600, int(message)))
+                self.logger.info(f"storage_interval updated to {self.storage_update_interval}")
             case "rescan_interval":
-                self.device_list_interval = int(message)
-                self.logger.info(f"rescan_interval updated to be {message}")
+                self.device_list_interval = max(1, min(3600, int(message)))
+                self.logger.info(f"rescan_interval updated to {self.device_list_interval}")
             case "snapshot_refresh":
-                self.snapshot_update_interval = int(message)
-                self.logger.info(f"snapshot_interval updated to be {message}")
+                self.snapshot_update_interval = max(1, min(60, int(message)))
+                self.logger.info(f"snapshot_interval updated to {self.snapshot_update_interval}")
             case _:
                 self.logger.error(f"unrecognized message to {self.mqtt_helper.service_slug}: {handler} -> {message}")
                 return
