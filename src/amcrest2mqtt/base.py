@@ -114,6 +114,7 @@ class Base:
         }
         try:
             fd = os.open(str(data_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            os.fchmod(fd, 0o600)
             with os.fdopen(fd, "w", encoding="utf-8") as file:
                 json.dump(state, file, indent=4)
             self.logger.info(f"saved state to {data_file}")
