@@ -131,7 +131,7 @@ CMD [ "python", "-m", "amcrest2mqtt", "-c", "/config" ]
 
 ## Healthcheck
 
-There is a simple healthcheck that can be run, as seen in the sample docker-compose. The app simply touches a file in /tmp every 60 seconds, so while the app is functional, that file should keep getting hit. /app/src/healthcheck.py will check that and return true or false.
+There is a simple healthcheck that can be run, as seen in the sample docker-compose. The app simply touches a file in /tmp every 60 seconds, so while the app is functional, that file should keep getting hit. The healthcheck (`python -m mqtt_helper.healthcheck`) will check that and return true or false.
 
 ## Mounted Volume Permissions (Synology)
 
