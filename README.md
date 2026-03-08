@@ -46,7 +46,7 @@ amcrest:
   names:
     - camera.front
     - camera.patio
-  port: 80
+  port: 80  # Port 80 = unencrypted HTTP. Use 443 for HTTPS if your camera firmware supports it.
   username: admin
   password: password
   storage_update_interval: 15  # minutes, default = 15
@@ -59,6 +59,8 @@ amcrest:
       - FrontYard
       - Patio
 ```
+
+> **Security note:** The default port 80 connects to cameras over unencrypted HTTP. Camera credentials are sent using HTTP Digest Authentication (not plaintext), but all camera data — snapshots, recordings, and configuration responses — is transmitted without encryption. If your camera firmware supports HTTPS, set `port: 443`. Otherwise, place cameras on an isolated VLAN to limit network-level exposure.
 
 ### Media/Recording Settings
 
