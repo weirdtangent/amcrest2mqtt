@@ -69,15 +69,24 @@ class HelpersMixin:
                 self.reboot_device(device_id)
 
     async def handle_service_command(self: Amcrest2Mqtt, handler: str, message: Any) -> None:
+        try:
+            value = int(message)
+        except (ValueError, TypeError):
+            self.logger.warning(f"invalid non-numeric value for {handler}: {message}")
+            return
+
         match handler:
+            case "refresh_interval":
+                self.device_interval = max(1, min(3600, value))
+                self.logger.info(f"refresh_interval updated to {self.device_interval}")
             case "storage_interval":
-                self.storage_update_interval = max(1, min(3600, int(message)))
+                self.storage_update_interval = max(1, min(3600, value))
                 self.logger.info(f"storage_interval updated to {self.storage_update_interval}")
             case "rescan_interval":
-                self.device_list_interval = max(1, min(3600, int(message)))
+                self.device_list_interval = max(1, min(3600, value))
                 self.logger.info(f"rescan_interval updated to {self.device_list_interval}")
-            case "snapshot_refresh":
-                self.snapshot_update_interval = max(1, min(60, int(message)))
+            case "snapshot_interval":
+                self.snapshot_update_interval = max(1, min(60, value))
                 self.logger.info(f"snapshot_interval updated to {self.snapshot_update_interval}")
             case _:
                 self.logger.error(f"unrecognized message to {self.mqtt_helper.service_slug}: {handler} -> {message}")
