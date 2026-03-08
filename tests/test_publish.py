@@ -27,6 +27,7 @@ class FakePublisher(HelpersMixin, PublishMixin):
         self.mqtt_helper.disc_t = MagicMock(side_effect=lambda kind, did: f"homeassistant/{kind}/amcrest2mqtt_{did}/config")
         self.devices = {}
         self.states = {}
+        self.dirty: dict[str, set[tuple[str, str]]] = {}
 
 
 async def _fake_to_thread(fn, *args):
@@ -244,7 +245,7 @@ class TestDeviceState:
 
         with patch("amcrest2mqtt.mixins.publish.asyncio") as mock_asyncio:
             mock_asyncio.to_thread = _fake_to_thread
-            await pub.publish_device_state("CAM001")
+            await pub.publish_device_state("CAM001", publish_all=True)
 
         topics = [c.args[0] for c in pub.mqtt_helper.safe_publish.call_args_list]
         assert any("switch" in t and "privacy" in t for t in topics)
@@ -261,7 +262,7 @@ class TestDeviceState:
 
         with patch("amcrest2mqtt.mixins.publish.asyncio") as mock_asyncio:
             mock_asyncio.to_thread = _fake_to_thread
-            await pub.publish_device_state("CAM001", subject="switch")
+            await pub.publish_device_state("CAM001", subject="switch", publish_all=True)
 
         topics = [c.args[0] for c in pub.mqtt_helper.safe_publish.call_args_list]
         assert any("switch" in t for t in topics)
@@ -276,7 +277,7 @@ class TestDeviceState:
 
         with patch("amcrest2mqtt.mixins.publish.asyncio") as mock_asyncio:
             mock_asyncio.to_thread = _fake_to_thread
-            await pub.publish_device_state("CAM001", subject="switch", sub="privacy")
+            await pub.publish_device_state("CAM001", subject="switch", sub="privacy", publish_all=True)
 
         topics = [c.args[0] for c in pub.mqtt_helper.safe_publish.call_args_list]
         assert len(topics) == 1
@@ -291,7 +292,7 @@ class TestDeviceState:
 
         with patch("amcrest2mqtt.mixins.publish.asyncio") as mock_asyncio:
             mock_asyncio.to_thread = _fake_to_thread
-            await pub.publish_device_state("CAM001")
+            await pub.publish_device_state("CAM001", publish_all=True)
 
         payloads = {c.args[0]: c.args[1] for c in pub.mqtt_helper.safe_publish.call_args_list}
         for topic, value in payloads.items():
@@ -309,7 +310,7 @@ class TestDeviceState:
 
         with patch("amcrest2mqtt.mixins.publish.asyncio") as mock_asyncio:
             mock_asyncio.to_thread = _fake_to_thread
-            await pub.publish_device_state("CAM001")
+            await pub.publish_device_state("CAM001", publish_all=True)
 
         for c in pub.mqtt_helper.safe_publish.call_args_list:
             if "attributes" in c.args[0]:
