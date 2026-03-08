@@ -19,7 +19,8 @@ amcrest:
   names:
     - camera.front
     - camera.patio
-  port: 80  # Port 80 = unencrypted HTTP. Use 443 for HTTPS if your camera firmware supports it.
+  port: 80  # Use 443 for HTTPS if your camera firmware supports it
+  ssl_verify: true  # Set to false for self-signed camera certificates (typical with HTTPS on port 443)
   username: admin
   password: password
   storage_update_interval: 15

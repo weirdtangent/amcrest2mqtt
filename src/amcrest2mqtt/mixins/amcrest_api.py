@@ -43,12 +43,15 @@ class AmcrestAPIMixin:
 
     async def get_camera(self: Amcrest2Mqtt, host: str) -> ApiWrapper:
         config = self.amcrest_config
+        use_https = config["port"] == 443
         return AmcrestCamera(
             host,
             config["port"],
             config["username"],
             config["password"],
             verbose=False,
+            protocol="https" if use_https else "http",
+            ssl_verify=config.get("ssl_verify", True),
             retries_connection=0,
             timeout_protocol=(4.0, 4.0),  # (connect, read) in seconds
         ).camera
