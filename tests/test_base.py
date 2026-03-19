@@ -105,6 +105,50 @@ class TestRestoreState:
         Base.restore_state(obj)
         obj.logger.info.assert_not_called()
 
+    def test_empty_file_starts_fresh(self, tmp_path):
+        state_file = tmp_path / "amcrest2mqtt.dat"
+        state_file.write_text("")
+
+        obj = MagicMock()
+        obj.config = {"config_path": str(tmp_path)}
+        obj.logger = MagicMock()
+
+        Base.restore_state(obj)
+        obj.logger.warning.assert_called_once()
+
+    def test_invalid_json_starts_fresh(self, tmp_path):
+        state_file = tmp_path / "amcrest2mqtt.dat"
+        state_file.write_text("{corrupt")
+
+        obj = MagicMock()
+        obj.config = {"config_path": str(tmp_path)}
+        obj.logger = MagicMock()
+
+        Base.restore_state(obj)
+        obj.logger.warning.assert_called_once()
+
+    def test_wrong_shape_json_starts_fresh(self, tmp_path):
+        state_file = tmp_path / "amcrest2mqtt.dat"
+        state_file.write_text("[]")
+
+        obj = MagicMock()
+        obj.config = {"config_path": str(tmp_path)}
+        obj.logger = MagicMock()
+
+        Base.restore_state(obj)
+        obj.logger.warning.assert_called_once()
+
+    def test_missing_keys_starts_fresh(self, tmp_path):
+        state_file = tmp_path / "amcrest2mqtt.dat"
+        state_file.write_text(json.dumps({"unrelated": "data"}))
+
+        obj = MagicMock()
+        obj.config = {"config_path": str(tmp_path)}
+        obj.logger = MagicMock()
+
+        Base.restore_state(obj)
+        obj.logger.warning.assert_called_once()
+
     def test_restore_uses_utf8_encoding(self, tmp_path):
         """Validate the encoding='utf-8' bug fix."""
         state_file = tmp_path / "amcrest2mqtt.dat"

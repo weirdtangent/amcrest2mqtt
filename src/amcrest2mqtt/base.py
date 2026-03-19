@@ -124,8 +124,11 @@ class Base:
     def restore_state(self: Amcrest2Mqtt) -> None:
         data_file = Path(self.config["config_path"]) / "amcrest2mqtt.dat"
         if os.path.exists(data_file):
-            with open(data_file, "r", encoding="utf-8") as file:
-                state = json.loads(file.read())
-                self.api_calls = state["api_calls"]
-                self.last_call_date = datetime.strptime(state["last_call_date"], "%Y-%m-%d %H:%M:%S.%f")
-                self.logger.info(f"restored state from {data_file}: {self.api_calls} / {str(self.last_call_date)}")
+            try:
+                with open(data_file, "r", encoding="utf-8") as file:
+                    state = json.loads(file.read())
+                    self.api_calls = state["api_calls"]
+                    self.last_call_date = datetime.strptime(state["last_call_date"], "%Y-%m-%d %H:%M:%S.%f")
+                    self.logger.info(f"restored state from {data_file}: {self.api_calls} / {str(self.last_call_date)}")
+            except (ValueError, KeyError, TypeError, OSError) as err:
+                self.logger.warning(f"could not restore state from {data_file}: {err} — starting fresh")
