@@ -130,5 +130,5 @@ class Base:
                     self.api_calls = state["api_calls"]
                     self.last_call_date = datetime.strptime(state["last_call_date"], "%Y-%m-%d %H:%M:%S.%f")
                     self.logger.info(f"restored state from {data_file}: {self.api_calls} / {str(self.last_call_date)}")
-            except (json.JSONDecodeError, KeyError, ValueError) as err:
+            except (ValueError, KeyError, TypeError, OSError) as err:
                 self.logger.warning(f"could not restore state from {data_file}: {err} — starting fresh")
