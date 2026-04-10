@@ -23,6 +23,10 @@ class AmcrestAPIMixin:
         self.api_calls += 1
 
     async def connect_to_devices(self: Amcrest2Mqtt) -> dict[str, Any]:
+        if not self.amcrest_config.get("ssl_verify", True):
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
         semaphore = asyncio.Semaphore(5)
 
         async def _connect_device(host: str, name: str, index: int) -> None:
