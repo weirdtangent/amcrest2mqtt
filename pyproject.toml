@@ -28,7 +28,7 @@ dev = [
     "ruff>=0.6.9",
 
     # testing/coverage
-    "pytest>=8.4.2",
+    "pytest>=9.0.3",
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.0.0",
 
@@ -144,7 +144,7 @@ mqtt-helper-graystorm = { git = "https://github.com/weirdtangent/mqtt-helper.git
 dev = [
     "black>=25.9.0",
     "mypy>=1.18.2",
-    "pytest>=8.4.2",
+    "pytest>=9.0.3",
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.0.0",
     "ruff>=0.14.1",
