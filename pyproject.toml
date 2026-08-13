@@ -23,7 +23,7 @@ amcrest2mqtt = "amcrest2mqtt.app:main"
 
 [project.optional-dependencies]
 dev = [
-    # linting/formating
+    # linting/formatting
     "ruff>=0.16.2",
 
     # testing/coverage
