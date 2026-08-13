@@ -32,9 +32,7 @@ class AmcrestMixin:
                     device_display_name = f"'{self.get_device_name(device_id)}'"
                 except KeyError:
                     device_display_name = f"({device_id})"
-                self.logger.error(
-                    f"error during build_component for device '{device_name}' {device_display_name}: " f"{exception_type}: {result}", exc_info=result
-                )
+                self.logger.error(f"error during build_component for device '{device_name}' {device_display_name}: {exception_type}: {result}", exc_info=result)
             elif result and isinstance(result, str):
                 seen_devices.add(result)
 
@@ -260,7 +258,7 @@ class AmcrestMixin:
         if camera.get("is_doorbell", None):
             device["cmps"]["doorbell"] = {
                 "p": "binary_sensor",
-                "name": "Doorbell" if camera["device_name"] == "Doorbell" else f"{camera["device_name"]} Doorbell",
+                "name": "Doorbell" if camera["device_name"] == "Doorbell" else f"{camera['device_name']} Doorbell",
                 "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "doorbell"),
                 "stat_t": self.mqtt_helper.stat_t(device_id, "binary_sensor", "doorbell"),
                 "payload_on": "ON",
@@ -290,7 +288,7 @@ class AmcrestMixin:
             binary_sensor={"motion": False, **({"doorbell": "OFF"} if camera.get("is_doorbell") else {})},
             attributes={
                 "recording_url": (
-                    f"{self.config["media"].get("media_source", "")}/{camera["device_name"]}-latest.mp4" if self.config["media"].get("media_source") else ""
+                    f"{self.config['media'].get('media_source', '')}/{camera['device_name']}-latest.mp4" if self.config["media"].get("media_source") else ""
                 ),
                 "region": "",
             },
@@ -298,7 +296,7 @@ class AmcrestMixin:
         )
 
         if not self.is_discovered(device_id):
-            self.logger.info(f'added new camera: "{camera["device_name"]}" {camera["vendor"]} {camera["device_type"]}] (\'{self.get_device_name(device_id)}\')')
+            self.logger.info(f"added new camera: \"{camera['device_name']}\" {camera['vendor']} {camera['device_type']}] ('{self.get_device_name(device_id)}')")
             await self.publish_device_discovery(device_id)
 
         await self.publish_device_availability(device_id, online=True)
