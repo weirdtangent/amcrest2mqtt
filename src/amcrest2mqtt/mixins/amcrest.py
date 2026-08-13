@@ -296,7 +296,7 @@ class AmcrestMixin:
         )
 
         if not self.is_discovered(device_id):
-            self.logger.info(f"added new camera: \"{camera['device_name']}\" {camera['vendor']} {camera['device_type']}] ('{self.get_device_name(device_id)}')")
+            self.logger.info(f"added new camera: \"{camera['device_name']}\" {camera['vendor']} {camera['device_type']} ('{self.get_device_name(device_id)}')")
             await self.publish_device_discovery(device_id)
 
         await self.publish_device_availability(device_id, online=True)
