@@ -70,7 +70,7 @@ class LoopsMixin:
         for sig in (signal.SIGTERM, signal.SIGINT):
             try:
                 signal.signal(sig, self.handle_signal)
-            except Exception:
+            except Exception:  # noqa: BLE001 - not every signal is installable on every platform
                 self.logger.debug(f"cannot install handler for {sig}")
 
         await self.setup_device_list()
@@ -90,8 +90,8 @@ class LoopsMixin:
             await asyncio.gather(*tasks)
         except asyncio.CancelledError:
             self.logger.warning("main loop cancelled — shutting down...")
-        except Exception as err:
-            self.logger.exception(f"unhandled exception in main loop: {err!r}")
+        except Exception:
+            self.logger.exception("unhandled exception in main loop")
             self.running = False
         finally:
             self.logger.info("all loops terminated — cleanup complete.")

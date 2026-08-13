@@ -2,14 +2,15 @@
 # Copyright (c) 2025 Jeff Culverhouse
 from __future__ import annotations
 
-from amcrest import AmcrestCamera, ApiWrapper
-from amcrest.exceptions import LoginError, AmcrestError, CommError
 import asyncio
 import base64
-from collections.abc import Sequence
-from datetime import datetime, timedelta
 import random
+from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
+
+from amcrest import AmcrestCamera, ApiWrapper
+from amcrest.exceptions import AmcrestError, CommError, LoginError
 
 if TYPE_CHECKING:
     from amcrest2mqtt.interface import AmcrestServiceProtocol as Amcrest2Mqtt
@@ -17,9 +18,11 @@ if TYPE_CHECKING:
 
 class AmcrestAPIMixin:
     def increase_api_calls(self: Amcrest2Mqtt) -> None:
-        if not self.last_call_date or self.last_call_date.date() != datetime.now().date():
+        # local wall-clock, as before, but timezone-aware: the daily quota rolls over at local midnight
+        now = datetime.now(UTC).astimezone()
+        if not self.last_call_date or self.last_call_date.date() != now.date():
             self.api_calls = 0
-        self.last_call_date = datetime.now()
+        self.last_call_date = now
         self.api_calls += 1
 
     async def connect_to_devices(self: Amcrest2Mqtt) -> dict[str, Any]:
@@ -37,14 +40,12 @@ class AmcrestAPIMixin:
         self.logger.debug(f'connecting to: {self.amcrest_config["hosts"]}')
 
         tasks = []
-        index = 0
-        for host, name in zip(self.amcrest_config["hosts"], self.amcrest_config["names"]):
+        for index, (host, name) in enumerate(zip(self.amcrest_config["hosts"], self.amcrest_config["names"])):
             tasks.append(_connect_device(host, name, index))
-            index += 1
         await asyncio.gather(*tasks)
 
         self.logger.info("connecting to Amcrest hosts done")
-        return {d: self.amcrest_devices[d]["config"] for d in self.amcrest_devices.keys()}
+        return {d: self.amcrest_devices[d]["config"] for d in self.amcrest_devices}
 
     async def get_camera(self: Amcrest2Mqtt, host: str) -> ApiWrapper:
         config = self.amcrest_config
@@ -82,7 +83,7 @@ class AmcrestAPIMixin:
         except AmcrestError as err:
             self.logger.error(f'unexpected error connecting to device "{host}", check config.yaml: {err!r}')
             return
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001 - per-device isolation; one bad camera must not stop the others
             self.logger.error(f"error connecting to {host}: {err!r}")
             return
 
@@ -162,16 +163,16 @@ class AmcrestAPIMixin:
     def reboot_device(self: Amcrest2Mqtt, device_id: str) -> None:
         if device_id not in self.amcrest_devices:
             self.logger.warning(f"device not found for '{self.get_device_name(device_id)}'")
-            return None
+            return
         device = self.amcrest_devices[device_id]
         if not device["camera"]:
             self.logger.warning(f"camera not found for '{self.get_device_name(device_id)}'")
-            return None
+            return
 
         response = device["camera"].reboot().strip()
         self.logger.debug(f"sent reboot signal to '{self.get_device_name(device_id)}', {response}")
         if response == "OK":
-            self.upsert_state(device_id, internal={"reboot": datetime.now()})
+            self.upsert_state(device_id, internal={"reboot": datetime.now(UTC).astimezone()})
             self.logger.info(f"rebooted '{self.get_device_name(device_id)}'")
             return
         self.logger.error(f"failed to reboot '{self.get_device_name(device_id)}': {response}")
@@ -182,7 +183,7 @@ class AmcrestAPIMixin:
             return False
 
         reboot_time = states["internal"]["reboot"]
-        if reboot_time + timedelta(minutes=2) > datetime.now():
+        if reboot_time + timedelta(minutes=2) > datetime.now(UTC).astimezone():
             return True
 
         states["internal"].pop("reboot")
@@ -244,7 +245,7 @@ class AmcrestAPIMixin:
         device = self.amcrest_devices[device_id]
         states = self.states[device_id]
         # return our last known state if something fails
-        current = True if "sensor" in states and states["sensor"].get("privacy", "OFF") == "ON" else False
+        current = bool("sensor" in states and states["sensor"].get("privacy", "OFF") == "ON")
 
         if not device["camera"]:
             self.logger.warning(f"camera not found for '{self.get_device_name(device_id)}'")
@@ -286,12 +287,12 @@ class AmcrestAPIMixin:
     async def set_privacy_mode(self: Amcrest2Mqtt, device_id: str, switch: bool) -> None:
         if device_id not in self.amcrest_devices:
             self.logger.warning(f"device not found for '{self.get_device_name(device_id)}'")
-            return None
+            return
 
         device = self.amcrest_devices[device_id]
         if not device["camera"]:
             self.logger.warning(f"camera not found for '{self.get_device_name(device_id)}'")
-            return None
+            return
         camera = device["camera"]
 
         try:
@@ -306,9 +307,9 @@ class AmcrestAPIMixin:
         if response == "OK":
             self.upsert_state(device_id, switch={"privacy": "ON" if switch else "OFF"})
             await self.publish_device_state(device_id)
-            return None
+            return
         self.logger.error(f"failed to set privacy mode on ('{self.get_device_name(device_id)}'): {response}")
-        return None
+        return
 
     # Motion detection config ---------------------------------------------------------------------
 
@@ -321,7 +322,7 @@ class AmcrestAPIMixin:
         states = self.states[device_id]
 
         # return our last known state if something fails
-        current = True if "sensor" in states and states["sensor"].get("motion_detection", "OFF") == "ON" else False
+        current = bool("sensor" in states and states["sensor"].get("motion_detection", "OFF") == "ON")
 
         if not device["camera"]:
             self.logger.warning(f"camera not found for '{self.get_device_name(device_id)}'")
@@ -342,12 +343,12 @@ class AmcrestAPIMixin:
     async def set_motion_detection(self: Amcrest2Mqtt, device_id: str, switch: bool) -> None:
         if device_id not in self.amcrest_devices:
             self.logger.warning(f"device not found for '{self.get_device_name(device_id)}'")
-            return None
+            return
 
         device = self.amcrest_devices[device_id]
         if not device["camera"]:
             self.logger.warning(f"camera not found for '{self.get_device_name(device_id)}'")
-            return None
+            return
         camera = device["camera"]
 
         try:
@@ -362,7 +363,7 @@ class AmcrestAPIMixin:
         if response:
             self.upsert_state(device_id, switch={"motion_detection": "ON" if switch else "OFF"})
             await self.publish_device_state(device_id)
-        return None
+        return
 
     # Snapshots -----------------------------------------------------------------------------------
 
@@ -411,7 +412,7 @@ class AmcrestAPIMixin:
                 self.logger.debug(f"got snapshot from '{self.get_device_name(device_id)}' {len(image_bytes)} raw bytes -> {len(encoded)} b64 chars")
                 return encoded
 
-            except (CommError, LoginError, asyncio.TimeoutError, Exception) as err:
+            except Exception as err:  # noqa: BLE001 - snapshot retry loop; any failure is retried then given up on
                 self.logger.debug(f"snapshot attempt {attempt}/{max_tries} failed for '{self.get_device_name(device_id)}': {err!r}")
 
             except asyncio.CancelledError:
@@ -474,7 +475,7 @@ class AmcrestAPIMixin:
         device = self.amcrest_devices[device_id]
         if not device["camera"]:
             self.logger.warning(f"camera not found for '{self.get_device_name(device_id)}'")
-            return None
+            return
         camera = device["camera"]
 
         max_attempts = 3
@@ -482,7 +483,7 @@ class AmcrestAPIMixin:
         for attempt in range(1, max_attempts + 1):
             try:
                 if self.is_rebooting(device_id):
-                    return None
+                    return
 
                 async for code, payload in camera.async_event_actions("All"):
                     await self.process_device_event(device_id, code, payload)
@@ -500,7 +501,7 @@ class AmcrestAPIMixin:
     async def process_device_event(self: Amcrest2Mqtt, device_id: str, code: str, payload: Any) -> None:
         if device_id not in self.amcrest_devices:
             self.logger.warning(f"device not found for '{self.get_device_name(device_id)}'")
-            return None
+            return
 
         device = self.amcrest_devices[device_id]
         config = device["config"]
@@ -547,7 +548,7 @@ class AmcrestAPIMixin:
             else:
                 self.logger.info(f"logged event on '{self.get_device_name(device_id)}' - {code}: {payload}")
                 self.events.append({"device_id": device_id, "event": code, "payload": payload})
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001 - per-device isolation; one bad camera must not stop the others
             self.logger.error(f"failed to process event from '{self.get_device_name(device_id)}': {err!r}")
 
     def get_next_event(self: Amcrest2Mqtt) -> dict[str, Any] | None:
