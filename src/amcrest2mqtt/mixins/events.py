@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 import json
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -16,7 +16,7 @@ class EventsMixin:
         if not self.config.get("vision_request"):
             return
         topic = f"{self.service}/vision/request"
-        now = datetime.now()
+        now = datetime.now(UTC).astimezone()
         payload = {
             "camera_id": device_id,
             "camera_name": self.get_device_name(device_id),
@@ -94,9 +94,12 @@ class EventsMixin:
                             event += ": " + payload["action"]
 
                 # other ways to infer "privacy mode" has been turned off and we need to update
-                if event_type in ["motion", "human", "doorbell"] and states["switch"]["privacy"] != "OFF":
-                    if self.upsert_state(device_id, switch={"privacy_mode": "OFF"}):
-                        needs_publish.add(device_id)
+                if (
+                    event_type in ["motion", "human", "doorbell"]
+                    and states["switch"]["privacy"] != "OFF"
+                    and self.upsert_state(device_id, switch={"privacy_mode": "OFF"})
+                ):
+                    needs_publish.add(device_id)
 
                 # record just these "events": text and time
                 self.upsert_state(device_id, sensor={"event_text": event})

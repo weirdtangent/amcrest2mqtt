@@ -1,19 +1,19 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
-import asyncio
 import argparse
+import asyncio
 import concurrent.futures
-from datetime import datetime
-import logging
-from mqtt_helper import MqttHelper
 import json
-from json_logging import get_logger
+import logging
 import os
-from paho.mqtt.client import Client
+from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
+from typing import Any, Self, cast
 
-from typing import Any, cast, Self
+from json_logging import get_logger
+from mqtt_helper import MqttHelper
+from paho.mqtt.client import Client
 
 from amcrest2mqtt.interface import AmcrestServiceProtocol as Amcrest2Mqtt
 
@@ -68,7 +68,7 @@ class Base:
         self.device_list_interval = self.config["amcrest"].get("device_list_interval", 300)
 
         self.api_calls = 0
-        self.last_call_date = datetime.now()
+        self.last_call_date = datetime.now(UTC).astimezone()
         self.rate_limited = False
 
     async def __aenter__(self: Self) -> Amcrest2Mqtt:
@@ -82,7 +82,7 @@ class Base:
 
         return cast(Amcrest2Mqtt, self)
 
-    async def __aexit__(self: Self, exc_type: BaseException | None, exc_val: BaseException | None, exc_tb: TracebackType) -> None:
+    async def __aexit__(self: Self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None) -> None:
         super_exit = getattr(super(), "__exit__", None)
         if callable(super_exit):
             super_exit(exc_type, exc_val, exc_tb)
@@ -94,14 +94,14 @@ class Base:
             try:
                 await cast(Any, self).publish_service_availability("offline")
                 cast(Any, self).mqttc.loop_stop()
-            except Exception as err:
+            except Exception as err:  # noqa: BLE001 - best-effort cleanup; shutdown must not be blocked by a broker error
                 self.logger.debug(f"mqtt loop_stop failed: {err!r}")
 
             if cast(Any, self).mqttc.is_connected():
                 try:
                     cast(Any, self).mqttc.disconnect()
                     self.logger.info("disconnected from MQTT broker")
-                except Exception as err:
+                except Exception as err:  # noqa: BLE001 - best-effort cleanup; shutdown must not be blocked by a broker error
                     self.logger.warning(f"error during MQTT disconnect: {err!r}")
 
         self.logger.info("exiting gracefully")
@@ -128,7 +128,11 @@ class Base:
                 with open(data_file, "r", encoding="utf-8") as file:
                     state = json.loads(file.read())
                     self.api_calls = state["api_calls"]
-                    self.last_call_date = datetime.strptime(state["last_call_date"], "%Y-%m-%d %H:%M:%S.%f")
-                    self.logger.info(f"restored state from {data_file}: {self.api_calls} / {str(self.last_call_date)}")
+                    restored = datetime.fromisoformat(state["last_call_date"])
+                    if restored.tzinfo is None:
+                        # state written before timestamps were timezone-aware: it is local wall-clock
+                        restored = restored.astimezone()
+                    self.last_call_date = restored
+                    self.logger.info(f"restored state from {data_file}: {self.api_calls} / {self.last_call_date!s}")
             except (ValueError, KeyError, TypeError, OSError) as err:
                 self.logger.warning(f"could not restore state from {data_file}: {err} — starting fresh")

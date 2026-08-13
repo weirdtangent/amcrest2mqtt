@@ -3,20 +3,21 @@
 from __future__ import annotations
 
 import asyncio
-from deepmerge.merger import Merger
 import ipaddress
-from mqtt_helper import ConfigError
 import os
 import pathlib
 import re
 import signal
 import socket
 import threading
-from types import FrameType
-import yaml
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from datetime import datetime, timedelta
+from types import FrameType
 from typing import TYPE_CHECKING, Any, cast
+
+import yaml
+from deepmerge.merger import Merger
+from mqtt_helper import ConfigError
 
 if TYPE_CHECKING:
     from amcrest2mqtt.interface import AmcrestServiceProtocol as Amcrest2Mqtt
@@ -136,11 +137,11 @@ class HelpersMixin:
         try:
             infos = await self.loop.getaddrinfo(string, None, family=socket.AF_INET)
             # getaddrinfo returns a list of 5-tuples; [4][0] holds the IP string
-            return infos[0][4][0]
+            return str(infos[0][4][0])
         except socket.gaierror as err:
-            raise Exception(f"failed to resolve {string}: {err}") from err
+            raise ConfigError(f"failed to resolve {string}: {err}") from err
         except IndexError:
-            raise Exception(f"failed to find IP address for {string}")
+            raise ConfigError(f"failed to find IP address for {string}")
 
     def list_from_env(self: Amcrest2Mqtt, env_name: str) -> list[str]:
         v = os.getenv(env_name)
@@ -182,7 +183,7 @@ class HelpersMixin:
                     config = yaml.safe_load(f) or {}
                 config_from = "file"
             except Exception as err:
-                raise ConfigError(f"found {config_file} but failed to load: {err}")
+                raise ConfigError(f"found {config_file} but failed to load: {err}") from err
         else:
             self.logger.info(f"config file not found at {config_file}, falling back to environment vars")
 
@@ -201,7 +202,7 @@ class HelpersMixin:
             if os.path.exists(media_path) and os.access(media_path, os.W_OK):
                 media["path"] = media_path
                 media.setdefault("max_size", 25)
-                media["retention_days"] = int(str(media.get("retention_days") or os.getenv("MEDIA_RETENTION_DAYS", 7)))
+                media["retention_days"] = int(str(media.get("retention_days") or os.getenv("MEDIA_RETENTION_DAYS", "7")))
                 self.logger.info(f"storing recordings in {media_path} up to {media["max_size"]} MB per file")
                 if media["retention_days"] > 0:
                     self.logger.info(f"recordings will be retained for {media["retention_days"]} days")
@@ -213,8 +214,8 @@ class HelpersMixin:
         # fmt: off
         mqtt = {
             "host":             str(mqtt.get("host")             or os.getenv("MQTT_HOST", "localhost")),
-            "port":         int(str(mqtt.get("port")             or os.getenv("MQTT_PORT", 1883))),
-            "qos":          int(str(mqtt.get("qos")              or os.getenv("MQTT_QOS", 0))),
+            "port":         int(str(mqtt.get("port")             or os.getenv("MQTT_PORT", "1883"))),
+            "qos":          int(str(mqtt.get("qos")              or os.getenv("MQTT_QOS", "0"))),
             "protocol_version": str(mqtt.get("protocol_version") or os.getenv("MQTT_PROTOCOL", "5")),
             "username":         str(mqtt.get("username")         or os.getenv("MQTT_USERNAME", "")),
             "password":         str(mqtt.get("password")         or os.getenv("MQTT_PASSWORD", "")),
@@ -233,15 +234,15 @@ class HelpersMixin:
         amcrest = {
             "hosts":                    hosts,
             "names":                    names,
-            "port":                     int(str(amcrest.get("port") or os.getenv("AMCREST_PORT", 80))),
+            "port":                     int(str(amcrest.get("port") or os.getenv("AMCREST_PORT", "80"))),
             "ssl_verify":              bool(amcrest.get("ssl_verify") if amcrest.get("ssl_verify") is not None else (os.getenv("AMCREST_SSL_VERIFY", "true").lower() == "true")),
             "username":                     str(amcrest.get("username") or os.getenv("AMCREST_USERNAME", "")),
             "password":                     str(amcrest.get("password") or os.getenv("AMCREST_PASSWORD", "")),
-            "storage_update_interval":  int(str(amcrest.get("storage_update_interval") or os.getenv("AMCREST_STORAGE_UPDATE_INTERVAL", 15))),
-            "snapshot_update_interval": int(str(amcrest.get("snapshot_update_interval") or os.getenv("AMCREST_SNAPSHOT_UPDATE_INTERVAL", 60))),
+            "storage_update_interval":  int(str(amcrest.get("storage_update_interval") or os.getenv("AMCREST_STORAGE_UPDATE_INTERVAL", "15"))),
+            "snapshot_update_interval": int(str(amcrest.get("snapshot_update_interval") or os.getenv("AMCREST_SNAPSHOT_UPDATE_INTERVAL", "60"))),
             "webrtc": {
                 "host":      str(webrtc.get("host") or os.getenv("AMCREST_WEBRTC_HOST", "")),
-                "port":  int(str(webrtc.get("port") or os.getenv("AMCREST_WEBRTC_PORT", 1984))),
+                "port":  int(str(webrtc.get("port") or os.getenv("AMCREST_WEBRTC_PORT", "1984"))),
                 "link":      str(webrtc.get("link") or os.getenv("AMCREST_WEBRTC_LINK", "webrtc")),
                 "sources":   sources,
             },
@@ -276,7 +277,7 @@ class HelpersMixin:
         recording = await self.get_recorded_file(device_id, amcrest_file, encode=False)
         if recording:
             name = self.get_device_name_slug(device_id)
-            time = datetime.now().strftime("%Y%m%d-%H%M%S")
+            time = datetime.now(UTC).astimezone().strftime("%Y%m%d-%H%M%S")
             path = self.config["media"]["path"]
             file_name = f"{name}-{time}.mp4"
             file_path = Path(f"{path}/{file_name}")
@@ -291,7 +292,7 @@ class HelpersMixin:
             except PermissionError as err:
                 self.logger.error(f"permission error saving recording to {file_path}: {err!r}")
                 return None
-            except Exception as err:
+            except Exception as err:  # noqa: BLE001 - per-file isolation; one undeletable file must not stop the sweep
                 self.logger.error(f"failed to save recording to {file_path}: {err!r}")
                 return None
 
@@ -303,9 +304,8 @@ class HelpersMixin:
                 if latest_link.is_symlink():
                     latest_link.unlink()
                 latest_link.symlink_to(local_file)
-            except IOError as err:
+            except OSError as err:
                 self.logger.error(f"failed to save symlink {latest_link} -> {local_file}: {err!r}")
-                pass
 
             return file_name
 
@@ -318,7 +318,7 @@ class HelpersMixin:
         if not media_path or retention_days <= 0:
             return
 
-        cutoff = datetime.now() - timedelta(days=retention_days)
+        cutoff = datetime.now(UTC).astimezone() - timedelta(days=retention_days)
         path = Path(media_path)
 
         for file in path.glob("*.mp4"):
@@ -328,12 +328,12 @@ class HelpersMixin:
             # Extract timestamp from filename: {name}-YYYYMMDD-HHMMSS.mp4
             match = re.search(r"-(\d{8}-\d{6})\.mp4$", file.name)
             if match:
-                file_time = datetime.strptime(match.group(1), "%Y%m%d-%H%M%S")
+                file_time = datetime.strptime(match.group(1), "%Y%m%d-%H%M%S").astimezone()
                 if file_time < cutoff:
                     try:
                         file.unlink()
                         self.logger.info(f"deleted old recording: {file.name}")
-                    except Exception as err:
+                    except Exception as err:  # noqa: BLE001 - per-file isolation; one undeletable file must not stop the sweep
                         self.logger.error(f"failed to delete old recording {file.name}: {err!r}")
 
         # Clean up dangling symlinks (symlinks pointing to deleted files)
@@ -342,7 +342,7 @@ class HelpersMixin:
                 try:
                     link.unlink()
                     self.logger.info(f"deleted dangling symlink: {link.name}")
-                except Exception as err:
+                except Exception as err:  # noqa: BLE001 - per-file isolation; one undeletable file must not stop the sweep
                     self.logger.error(f"failed to delete dangling symlink {link.name}: {err!r}")
 
     def handle_signal(self: Amcrest2Mqtt, signum: int, _: FrameType | None) -> Any:
@@ -400,7 +400,7 @@ class HelpersMixin:
             self.assert_no_tuples(merged, f"device[{device_id}].{section} (post-merge)")
             self.devices[device_id] = merged
         new = self.devices.get(device_id, {})
-        return False if prev == new else True
+        return bool(prev != new)
 
     def upsert_state(self: Amcrest2Mqtt, device_id: str, **kwargs: dict[str, Any] | str | int | bool | None) -> bool:
         MERGER = Merger(
@@ -423,4 +423,4 @@ class HelpersMixin:
             else:
                 self.dirty[device_id].add((section, ""))
         new = self.states.get(device_id, {})
-        return False if prev == new else True
+        return bool(prev != new)

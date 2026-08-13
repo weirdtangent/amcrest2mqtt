@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import timezone
 import json
+from datetime import UTC
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -140,7 +140,7 @@ class PublishMixin:
         service = {
             "server": "online",
             "api_calls": self.api_calls,
-            "last_call": last_call_date.replace(tzinfo=local_tz).astimezone(timezone.utc).isoformat(),
+            "last_call": last_call_date.replace(tzinfo=local_tz).astimezone(UTC).isoformat(),
             "refresh_interval": self.device_interval,
             "storage_interval": self.storage_update_interval,
             "snapshot_interval": self.snapshot_update_interval,

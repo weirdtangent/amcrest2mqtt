@@ -21,7 +21,7 @@ class RefreshMixin:
                     changed = await self.build_device_states(device_id)
                     if changed:
                         await self.publish_device_state(device_id)
-                except Exception as err:
+                except Exception as err:  # noqa: BLE001 - per-device isolation; one bad camera must not stop the others
                     self.logger.error(f"error refreshing device '{self.get_device_name(device_id)}': {err!r}")
 
         tasks = []
@@ -37,7 +37,7 @@ class RefreshMixin:
         async def _collect_events(device_id: str) -> None:
             try:
                 await self.get_events_from_device(device_id)
-            except Exception as err:
+            except Exception as err:  # noqa: BLE001 - per-device isolation; one bad camera must not stop the others
                 self.logger.error(f"error collecting events for device '{self.get_device_name(device_id)}': {err!r}")
 
         tasks = []
@@ -55,7 +55,7 @@ class RefreshMixin:
         async def _collect_snapshot(device_id: str) -> None:
             try:
                 await self.get_snapshot_from_device(device_id)
-            except Exception as err:
+            except Exception as err:  # noqa: BLE001 - per-device isolation; one bad camera must not stop the others
                 self.logger.error(f"error collecting snapshot for device '{self.get_device_name(device_id)}': {err!r}")
 
         tasks = []
