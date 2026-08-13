@@ -37,7 +37,7 @@ class AmcrestAPIMixin:
             async with semaphore:
                 await self.get_device(host, name, index)
 
-        self.logger.debug(f'connecting to: {self.amcrest_config["hosts"]}')
+        self.logger.debug(f"connecting to: {self.amcrest_config['hosts']}")
 
         tasks = []
         for index, (host, name) in enumerate(zip(self.amcrest_config["hosts"], self.amcrest_config["names"])):

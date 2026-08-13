@@ -203,9 +203,9 @@ class HelpersMixin:
                 media["path"] = media_path
                 media.setdefault("max_size", 25)
                 media["retention_days"] = int(str(media.get("retention_days") or os.getenv("MEDIA_RETENTION_DAYS", "7")))
-                self.logger.info(f"storing recordings in {media_path} up to {media["max_size"]} MB per file")
+                self.logger.info(f"storing recordings in {media_path} up to {media['max_size']} MB per file")
                 if media["retention_days"] > 0:
-                    self.logger.info(f"recordings will be retained for {media["retention_days"]} days")
+                    self.logger.info(f"recordings will be retained for {media['retention_days']} days")
                 else:
                     self.logger.info("recording retention is disabled (retention_days=0). Watch that it doesn't fill up the file system")
             else:
@@ -284,7 +284,7 @@ class HelpersMixin:
 
             # last chance to skip the recording
             if self.b_to_mb(len(recording)) > self.config["media"]["max_size"]:
-                self.logger.info(f"skipping saving recording to {path} because {self.b_to_mb(len(recording))} > {self.config["media"]["max_size"]} MB")
+                self.logger.info(f"skipping saving recording to {path} because {self.b_to_mb(len(recording))} > {self.config['media']['max_size']} MB")
                 return None
 
             try:

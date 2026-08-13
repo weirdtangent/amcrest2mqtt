@@ -44,7 +44,7 @@ class EventsMixin:
             if event in ["motion", "human", "doorbell", "recording", "privacy_mode", "Reboot"]:
                 event_type = event
                 if event == "recording" and "file" in payload:
-                    self.logger.debug(f'recording event for \'{self.get_device_name(device_id)}\': {payload["file"]}')
+                    self.logger.debug(f"recording event for '{self.get_device_name(device_id)}': {payload['file']}")
                     if payload["file"].endswith(".jpg"):
                         image = await self.get_recorded_file(device_id, payload["file"])
                         if image:
@@ -62,7 +62,7 @@ class EventsMixin:
                         event += ": video"
                 elif event == "motion":
                     region = payload["region"] if payload["state"] != "off" else ""
-                    motion = f": {region}" if region else f": {payload["state"]}"
+                    motion = f": {region}" if region else f": {payload['state']}"
 
                     self.upsert_state(
                         device_id,
