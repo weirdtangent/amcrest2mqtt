@@ -101,14 +101,16 @@ class HelpersMixin:
         await self.publish_service_state()
 
     async def clear_discovery(self: Amcrest2Mqtt) -> None:
-        """Delete every retained discovery topic we own, service device included.
+        """Delete every retained discovery topic we own.
 
-        Each device publishes one bundled `device` config topic carrying all its components, so
-        there is exactly one topic per device to clear rather than one per entity.
+        The topic list comes from the broker, not from self.devices: this runs from
+        mqtt_on_connect, before the device map is populated, so anything derived from in-memory
+        state would miss every per-device topic and reduce a schema bump to an in-place update.
+        Resetting the `discovered` flags still matters for the manual reset, where devices *are*
+        loaded by the time the button is pressed.
         """
-        await self.clear_discovery_topic(self.mqtt_helper.disc_t("device", "service"))
+        await self.clear_retained_discovery()
         for device_id in list(self.devices):
-            await self.clear_discovery_topic(self.mqtt_helper.disc_t("device", device_id))
             self.upsert_state(device_id, internal={"discovered": False})
 
     async def rediscover_all(self: Amcrest2Mqtt) -> None:
