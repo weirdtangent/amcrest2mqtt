@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
 import json
+import re
 import pytest
 from unittest.mock import MagicMock, patch
 
@@ -19,6 +20,7 @@ class FakePublisher(HelpersMixin, PublishMixin):
         self.mqtt_helper.safe_publish = MagicMock()
         self.mqtt_helper.service_slug = "amcrest2mqtt"
         self.mqtt_helper.svc_unique_id = MagicMock(side_effect=lambda e: f"amcrest2mqtt_{e}")
+        self.mqtt_helper.obj_id = MagicMock(side_effect=lambda dev, e="": re.sub(r"_+", "_", re.sub(r"[^a-z0-9]+", "_", f"{dev} {e}".lower())).strip("_"))
         self.mqtt_helper.dev_unique_id = MagicMock(side_effect=lambda d, e: f"amcrest2mqtt_{d}_{e}")
         self.mqtt_helper.device_slug = MagicMock(side_effect=lambda d: f"amcrest2mqtt_{d}")
         self.mqtt_helper.stat_t = MagicMock(side_effect=lambda *args: "/".join(["amcrest2mqtt"] + list(args)))

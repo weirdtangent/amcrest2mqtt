@@ -128,3 +128,62 @@ class TestSchemaVersion:
         assert topic == "amcrest2mqtt/service/discovery_schema_version"
         assert not topic.endswith("/set")
         assert len(topic.split("/")) == 3
+
+
+class TestStableObjectIds:
+    """entity_id must be pinned to the component key, never the display name.
+
+    HA derives entity_id from the display name at first discovery and keeps it forever, keyed on
+    unique_id — which is how storage_interval came to own number.amcrest2mqtt_service_refresh_interval
+    on a live install. Publishing obj_id closes that off at the only point it can be closed.
+    """
+
+    @pytest.mark.asyncio
+    async def test_every_service_component_publishes_an_obj_id(self):
+        from tests.test_publish import FakePublisher, _fake_to_thread
+        import json
+        from unittest.mock import patch
+
+        pub = FakePublisher()
+        with patch("amcrest2mqtt.mixins.publish.asyncio") as mock_asyncio:
+            mock_asyncio.to_thread = _fake_to_thread
+            await pub.publish_service_discovery()
+
+        payload = json.loads(pub.mqtt_helper.safe_publish.call_args_list[0].args[1])
+        missing = [k for k, c in payload["cmps"].items() if "obj_id" not in c]
+        assert missing == [], f"components without obj_id: {missing}"
+
+    @pytest.mark.asyncio
+    async def test_obj_id_follows_the_key_not_the_name(self):
+        from tests.test_publish import FakePublisher, _fake_to_thread
+        import json
+        from unittest.mock import patch
+
+        pub = FakePublisher()
+        with patch("amcrest2mqtt.mixins.publish.asyncio") as mock_asyncio:
+            mock_asyncio.to_thread = _fake_to_thread
+            await pub.publish_service_discovery()
+
+        cmps = json.loads(pub.mqtt_helper.safe_publish.call_args_list[0].args[1])["cmps"]
+        # 'server' is displayed as the service name, yet its id tracks the key — the exact
+        # divergence that produced ..._amcrest2mqtt_service_2 in the wild
+        assert cmps["server"]["obj_id"] == "amcrest2mqtt_service_server"
+        assert cmps["storage_interval"]["obj_id"] == "amcrest2mqtt_service_storage_interval"
+        assert cmps["refresh_interval"]["obj_id"] == "amcrest2mqtt_service_refresh_interval"
+
+    @pytest.mark.asyncio
+    async def test_storage_interval_declares_seconds_matching_what_is_published(self):
+        """3070ad5 moved this to minutes/max-60 without converting the value, so configs
+        carrying seconds (900) were rejected by HA as out of range."""
+        from tests.test_publish import FakePublisher, _fake_to_thread
+        import json
+        from unittest.mock import patch
+
+        pub = FakePublisher()
+        with patch("amcrest2mqtt.mixins.publish.asyncio") as mock_asyncio:
+            mock_asyncio.to_thread = _fake_to_thread
+            await pub.publish_service_discovery()
+
+        storage = json.loads(pub.mqtt_helper.safe_publish.call_args_list[0].args[1])["cmps"]["storage_interval"]
+        assert storage["unit_of_measurement"] == "s"
+        assert storage["max"] == 3600
