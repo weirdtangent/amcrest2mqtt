@@ -70,6 +70,12 @@ class HelpersMixin:
                 self.reboot_device(device_id)
 
     async def handle_service_command(self: Amcrest2Mqtt, handler: str, message: Any) -> None:
+        # Non-numeric commands must be handled ahead of the int() below, which every other
+        # service command depends on.
+        if handler == "reset_discovery":
+            await self.reset_discovery(reason="requested over MQTT")
+            return
+
         try:
             value = int(message)
         except (ValueError, TypeError):
@@ -93,6 +99,17 @@ class HelpersMixin:
                 self.logger.error(f"unrecognized message to {self.mqtt_helper.service_slug}: {handler} -> {message}")
                 return
         await self.publish_service_state()
+
+    async def clear_discovery(self: Amcrest2Mqtt) -> None:
+        """Delete every retained discovery topic we own, service device included.
+
+        Each device publishes one bundled `device` config topic carrying all its components, so
+        there is exactly one topic per device to clear rather than one per entity.
+        """
+        await self.clear_discovery_topic(self.mqtt_helper.disc_t("device", "service"))
+        for device_id in list(self.devices):
+            await self.clear_discovery_topic(self.mqtt_helper.disc_t("device", device_id))
+            self.upsert_state(device_id, internal={"discovered": False})
 
     async def rediscover_all(self: Amcrest2Mqtt) -> None:
         await self.publish_service_discovery()

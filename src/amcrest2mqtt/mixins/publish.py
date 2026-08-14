@@ -103,6 +103,14 @@ class PublishMixin:
                     "icon": "mdi:timer-refresh",
                     "mode": "box",
                 },
+                "reset_discovery": {
+                    "p": "button",
+                    "name": "Reset discovery",
+                    "uniq_id": self.mqtt_helper.svc_unique_id("reset_discovery"),
+                    "cmd_t": self.mqtt_helper.cmd_t(device_id, "reset_discovery"),
+                    "entity_category": "diagnostic",
+                    "icon": "mdi:refresh-circle",
+                },
                 "snapshot_interval": {
                     "p": "number",
                     "name": "Snapshot interval",
