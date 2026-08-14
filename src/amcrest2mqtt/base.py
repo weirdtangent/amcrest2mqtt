@@ -126,7 +126,17 @@ class Base:
         try:
             fd, tmp_name = tempfile.mkstemp(dir=str(data_file.parent), prefix=f".{data_file.name}.", suffix=".tmp")
             tmp_path = Path(tmp_name)
-            with os.fdopen(fd, "w", encoding="utf-8") as file:
+            # mkstemp hands back a raw descriptor. os.fdopen takes ownership only once it
+            # succeeds, so close it by hand if it does not -- otherwise the fd leaks.
+            try:
+                file = os.fdopen(fd, "w", encoding="utf-8")
+            except BaseException:
+                # best-effort: a failure to close must not replace the fdopen error that
+                # actually explains what went wrong, since the caller logs whatever propagates
+                with suppress(OSError):
+                    os.close(fd)
+                raise
+            with file:
                 json.dump(state, file, indent=4)
                 file.flush()
                 os.fsync(file.fileno())
