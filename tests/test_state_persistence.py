@@ -49,7 +49,9 @@ class TestSaveState:
     def test_leaves_no_temp_file_behind(self, svc, tmp_path):
         svc.save_state()
 
-        assert list(tmp_path.glob("*.tmp")) == []
+        # assert on the whole directory rather than glob("*.tmp"): pathlib glob does match
+        # dotfiles (the stdlib glob module does not), but relying on that is a trap
+        assert [q.name for q in tmp_path.iterdir()] == ["amcrest2mqtt.dat"]
 
     def test_a_failed_save_does_not_destroy_existing_state(self, svc, tmp_path, monkeypatch):
         svc.save_state()
@@ -71,6 +73,18 @@ class TestSaveState:
         svc.save_state()
 
         assert called == []
+
+    def test_does_not_leak_the_descriptor_when_fdopen_fails(self, svc, tmp_path, monkeypatch):
+        """mkstemp hands back a raw fd; os.fdopen only takes ownership once it succeeds."""
+        closed = []
+        real_close = os.close
+        monkeypatch.setattr(os, "close", lambda fd: (closed.append(fd), real_close(fd))[1])
+        monkeypatch.setattr(os, "fdopen", lambda *a, **k: (_ for _ in ()).throw(OSError(24, "EMFILE")))
+
+        svc.save_state()
+
+        assert closed, "descriptor from mkstemp was never closed"
+        assert [q.name for q in tmp_path.iterdir()] == []
 
 
 class TestSaveOnSignal:
