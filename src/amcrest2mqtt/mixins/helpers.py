@@ -369,6 +369,15 @@ class HelpersMixin:
         self.logger.warning(f"{sig_name} received - stopping service loop")
         self.running = False
 
+        # Save here rather than relying on __aexit__: the force-exit below fires 5s after the
+        # signal and reliably wins that race, so __aexit__ never reached save_state and the .dat
+        # went stale for months while still restoring cleanly — a silent staleness rather than a
+        # visible failure.
+        try:
+            self.save_state()
+        except Exception as err:  # noqa: BLE001 - signal handler; a failed save must not abort shutdown
+            self.logger.warning(f"failed to save state on signal: {err!r}")
+
         def _force_exit() -> None:
             self.logger.warning("force-exiting process after signal")
             os._exit(0)
