@@ -4,9 +4,9 @@ import argparse
 import asyncio
 import concurrent.futures
 import json
-from contextlib import suppress
 import logging
 import os
+from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
