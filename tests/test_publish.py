@@ -51,7 +51,7 @@ class TestServiceDiscovery:
         assert topic == "homeassistant/device/amcrest2mqtt_service/config"
         assert payload["device"]["name"] == "amcrest2mqtt service"
         assert "cmps" in payload
-        assert len(payload["cmps"]) == 7
+        assert len(payload["cmps"]) == 8
         assert "server" in payload["cmps"]
         assert "api_calls" in payload["cmps"]
         assert "rate_limited" in payload["cmps"]
@@ -59,6 +59,9 @@ class TestServiceDiscovery:
         assert "refresh_interval" in payload["cmps"]
         assert "storage_interval" in payload["cmps"]
         assert "snapshot_interval" in payload["cmps"]
+        assert "reset_discovery" in payload["cmps"]
+        assert payload["cmps"]["reset_discovery"]["p"] == "button"
+        assert payload["cmps"]["reset_discovery"]["cmd_t"] == "amcrest2mqtt/service/reset_discovery/set"
 
     @pytest.mark.asyncio
     async def test_service_discovery_marks_discovered(self):
