@@ -6,6 +6,7 @@ import concurrent.futures
 import json
 import logging
 import os
+import tempfile
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
@@ -113,22 +114,29 @@ class Base:
             "api_calls": self.api_calls,
             "last_call_date": str(self.last_call_date),
         }
-        # Write to a sibling temp file and rename over the target. os.replace is atomic, so a
-        # failure can never leave a truncated .dat behind — govee2mqtt hit exactly that: O_TRUNC
-        # emptied the file, then os.fchmod raised EPERM on a volume that does not permit chmod.
-        # The 0o600 passed to os.open already applies to the newly created temp file, so no
-        # fchmod is needed at all.
-        tmp_file = data_file.parent / f"{data_file.name}.tmp"
+        # Write to a temp file alongside the target and rename over it. os.replace is atomic, so a
+        # failure can never leave a truncated .dat behind — the previous version did exactly that:
+        # O_TRUNC emptied the file, then os.fchmod raised EPERM on a volume that does not permit
+        # chmod, and the write never happened.
+        #
+        # mkstemp rather than a fixed "<name>.tmp": it creates a fresh file with O_EXCL and mode
+        # 0600, so a stale temp left by an earlier crash cannot have its looser permissions
+        # inherited, and a symlink planted at a predictable path cannot be followed and truncated.
+        tmp_path = None
         try:
-            fd = os.open(str(tmp_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            fd, tmp_name = tempfile.mkstemp(dir=str(data_file.parent), prefix=f".{data_file.name}.", suffix=".tmp")
+            tmp_path = Path(tmp_name)
             with os.fdopen(fd, "w", encoding="utf-8") as file:
                 json.dump(state, file, indent=4)
-            os.replace(tmp_file, data_file)
+                file.flush()
+                os.fsync(file.fileno())
+            os.replace(tmp_path, data_file)
             self.logger.info(f"saved state to {data_file}")
         except OSError as err:
             self.logger.error(f"could not save state to {data_file}: {err!r}")
-            with suppress(OSError):
-                os.unlink(tmp_file)
+            if tmp_path is not None:
+                with suppress(OSError):
+                    os.unlink(tmp_path)
 
     def restore_state(self: Amcrest2Mqtt) -> None:
         data_file = Path(self.config["config_path"]) / "amcrest2mqtt.dat"

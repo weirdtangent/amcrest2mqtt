@@ -91,3 +91,48 @@ class TestSaveOnSignal:
 
         assert svc.running is False
         svc.logger.warning.assert_called()
+
+
+class TestTempFileSafety:
+    """A predictable temp path is unsafe: O_TRUNC on it inherits a stale file's permissions and
+    follows a symlink to truncate whatever it points at. mkstemp avoids both."""
+
+    def test_does_not_follow_a_symlink_at_the_predictable_temp_path(self, svc, tmp_path):
+        canary = tmp_path / "canary.txt"
+        canary.write_text("must survive")
+        (tmp_path / "amcrest2mqtt.dat.tmp").symlink_to(canary)
+
+        svc.save_state()
+
+        assert canary.read_text() == "must survive"
+
+    def test_does_not_inherit_a_stale_temp_files_permissions(self, svc, tmp_path, monkeypatch):
+        stale = tmp_path / "amcrest2mqtt.dat.tmp"
+        stale.write_text("junk")
+        stale.chmod(0o644)
+
+        captured = {}
+        real_replace = os.replace
+
+        def spy(src, dst):
+            captured["mode"] = os.stat(src).st_mode & 0o777
+            return real_replace(src, dst)
+
+        monkeypatch.setattr(os, "replace", spy)
+        svc.save_state()
+
+        assert captured["mode"] == 0o600
+
+    def test_each_save_uses_a_fresh_temp_path(self, svc, tmp_path, monkeypatch):
+        seen = []
+        real_replace = os.replace
+
+        def spy(src, dst):
+            seen.append(str(src))
+            return real_replace(src, dst)
+
+        monkeypatch.setattr(os, "replace", spy)
+        svc.save_state()
+        svc.save_state()
+
+        assert len(set(seen)) == 2
