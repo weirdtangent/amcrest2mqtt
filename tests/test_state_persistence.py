@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Jeff Culverhouse
+"""Tests for atomic state persistence and saving on shutdown.
+
+Two defects lived here. save_state() opened the target with O_TRUNC and then called os.fchmod,
+which raises EPERM on volumes that do not permit chmod — the truncate had already happened, so a
+failure left a 0-byte .dat. And save_state() was only reached from __aexit__, which the 5s
+force-exit in the signal handler reliably beat, so the file silently went stale for months while
+still restoring cleanly.
+"""
+
+import json
+import os
+import signal
+import threading
+from datetime import UTC, datetime
+from unittest.mock import MagicMock
+
+import pytest
+
+from amcrest2mqtt.base import Base
+from amcrest2mqtt.mixins.helpers import HelpersMixin
+
+
+class FakeService(HelpersMixin, Base):
+    def __init__(self, config_path):
+        self.config = {"config_path": str(config_path)}
+        self.logger = MagicMock()
+        self.api_calls = 42
+        self.last_call_date = datetime(2026, 8, 14, 12, 0, tzinfo=UTC)
+        self.running = True
+
+
+@pytest.fixture
+def svc(tmp_path):
+    return FakeService(tmp_path)
+
+
+def _dat(tmp_path):
+    return tmp_path / "amcrest2mqtt.dat"
+
+
+class TestSaveState:
+    def test_writes_readable_state(self, svc, tmp_path):
+        svc.save_state()
+
+        assert json.loads(_dat(tmp_path).read_text())["api_calls"] == 42
+
+    def test_leaves_no_temp_file_behind(self, svc, tmp_path):
+        svc.save_state()
+
+        assert list(tmp_path.glob("*.tmp")) == []
+
+    def test_a_failed_save_does_not_destroy_existing_state(self, svc, tmp_path, monkeypatch):
+        svc.save_state()
+        original = _dat(tmp_path).read_text()
+        assert original.strip()
+
+        monkeypatch.setattr(os, "replace", lambda *a, **k: (_ for _ in ()).throw(PermissionError(1, "Operation not permitted")))
+        svc.api_calls = 99
+        svc.save_state()
+
+        assert _dat(tmp_path).read_text() == original
+        svc.logger.error.assert_called_once()
+
+    def test_does_not_chmod_an_existing_file(self, svc, tmp_path, monkeypatch):
+        called = []
+        monkeypatch.setattr(os, "fchmod", lambda *a, **k: called.append(a))
+
+        svc.save_state()
+        svc.save_state()
+
+        assert called == []
+
+
+class TestSaveOnSignal:
+    def test_signal_handler_persists_state(self, svc, tmp_path, monkeypatch):
+        """__aexit__ never won the race against the 5s force-exit, so the save happens here."""
+        monkeypatch.setattr(threading, "Timer", lambda *a, **k: MagicMock())
+
+        svc.handle_signal(signal.SIGTERM, None)
+
+        assert json.loads(_dat(tmp_path).read_text())["api_calls"] == 42
+        assert svc.running is False
+
+    def test_a_failing_save_does_not_abort_shutdown(self, svc, monkeypatch):
+        monkeypatch.setattr(threading, "Timer", lambda *a, **k: MagicMock())
+        monkeypatch.setattr(FakeService, "save_state", lambda self: (_ for _ in ()).throw(OSError("nope")))
+
+        svc.handle_signal(signal.SIGTERM, None)
+
+        assert svc.running is False
+        svc.logger.warning.assert_called()
