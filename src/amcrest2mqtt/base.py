@@ -131,7 +131,10 @@ class Base:
             try:
                 file = os.fdopen(fd, "w", encoding="utf-8")
             except BaseException:
-                os.close(fd)
+                # best-effort: a failure to close must not replace the fdopen error that
+                # actually explains what went wrong, since the caller logs whatever propagates
+                with suppress(OSError):
+                    os.close(fd)
                 raise
             with file:
                 json.dump(state, file, indent=4)

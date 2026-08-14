@@ -106,6 +106,17 @@ class TestSaveOnSignal:
         assert svc.running is False
         svc.logger.warning.assert_called()
 
+    def test_a_failing_close_does_not_mask_the_fdopen_error(self, svc, tmp_path, monkeypatch):
+        """The caller logs whatever propagates, so a close failure must not hide the real cause."""
+        monkeypatch.setattr(os, "fdopen", lambda *a, **k: (_ for _ in ()).throw(OSError(24, "EMFILE the real cause")))
+        monkeypatch.setattr(os, "close", lambda fd: (_ for _ in ()).throw(OSError(9, "EBADF noise")))
+
+        svc.save_state()
+
+        logged = repr(svc.logger.error.call_args)
+        assert "EMFILE the real cause" in logged
+        assert "EBADF noise" not in logged
+
 
 class TestTempFileSafety:
     """A predictable temp path is unsafe: O_TRUNC on it inherits a stale file's permissions and
