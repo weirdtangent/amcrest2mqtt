@@ -2,7 +2,6 @@
 # Copyright (c) 2025 Jeff Culverhouse
 from __future__ import annotations
 
-import asyncio
 import ipaddress
 import os
 import pathlib
@@ -31,12 +30,13 @@ class HelpersMixin:
             self.logger.debug(f"skipping device states for '{self.get_device_name(device_id)}', still rebooting")
             return False
 
-        # get properties from device
-        storage, privacy, motion_detection = await asyncio.gather(
-            self.get_storage_stats(device_id),
-            self.get_privacy_mode(device_id),
-            self.get_motion_detection(device_id),
-        )
+        # Read these one at a time. Firing all three at a camera at once means three
+        # concurrent digest-auth handshakes, which Amcrest firmware answers with a
+        # spurious 401 often enough to matter. At a 30s refresh there is no need to
+        # overlap them.
+        storage = await self.get_storage_stats(device_id)
+        privacy = await self.get_privacy_mode(device_id)
+        motion_detection = await self.get_motion_detection(device_id)
 
         changed = self.upsert_state(
             device_id,

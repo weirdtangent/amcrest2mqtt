@@ -2,8 +2,12 @@
 # Copyright (c) 2025 Jeff Culverhouse
 from unittest.mock import MagicMock
 
+import pytest
+from amcrest.exceptions import CommError, LoginError
+
+from amcrest2mqtt.mixins import amcrest_api
 from amcrest2mqtt.mixins.amcrest import AmcrestMixin
-from amcrest2mqtt.mixins.amcrest_api import AmcrestAPIMixin
+from amcrest2mqtt.mixins.amcrest_api import MAX_READ_ATTEMPTS, AmcrestAPIMixin
 
 
 class FakeAmcrest(AmcrestMixin):
@@ -156,3 +160,70 @@ class TestProcessDeviceEvent:
         self._run(ep.process_device_event("DB001", "_DoTalkAction_", payload))
         # AD410 uses AlarmLocal for doorbell, _DoTalkAction_ should be ignored
         assert all(e["event"] != "doorbell" for e in ep.events)
+
+
+class FakeReader(AmcrestAPIMixin):
+    def __init__(self):
+        self.logger = MagicMock()
+        self.devices = {}
+        self.amcrest_devices = {}
+
+    def get_device_name(self, device_id):
+        return self.devices.get(device_id, {}).get("name", device_id)
+
+
+class TestReadWithRetry:
+    @pytest.fixture(autouse=True)
+    def _no_delay(self, monkeypatch):
+        monkeypatch.setattr(amcrest_api, "READ_RETRY_DELAY", 0)
+
+    async def test_returns_value_without_retrying_on_success(self):
+        reader = FakeReader()
+        calls = []
+
+        async def read():
+            calls.append(1)
+            return "ok"
+
+        assert await reader.read_with_retry("CAM1", "thing", read) == "ok"
+        assert len(calls) == 1
+
+    async def test_retries_then_succeeds_without_logging_an_error(self):
+        reader = FakeReader()
+        calls = []
+
+        async def read():
+            calls.append(1)
+            if len(calls) < 2:
+                raise LoginError
+            return "ok"
+
+        assert await reader.read_with_retry("CAM1", "thing", read) == "ok"
+        assert len(calls) == 2
+        # a blip that recovers must not reach the log at error level
+        reader.logger.error.assert_not_called()
+
+    async def test_reraises_once_attempts_are_exhausted(self):
+        reader = FakeReader()
+        calls = []
+
+        async def read():
+            calls.append(1)
+            raise LoginError
+
+        with pytest.raises(LoginError):
+            await reader.read_with_retry("CAM1", "thing", read)
+        assert len(calls) == MAX_READ_ATTEMPTS
+
+    async def test_does_not_retry_an_exception_outside_retry_on(self):
+        reader = FakeReader()
+        calls = []
+
+        async def read():
+            calls.append(1)
+            raise CommError
+
+        # get_storage_stats relies on this: CommError means "no SD card", not a blip
+        with pytest.raises(CommError):
+            await reader.read_with_retry("CAM1", "thing", read, retry_on=(LoginError,))
+        assert len(calls) == 1
