@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import random
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
 
@@ -16,7 +16,37 @@ if TYPE_CHECKING:
     from amcrest2mqtt.interface import AmcrestServiceProtocol as Amcrest2Mqtt
 
 
+# A transient 401/timeout from a camera is common enough that a single failure should not
+# be reported as an error; see read_with_retry below.
+MAX_READ_ATTEMPTS = 3
+READ_RETRY_DELAY = 0.5
+
+
 class AmcrestAPIMixin:
+    async def read_with_retry(
+        self: Amcrest2Mqtt,
+        device_id: str,
+        what: str,
+        read: Callable[[], Awaitable[Any]],
+        retry_on: tuple[type[Exception], ...] = (CommError, LoginError),
+    ) -> Any:
+        """Read a camera property, retrying a couple of times before giving up.
+
+        Amcrest firmware intermittently answers a perfectly valid config read with a 401
+        or a timeout, particularly when several reads land on the same camera at once.
+        A single blip is not worth an error line, so intermediate attempts are logged at
+        debug and the final attempt is left bare: whatever it raises reaches the caller's
+        own handler, which already logs and falls back to the last known state.
+        """
+        for attempt in range(1, MAX_READ_ATTEMPTS):
+            try:
+                return await read()
+            except retry_on as err:
+                self.logger.debug(f"failed to get {what} from ('{self.get_device_name(device_id)}') on attempt {attempt}: {err!r}")
+                await asyncio.sleep(READ_RETRY_DELAY)
+
+        return await read()
+
     def increase_api_calls(self: Amcrest2Mqtt) -> None:
         # local wall-clock, as before, but timezone-aware: the daily quota rolls over at local midnight
         now = datetime.now(UTC).astimezone()
@@ -218,7 +248,15 @@ class AmcrestAPIMixin:
             return current
 
         try:
-            storage = cast(dict, await device["camera"].async_storage_all)
+            storage = cast(
+                dict,
+                await self.read_with_retry(
+                    device_id,
+                    "storage stats",
+                    lambda: device["camera"].async_storage_all,
+                    retry_on=(LoginError,),
+                ),
+            )
         except CommError as err:
             # 400 Bad Request typically means no SD card - not an error, just no storage
             self.logger.debug(f"no storage stats from '{self.get_device_name(device_id)}' (no SD card?): {err!r}")
@@ -252,7 +290,7 @@ class AmcrestAPIMixin:
             return current
 
         try:
-            response = await device["camera"].async_privacy_config()
+            response = await self.read_with_retry(device_id, "privacy mode", lambda: device["camera"].async_privacy_config())
         except CommError as err:
             self.logger.error(f"failed to get privacy mode from ('{self.get_device_name(device_id)}'): {err!r}")
             return current
@@ -329,7 +367,7 @@ class AmcrestAPIMixin:
             return current
 
         try:
-            motion_detection = bool(await device["camera"].async_is_motion_detector_on())
+            motion_detection = bool(await self.read_with_retry(device_id, "motion detection", lambda: device["camera"].async_is_motion_detector_on()))
         except CommError as err:
             self.logger.error(f"failed to get motion detection switch on ('{self.get_device_name(device_id)}'): {err!r}")
             return current
