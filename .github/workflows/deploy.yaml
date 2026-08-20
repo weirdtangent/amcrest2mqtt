@@ -38,6 +38,12 @@ jobs:
         with:
           version: "latest"
 
+      # `uv sync` below re-resolves silently, so a uv.lock that has drifted from
+      # pyproject.toml would never surface. Fail loudly instead.
+      - name: Lockfile up to date
+        if: matrix.python-version == '3.12'
+        run: uv lock --check
+
       # If your dev tools (ruff/mypy/pytest/etc.) are in optional-dependencies
       # like [project.optional-dependencies.dev], this installs them.
       - name: Install project (dev)
