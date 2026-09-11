@@ -136,11 +136,15 @@ class TestStableObjectIds:
 
     HA derives entity_id from the display name at first discovery and keeps it forever, keyed on
     unique_id — which is how storage_interval came to own number.amcrest2mqtt_service_refresh_interval
-    on a live install. Publishing obj_id closes that off at the only point it can be closed.
+    on a live install. Publishing the default entity_id closes that off at the only point it can be
+    closed.
+
+    HA Core 2026.4 removed `object_id`; `default_entity_id` (`def_ent_id`) replaced it and wants a
+    full entity_id. A payload still publishing `obj_id` is ignored outright, which puts newly
+    discovered entities straight back into the display-name failure above.
     """
 
-    @pytest.mark.asyncio
-    async def test_every_service_component_publishes_an_obj_id(self):
+    async def _publish_service(self):
         import json
         from unittest.mock import patch
 
@@ -151,28 +155,32 @@ class TestStableObjectIds:
             mock_asyncio.to_thread = _fake_to_thread
             await pub.publish_service_discovery()
 
-        payload = json.loads(pub.mqtt_helper.safe_publish.call_args_list[0].args[1])
-        missing = [k for k, c in payload["cmps"].items() if "obj_id" not in c]
-        assert missing == [], f"components without obj_id: {missing}"
+        return json.loads(pub.mqtt_helper.safe_publish.call_args_list[0].args[1])["cmps"]
 
     @pytest.mark.asyncio
-    async def test_obj_id_follows_the_key_not_the_name(self):
-        import json
-        from unittest.mock import patch
+    async def test_every_service_component_publishes_a_def_ent_id(self):
+        cmps = await self._publish_service()
 
-        from tests.test_publish import FakePublisher, _fake_to_thread
+        missing = [k for k, c in cmps.items() if "def_ent_id" not in c]
+        assert missing == [], f"components without def_ent_id: {missing}"
 
-        pub = FakePublisher()
-        with patch("amcrest2mqtt.mixins.publish.asyncio") as mock_asyncio:
-            mock_asyncio.to_thread = _fake_to_thread
-            await pub.publish_service_discovery()
+    @pytest.mark.asyncio
+    async def test_no_component_still_publishes_the_removed_obj_id(self):
+        """HA 2026.4+ does not recognise obj_id, so shipping one is dead weight and a false signal."""
+        cmps = await self._publish_service()
 
-        cmps = json.loads(pub.mqtt_helper.safe_publish.call_args_list[0].args[1])["cmps"]
+        stale = [k for k, c in cmps.items() if "obj_id" in c]
+        assert stale == [], f"components still publishing obj_id: {stale}"
+
+    @pytest.mark.asyncio
+    async def test_def_ent_id_follows_the_key_not_the_name(self):
+        cmps = await self._publish_service()
+
         # 'server' is displayed as the service name, yet its id tracks the key — the exact
         # divergence that produced ..._amcrest2mqtt_service_2 in the wild
-        assert cmps["server"]["obj_id"] == "amcrest2mqtt_service_server"
-        assert cmps["storage_interval"]["obj_id"] == "amcrest2mqtt_service_storage_interval"
-        assert cmps["refresh_interval"]["obj_id"] == "amcrest2mqtt_service_refresh_interval"
+        assert cmps["server"]["def_ent_id"] == "binary_sensor.amcrest2mqtt_service_server"
+        assert cmps["storage_interval"]["def_ent_id"] == "number.amcrest2mqtt_service_storage_interval"
+        assert cmps["refresh_interval"]["def_ent_id"] == "number.amcrest2mqtt_service_refresh_interval"
 
     @pytest.mark.asyncio
     async def test_storage_interval_declares_seconds_matching_what_is_published(self):

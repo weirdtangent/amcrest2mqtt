@@ -136,7 +136,7 @@ class PublishMixin:
         }
 
         topic = self.mqtt_helper.disc_t("device", device_id)
-        payload = {k: v for k, v in device.items() if k != "p"}
+        payload = self.mqtt_helper.apply_default_entity_ids({k: v for k, v in device.items() if k != "p"})
         await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(payload))
         self.upsert_state(device_id, internal={"discovered": True})
 
@@ -173,7 +173,7 @@ class PublishMixin:
 
     async def publish_device_discovery(self: Amcrest2Mqtt, device_id: str) -> None:
         topic = self.mqtt_helper.disc_t("device", device_id)
-        payload = json.dumps(self.devices[device_id]["component"])
+        payload = json.dumps(self.mqtt_helper.apply_default_entity_ids(self.devices[device_id]["component"]))
 
         await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, payload)
         self.upsert_state(device_id, internal={"discovered": True})

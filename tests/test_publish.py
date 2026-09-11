@@ -5,6 +5,7 @@ import re
 from unittest.mock import MagicMock, patch
 
 import pytest
+from mqtt_helper import MqttHelper
 
 from amcrest2mqtt.mixins.helpers import HelpersMixin
 from amcrest2mqtt.mixins.publish import PublishMixin
@@ -28,6 +29,8 @@ class FakePublisher(HelpersMixin, PublishMixin):
         self.mqtt_helper.avty_t = MagicMock(side_effect=lambda *args: "/".join(["amcrest2mqtt"] + list(args) + ["availability"]))
         self.mqtt_helper.cmd_t = MagicMock(side_effect=lambda *args: "/".join(["amcrest2mqtt"] + list(args) + ["set"]))
         self.mqtt_helper.disc_t = MagicMock(side_effect=lambda kind, did: f"homeassistant/{kind}/amcrest2mqtt_{did}/config")
+        # the real rewrite -- this is the step HA's entity_ids depend on, so it must not be a stub
+        self.mqtt_helper.apply_default_entity_ids = MagicMock(side_effect=MqttHelper("amcrest2mqtt").apply_default_entity_ids)
         self.devices = {}
         self.states = {}
         self.dirty: dict[str, set[tuple[str, str]]] = {}
