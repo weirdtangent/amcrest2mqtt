@@ -14,6 +14,9 @@ class FakeHelpers(HelpersMixin):
         self.logger = MagicMock()
         self.running = True
         self.dirty: dict[str, set[tuple[str, str]]] = {}
+        # handle_signal saves state on the way out; without this the mixin hits a
+        # missing attribute, logs a second warning and the call-count assertions lie.
+        self.save_state = MagicMock()
 
 
 class TestLoadConfigFromFile:
@@ -213,6 +216,9 @@ class TestHandleSignal:
 
         assert helpers.running is False
         helpers.logger.warning.assert_called_once()
+        # save-on-signal: __aexit__ loses the race against the 5s force-exit, so the
+        # signal handler is the only thing that reliably persists state.
+        helpers.save_state.assert_called_once()
 
 
 class TestLoadConfigPathNotFound:
