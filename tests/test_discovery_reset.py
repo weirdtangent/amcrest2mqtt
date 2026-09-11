@@ -2,8 +2,9 @@
 # Copyright (c) 2025 Jeff Culverhouse
 """Tests for clearing/rebuilding HA discovery when the entity layout changes."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from amcrest2mqtt.mixins.helpers import HelpersMixin
 from amcrest2mqtt.mixins.mqtt import MqttMixin
@@ -140,9 +141,10 @@ class TestStableObjectIds:
 
     @pytest.mark.asyncio
     async def test_every_service_component_publishes_an_obj_id(self):
-        from tests.test_publish import FakePublisher, _fake_to_thread
         import json
         from unittest.mock import patch
+
+        from tests.test_publish import FakePublisher, _fake_to_thread
 
         pub = FakePublisher()
         with patch("amcrest2mqtt.mixins.publish.asyncio") as mock_asyncio:
@@ -155,9 +157,10 @@ class TestStableObjectIds:
 
     @pytest.mark.asyncio
     async def test_obj_id_follows_the_key_not_the_name(self):
-        from tests.test_publish import FakePublisher, _fake_to_thread
         import json
         from unittest.mock import patch
+
+        from tests.test_publish import FakePublisher, _fake_to_thread
 
         pub = FakePublisher()
         with patch("amcrest2mqtt.mixins.publish.asyncio") as mock_asyncio:
@@ -175,9 +178,10 @@ class TestStableObjectIds:
     async def test_storage_interval_declares_seconds_matching_what_is_published(self):
         """3070ad5 moved this to minutes/max-60 without converting the value, so configs
         carrying seconds (900) were rejected by HA as out of range."""
-        from tests.test_publish import FakePublisher, _fake_to_thread
         import json
         from unittest.mock import patch
+
+        from tests.test_publish import FakePublisher, _fake_to_thread
 
         pub = FakePublisher()
         with patch("amcrest2mqtt.mixins.publish.asyncio") as mock_asyncio:

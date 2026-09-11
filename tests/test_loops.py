@@ -2,11 +2,12 @@
 # Copyright (c) 2025 Jeff Culverhouse
 import asyncio
 import signal
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from amcrest2mqtt.mixins.loops import LoopsMixin
+import pytest
+
 from amcrest2mqtt.mixins.helpers import HelpersMixin
+from amcrest2mqtt.mixins.loops import LoopsMixin
 
 
 class FakeLooper(HelpersMixin, LoopsMixin):

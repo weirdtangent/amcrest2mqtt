@@ -2,11 +2,12 @@
 # Copyright (c) 2025 Jeff Culverhouse
 import json
 import re
-import pytest
 from unittest.mock import MagicMock, patch
 
-from amcrest2mqtt.mixins.publish import PublishMixin
+import pytest
+
 from amcrest2mqtt.mixins.helpers import HelpersMixin
+from amcrest2mqtt.mixins.publish import PublishMixin
 
 
 class FakePublisher(HelpersMixin, PublishMixin):
@@ -121,7 +122,7 @@ class TestServiceState:
 
         pub = FakePublisher()
         pub.api_calls = 42
-        pub.last_call_date = datetime(2026, 1, 15, 10, 30, 0)
+        pub.last_call_date = datetime(2026, 1, 15, 10, 30, 0).astimezone()
         pub.rate_limited = False
         pub.device_interval = 30
         pub.storage_update_interval = 15
@@ -143,7 +144,7 @@ class TestServiceState:
 
         pub = FakePublisher()
         pub.api_calls = 0
-        pub.last_call_date = datetime(2026, 1, 15, 10, 30, 0)
+        pub.last_call_date = datetime(2026, 1, 15, 10, 30, 0).astimezone()
         pub.rate_limited = False
         pub.device_interval = 30
         pub.storage_update_interval = 15
@@ -167,7 +168,7 @@ class TestServiceState:
 
         pub = FakePublisher()
         pub.api_calls = 0
-        pub.last_call_date = datetime(2026, 1, 15, 10, 30, 0)
+        pub.last_call_date = datetime(2026, 1, 15, 10, 30, 0).astimezone()
         pub.rate_limited = True
         pub.device_interval = 30
         pub.storage_update_interval = 15
