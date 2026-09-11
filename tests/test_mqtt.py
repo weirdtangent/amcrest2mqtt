@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
 import json
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from mqtt_helper import parse_device_topic
+
 from amcrest2mqtt.mixins.mqtt import MqttMixin
 
 
@@ -99,13 +100,13 @@ class TestMqttOnMessage:
 
 class TestParseDeviceTopic:
     def test_parses_valid_switch_topic(self):
-        components = "amcrest2mqtt/amcrest2mqtt_SERIAL123/switch/privacy/set".split("/")
+        components = ["amcrest2mqtt", "amcrest2mqtt_SERIAL123", "switch", "privacy", "set"]
         result = parse_device_topic(components)
 
         assert result == ("amcrest2mqtt", "SERIAL123", "privacy")
 
     def test_non_set_suffix_returns_none(self):
-        components = "amcrest2mqtt/amcrest2mqtt_SERIAL123/switch/privacy/get".split("/")
+        components = ["amcrest2mqtt", "amcrest2mqtt_SERIAL123", "switch", "privacy", "get"]
         result = parse_device_topic(components)
 
         assert result is None

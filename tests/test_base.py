@@ -2,9 +2,10 @@
 # Copyright (c) 2025 Jeff Culverhouse
 import json
 import stat
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from datetime import datetime
-from unittest.mock import MagicMock, AsyncMock, patch
 
 from amcrest2mqtt.base import Base
 from amcrest2mqtt.mixins.helpers import HelpersMixin
@@ -12,8 +13,6 @@ from amcrest2mqtt.mixins.helpers import HelpersMixin
 
 class FakeBase(HelpersMixin, Base):
     """Minimal class to test Base lifecycle without full mixin stack."""
-
-    pass
 
 
 class TestSaveState:
@@ -24,7 +23,7 @@ class TestSaveState:
         obj = MagicMock()
         obj.config = {"config_path": str(tmp_path)}
         obj.api_calls = 42
-        obj.last_call_date = datetime(2026, 1, 15, 10, 30, 0)
+        obj.last_call_date = datetime(2026, 1, 15, 10, 30, 0).astimezone()
         obj.logger = MagicMock()
 
         Base.save_state(obj)
@@ -38,7 +37,7 @@ class TestSaveState:
         obj = MagicMock()
         obj.config = {"config_path": str(tmp_path)}
         obj.api_calls = 1
-        obj.last_call_date = datetime.now()
+        obj.last_call_date = datetime.now(UTC).astimezone()
         obj.logger = MagicMock()
 
         Base.save_state(obj)
@@ -54,7 +53,7 @@ class TestSaveState:
         obj = MagicMock()
         obj.config = {"config_path": str(tmp_path)}
         obj.api_calls = 1
-        obj.last_call_date = datetime.now()
+        obj.last_call_date = datetime.now(UTC).astimezone()
         obj.logger = MagicMock()
 
         Base.save_state(obj)
@@ -65,7 +64,7 @@ class TestSaveState:
         obj = MagicMock()
         obj.config = {"config_path": str(tmp_path)}
         obj.api_calls = 0
-        obj.last_call_date = datetime.now()
+        obj.last_call_date = datetime.now(UTC).astimezone()
         obj.logger = MagicMock()
 
         # Should not raise - logs error instead
