@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from amcrest.exceptions import CommError, LoginError
@@ -227,3 +227,57 @@ class TestReadWithRetry:
         with pytest.raises(CommError):
             await reader.read_with_retry("CAM1", "thing", read, retry_on=(LoginError,))
         assert len(calls) == 1
+
+
+class TestBuildCameraLogging:
+    """The 'added new camera' line is the only startup record of what the
+    service adopted. The camera's MAC is already fetched and handed to Home
+    Assistant as a connection, so logging it costs nothing and is what ties a
+    camera back to a client seen on the network.
+    """
+
+    def _make_fake(self):
+        fake = FakeAmcrest()
+        fake.service = "amcrest"
+        fake.service_name = "amcrest service"
+        fake.qos = 0
+        fake.config = {"version": "v2.10.3", "media": {}}
+        fake.amcrest_config = {}
+        fake.upsert_device = MagicMock()
+        fake.upsert_state = MagicMock()
+        fake.is_discovered = MagicMock(return_value=False)
+        fake.get_device_name = MagicMock(return_value="Test Cam")
+        fake.publish_device_discovery = AsyncMock()
+        fake.publish_device_availability = AsyncMock()
+        fake.publish_device_state = AsyncMock()
+        return fake
+
+    def _camera(self):
+        return {
+            "device_name": "Test Cam",
+            "device_type": "IP4M-1041B",
+            "vendor": "Amcrest",
+            "serial_number": "AMC00000_000000",
+            "software_version": "1.0.0",
+            "hardware_version": "1.0",
+            "host": "10.10.10.1",
+            "network": {"interface": "eth0", "ip_address": "10.10.10.1", "mac": "AA:BB:CC:DD:EE:FF"},
+        }
+
+    async def test_log_line_includes_mac(self):
+        fake = self._make_fake()
+
+        await fake.build_camera(self._camera())
+
+        message = fake.logger.info.call_args[0][0]
+        assert "mac=AA:BB:CC:DD:EE:FF" in message
+        assert "added new camera" in message
+        assert "IP4M-1041B" in message
+
+    async def test_no_log_line_when_already_discovered(self):
+        fake = self._make_fake()
+        fake.is_discovered = MagicMock(return_value=True)
+
+        await fake.build_camera(self._camera())
+
+        fake.logger.info.assert_not_called()
