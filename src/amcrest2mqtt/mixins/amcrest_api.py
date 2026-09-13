@@ -451,15 +451,21 @@ class AmcrestAPIMixin:
                 return encoded
 
             except Exception as err:  # noqa: BLE001 - snapshot retry loop; any failure is retried then given up on
-                self.logger.debug(f"snapshot attempt {attempt}/{max_tries} failed for '{self.get_device_name(device_id)}': {err!r}")
+                # WARNING, not debug: when snapshots fail persistently this exception is the
+                # only record of WHY, and the give-up line below carries no cause. Debug-level
+                # hid ~1,400 failures/day across three cameras with no diagnosable reason.
+                self.logger.warning(f"snapshot attempt {attempt}/{max_tries} failed for '{self.get_device_name(device_id)}': {err!r}")
 
             except asyncio.CancelledError:
                 self.logger.debug(f"snapshot cancelled for '{self.get_device_name(device_id)}', letting shutdown propagate")
                 raise
 
-            delay = base_backoff * (2 ** (attempt - 1))
-            delay += random.uniform(0, 5)
-            await asyncio.sleep(delay)
+            # Only back off between attempts -- sleeping after the final one just delays
+            # the give-up by ~20-25s for no benefit.
+            if attempt < max_tries:
+                delay = base_backoff * (2 ** (attempt - 1))
+                delay += random.uniform(0, 5)
+                await asyncio.sleep(delay)
 
         self.logger.info(f"getting snapshot failed after {max_tries} tries for '{self.get_device_name(device_id)}'")
         return None

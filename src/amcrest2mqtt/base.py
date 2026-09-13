@@ -58,6 +58,9 @@ class Base:
         self.dirty: dict[str, set[tuple[str, str]]] = {}
         self.amcrest_devices: dict[str, Any] = {}
         self.events: list[str] = []
+        # Most recent .jpg pulled from a recording event, per device. Used as a
+        # fallback image for vision requests when a live snapshot is unavailable.
+        self.last_event_image: dict[str, str] = {}
 
         self.mqttc: Client
         self.mqtt_connect_time: datetime

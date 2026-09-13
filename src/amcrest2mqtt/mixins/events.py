@@ -28,6 +28,26 @@ class EventsMixin:
         await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(payload))
         self.logger.debug(f"published vision request for '{self.get_device_name(device_id)}' ({source})")
 
+    async def _capture_and_publish_vision(self: Amcrest2Mqtt, device_id: str) -> None:
+        """Resolve an image for a motion event whose cached snapshot was unavailable.
+
+        Tries a live snapshot first, then the most recent recording .jpg. Runs as a task so
+        the snapshot retry/backoff never blocks the event loop.
+        """
+        name = self.get_device_name(device_id)
+        try:
+            image = await self.get_snapshot_from_device(device_id)
+            source = "motion_snapshot"
+            if not image:
+                image = self.last_event_image.get(device_id)
+                source = "motion_last_event_image"
+            if image:
+                await self.publish_vision_request(device_id, image, source)
+            else:
+                self.logger.warning(f"motion on '{name}' but no image available for vision request")
+        except Exception:
+            self.logger.exception(f"failed to resolve a motion image for '{name}'")
+
     async def check_for_events(self: Amcrest2Mqtt) -> None:
         needs_publish = set()
 
@@ -48,6 +68,7 @@ class EventsMixin:
                     if payload["file"].endswith(".jpg"):
                         image = await self.get_recorded_file(device_id, payload["file"])
                         if image:
+                            self.last_event_image[device_id] = image
                             await self.publish_vision_request(device_id, image, "recording_snapshot")
                             needs_publish.add(device_id)
                             event += ": snapshot"
@@ -77,6 +98,12 @@ class EventsMixin:
                         snapshot = states.get("image", {}).get("snapshot")
                         if snapshot:
                             await self.publish_vision_request(device_id, snapshot, "motion_snapshot")
+                        else:
+                            # No cached snapshot. Previously the motion event was dropped here
+                            # with no log line at all, so a camera whose snapshots fail silently
+                            # stopped feeding vision entirely. Resolve an image out-of-band so we
+                            # do not stall event processing on a retrying snapshot fetch.
+                            asyncio.create_task(self._capture_and_publish_vision(device_id))
                 elif event == "doorbell":
                     self.upsert_state(
                         device_id,
