@@ -258,6 +258,8 @@ class HelpersMixin:
             "username":                     str(amcrest.get("username") or os.getenv("AMCREST_USERNAME", "")),
             "password":                     str(amcrest.get("password") or os.getenv("AMCREST_PASSWORD", "")),
             "storage_update_interval":  int(str(amcrest.get("storage_update_interval") or os.getenv("AMCREST_STORAGE_UPDATE_INTERVAL", "15"))),
+            "snapshot_channel":         int(str(amcrest.get("snapshot_channel") if amcrest.get("snapshot_channel") is not None else os.getenv("AMCREST_SNAPSHOT_CHANNEL", "1"))),
+            "snapshot_timeout":         int(str(amcrest.get("snapshot_timeout") or os.getenv("AMCREST_SNAPSHOT_TIMEOUT", "25"))),
             "snapshot_update_interval": int(str(amcrest.get("snapshot_update_interval") or os.getenv("AMCREST_SNAPSHOT_UPDATE_INTERVAL", "60"))),
             "webrtc": {
                 "host":      str(webrtc.get("host") or os.getenv("AMCREST_WEBRTC_HOST", "")),

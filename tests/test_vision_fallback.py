@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from amcrest2mqtt.mixins.amcrest_api import AmcrestAPIMixin
 from amcrest2mqtt.mixins.events import EventsMixin
 
 
@@ -65,3 +66,59 @@ class TestVisionFallback:
         await v._capture_and_publish_vision("cam1")
         assert v.published == []
         v.logger.warning.assert_called_once()
+
+
+class FakeSnap(AmcrestAPIMixin):
+    """Harness asserting the exact snapshot request shape."""
+
+    def __init__(self, *, channel=None, timeout=None):
+        self.logger = MagicMock()
+        cfg = {}
+        if channel is not None:
+            cfg["snapshot_channel"] = channel
+        if timeout is not None:
+            cfg["snapshot_timeout"] = timeout
+        self.amcrest_config = cfg
+        self.calls = []
+
+        outer = self
+
+        class Cam:
+            async def async_snapshot(self, *, channel=None, timeout=None):
+                outer.calls.append({"channel": channel})
+                return b"\xff\xd8JPEG"
+
+        self.amcrest_devices = {"cam1": {"camera": Cam(), "privacy_mode": False}}
+
+    def get_device_name(self, device_id):
+        return device_id
+
+    def is_rebooting(self, device_id):
+        return False
+
+    def increase_api_calls(self):
+        pass
+
+    def upsert_state(self, device_id, **kwargs):
+        pass
+
+    async def publish_device_state(self, device_id):
+        pass
+
+
+class TestSnapshotRequestShape:
+    """snapshot.cgi with NO channel returns HTTP 500 on some models while the identical
+    request with an explicit channel returns 200 -- so the channel must be sent."""
+
+    @pytest.mark.asyncio
+    async def test_sends_an_explicit_channel_by_default(self):
+        snap = FakeSnap()
+        out = await snap.get_snapshot_from_device("cam1")
+        assert out, "should return an encoded image"
+        assert snap.calls == [{"channel": 1}], "must not call async_snapshot() channel-less"
+
+    @pytest.mark.asyncio
+    async def test_channel_is_configurable(self):
+        snap = FakeSnap(channel=2)
+        await snap.get_snapshot_from_device("cam1")
+        assert snap.calls == [{"channel": 2}]
