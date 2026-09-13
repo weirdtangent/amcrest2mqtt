@@ -35,10 +35,21 @@ class EventsMixin:
         the snapshot retry/backoff never blocks the event loop.
         """
         name = self.get_device_name(device_id)
+        # publish_vision_request() no-ops when vision is disabled, but it does so only
+        # AFTER the snapshot work below -- which costs up to three API calls and a
+        # warning per motion event for a publish that can never happen.
+        if not self.config.get("vision_request"):
+            return
         try:
             image = await self.get_snapshot_from_device(device_id)
             source = "motion_snapshot"
             if not image:
+                # get_snapshot_from_device() returns None in privacy mode by design.
+                # last_event_image predates the lens being masked, so falling back to it
+                # here would publish an image privacy mode exists to suppress.
+                if self.amcrest_devices.get(device_id, {}).get("privacy_mode", False):
+                    self.logger.info(f"skipping vision fallback for '{name}' (privacy mode ON)")
+                    return
                 image = self.last_event_image.get(device_id)
                 source = "motion_last_event_image"
             if image:
@@ -103,7 +114,9 @@ class EventsMixin:
                             # with no log line at all, so a camera whose snapshots fail silently
                             # stopped feeding vision entirely. Resolve an image out-of-band so we
                             # do not stall event processing on a retrying snapshot fetch.
-                            asyncio.create_task(self._capture_and_publish_vision(device_id))
+                            task = asyncio.create_task(self._capture_and_publish_vision(device_id))
+                            self.vision_tasks.add(task)
+                            task.add_done_callback(self.vision_tasks.discard)
                 elif event == "doorbell":
                     self.upsert_state(
                         device_id,

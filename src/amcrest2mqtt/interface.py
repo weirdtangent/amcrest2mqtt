@@ -1,5 +1,5 @@
 from argparse import Namespace
-from asyncio import AbstractEventLoop
+from asyncio import AbstractEventLoop, Task
 from collections.abc import Awaitable, Callable, Coroutine
 from datetime import datetime
 from logging import Logger
@@ -44,6 +44,7 @@ class AmcrestServiceProtocol(Protocol):
     dirty: dict[str, set[tuple[str, str]]]
     states: dict[str, Any]
     last_event_image: dict[str, str]
+    vision_tasks: set[Task]
 
     async def build_camera(self, camera: dict) -> str: ...
     async def build_component(self, device: dict) -> str: ...

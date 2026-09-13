@@ -61,6 +61,9 @@ class Base:
         # Most recent .jpg pulled from a recording event, per device. Used as a
         # fallback image for vision requests when a live snapshot is unavailable.
         self.last_event_image: dict[str, str] = {}
+        # Strong references to in-flight vision fallback tasks. asyncio only keeps weak
+        # references, so without this a task can be collected before it publishes.
+        self.vision_tasks: set[asyncio.Task] = set()
 
         self.mqttc: Client
         self.mqtt_connect_time: datetime
