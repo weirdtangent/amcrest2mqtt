@@ -411,7 +411,13 @@ class AmcrestAPIMixin:
             return None
 
         device = self.amcrest_devices[device_id]
-        timeout = 10
+        # Cameras serving a main-stream RTSP feed can take 7-15s to produce a snapshot,
+        # well past the old hardcoded 10s. Measured: 2.4s / 2.5s on two idle cameras but
+        # 7.5s / 13.8s / 14.7s on three busy ones, which timed out on every attempt.
+        timeout = self.amcrest_config.get("snapshot_timeout", 25)
+        # snapshot.cgi with NO channel parameter returns HTTP 500 (after ~15s) on some
+        # models, while the identical request with an explicit channel returns 200.
+        channel = self.amcrest_config.get("snapshot_channel", 1)
         max_tries = 3
         base_backoff = 5
 
@@ -432,7 +438,7 @@ class AmcrestAPIMixin:
                     return None
 
                 self.logger.debug(f"getting snapshot from '{self.get_device_name(device_id)}'")
-                image_bytes = await asyncio.wait_for(camera.async_snapshot(), timeout=timeout)
+                image_bytes = await asyncio.wait_for(camera.async_snapshot(channel=channel), timeout=timeout)
                 self.increase_api_calls()
                 if not image_bytes:
                     self.logger.warning(f"snapshot: empty image from '{self.get_device_name(device_id)}', ignoring")
