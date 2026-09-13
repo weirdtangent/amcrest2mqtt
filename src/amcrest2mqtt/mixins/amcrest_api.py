@@ -438,7 +438,11 @@ class AmcrestAPIMixin:
                     return None
 
                 self.logger.debug(f"getting snapshot from '{self.get_device_name(device_id)}'")
-                image_bytes = await asyncio.wait_for(camera.async_snapshot(channel=channel), timeout=timeout)
+                # The timeout MUST be passed into async_snapshot() as well, not just to
+                # wait_for(). python-amcrest applies its own httpx read timeout of
+                # TIMEOUT_HTTP_PROTOCOL = 6.05s and raises CommError(ReadTimeout) long before
+                # any outer wait_for fires, so wait_for alone silently does nothing here.
+                image_bytes = await asyncio.wait_for(camera.async_snapshot(channel=channel, timeout=timeout), timeout=timeout + 5)
                 self.increase_api_calls()
                 if not image_bytes:
                     self.logger.warning(f"snapshot: empty image from '{self.get_device_name(device_id)}', ignoring")

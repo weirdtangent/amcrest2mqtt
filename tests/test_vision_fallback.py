@@ -85,7 +85,7 @@ class FakeSnap(AmcrestAPIMixin):
 
         class Cam:
             async def async_snapshot(self, *, channel=None, timeout=None):
-                outer.calls.append({"channel": channel})
+                outer.calls.append({"channel": channel, "timeout": timeout})
                 return b"\xff\xd8JPEG"
 
         self.amcrest_devices = {"cam1": {"camera": Cam(), "privacy_mode": False}}
@@ -115,10 +115,19 @@ class TestSnapshotRequestShape:
         snap = FakeSnap()
         out = await snap.get_snapshot_from_device("cam1")
         assert out, "should return an encoded image"
-        assert snap.calls == [{"channel": 1}], "must not call async_snapshot() channel-less"
+        assert snap.calls == [{"channel": 1, "timeout": 25}], "channel AND timeout must reach the library"
 
     @pytest.mark.asyncio
     async def test_channel_is_configurable(self):
         snap = FakeSnap(channel=2)
         await snap.get_snapshot_from_device("cam1")
-        assert snap.calls == [{"channel": 2}]
+        assert snap.calls == [{"channel": 2, "timeout": 25}]
+
+    @pytest.mark.asyncio
+    async def test_timeout_reaches_the_library_not_just_wait_for(self):
+        """python-amcrest enforces its own 6.05s httpx read timeout and raises
+        CommError(ReadTimeout) before any outer asyncio.wait_for can fire, so passing the
+        timeout only to wait_for silently has no effect."""
+        snap = FakeSnap(timeout=30)
+        await snap.get_snapshot_from_device("cam1")
+        assert snap.calls[0]["timeout"] == 30
