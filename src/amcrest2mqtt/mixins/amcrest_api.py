@@ -420,6 +420,7 @@ class AmcrestAPIMixin:
         channel = self.amcrest_config.get("snapshot_channel", 1)
         max_tries = 3
         base_backoff = 5
+        last_err: Exception | None = None
 
         # Respect privacy mode (default False if missing)
         if device.get("privacy_mode", False):
@@ -461,10 +462,13 @@ class AmcrestAPIMixin:
                 return encoded
 
             except Exception as err:  # noqa: BLE001 - snapshot retry loop; any failure is retried then given up on
-                # WARNING, not debug: when snapshots fail persistently this exception is the
-                # only record of WHY, and the give-up line below carries no cause. Debug-level
-                # hid ~1,400 failures/day across three cameras with no diagnosable reason.
-                self.logger.warning(f"snapshot attempt {attempt}/{max_tries} failed for '{self.get_device_name(device_id)}': {err!r}")
+                # DEBUG, because a single failed attempt is not a failure: measured in
+                # production, 256 attempt-1 failures produced only 10 exhausted retries, so
+                # ~96% recover on the next try. The cause is NOT lost by demoting this --
+                # last_err is carried into the give-up line below, which is the event that
+                # actually matters. Logging every attempt at warning cost ~2,050 lines/day.
+                last_err = err
+                self.logger.debug(f"snapshot attempt {attempt}/{max_tries} failed for '{self.get_device_name(device_id)}': {err!r}")
 
             except asyncio.CancelledError:
                 self.logger.debug(f"snapshot cancelled for '{self.get_device_name(device_id)}', letting shutdown propagate")
@@ -477,7 +481,10 @@ class AmcrestAPIMixin:
                 delay += random.uniform(0, 5)
                 await asyncio.sleep(delay)
 
-        self.logger.info(f"getting snapshot failed after {max_tries} tries for '{self.get_device_name(device_id)}'")
+        # ERROR, matching the two sibling give-up lines (recordings, event polling). This is a
+        # real, user-visible loss -- the snapshot never reaches MQTT -- and at info it was
+        # invisible to every severity-based dashboard and alert in the estate.
+        self.logger.error(f"getting snapshot failed after {max_tries} tries for '{self.get_device_name(device_id)}': {last_err!r}")
         return None
 
     # Recorded file -------------------------------------------------------------------------------
