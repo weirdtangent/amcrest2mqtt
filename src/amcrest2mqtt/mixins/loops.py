@@ -21,13 +21,19 @@ class LoopsMixin:
                 break
 
     async def collect_events_loop(self: Amcrest2Mqtt) -> None:
-        while self.running:
-            await self.collect_all_device_events()
-            try:
-                await asyncio.sleep(1)
-            except asyncio.CancelledError:
-                self.logger.debug("collect_events_loop cancelled during sleep")
-                break
+        # This is the supervision tick for the per-device event-stream tasks:
+        # collect_all_device_events() returns immediately, having respawned any that
+        # finished, so the 1s cadence is what bounds how long a camera stays silent.
+        try:
+            while self.running:
+                await self.collect_all_device_events()
+                try:
+                    await asyncio.sleep(1)
+                except asyncio.CancelledError:
+                    self.logger.debug("collect_events_loop cancelled during sleep")
+                    break
+        finally:
+            await self.cancel_all_device_events()
 
     async def check_event_queue_loop(self: Amcrest2Mqtt) -> None:
         while self.running:

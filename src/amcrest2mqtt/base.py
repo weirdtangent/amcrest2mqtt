@@ -64,6 +64,10 @@ class Base:
         # Strong references to in-flight vision fallback tasks. asyncio only keeps weak
         # references, so without this a task can be collected before it publishes.
         self.vision_tasks: set[asyncio.Task] = set()
+        # One live event-stream task per device, plus when each was last (re)started.
+        # Each camera reconnects on its own schedule; see collect_all_device_events().
+        self.event_tasks: dict[str, asyncio.Task] = {}
+        self.event_task_started: dict[str, float] = {}
 
         self.mqttc: Client
         self.mqtt_connect_time: datetime
