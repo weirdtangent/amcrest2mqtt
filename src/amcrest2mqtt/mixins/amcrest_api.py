@@ -540,6 +540,13 @@ class AmcrestAPIMixin:
         camera = device["camera"]
 
         max_attempts = 3
+        # Reconnect backoff. This loop used to have NONE, and that was the whole bug: a camera
+        # that is momentarily unreachable -- a Wi-Fi hiccup, or the daily AutoReboot window --
+        # rejects all three attempts back-to-back in milliseconds, so the retry budget is spent
+        # long before the camera is back, and the camera then stops reporting motion entirely.
+        # Measured in production: five cameras each went silent for 3-17h at a time this way,
+        # while their own syslog showed VideoMotion firing the whole while.
+        base_backoff = 5
 
         for attempt in range(1, max_attempts + 1):
             try:
@@ -556,6 +563,13 @@ class AmcrestAPIMixin:
                 self.logger.debug(f"failed to get events from ('{self.get_device_name(device_id)}') on attempt {attempt}: {err!r}")
             except Exception as err:  # noqa: BLE001 (log-and-drop is intentional here)
                 self.logger.debug(f"failed to get events from ('{self.get_device_name(device_id)}') on attempt {attempt}: {err!r}")
+
+            # Only back off between attempts -- sleeping after the final one just delays the
+            # give-up for no benefit, and collect_all_device_events() respawns us anyway.
+            if attempt < max_attempts:
+                delay = base_backoff * (2 ** (attempt - 1))
+                delay += random.uniform(0, 5)
+                await asyncio.sleep(delay)
 
         self.logger.error(f"failed to check for events on ('{self.get_device_name(device_id)}') after {max_attempts} attempts ")
 

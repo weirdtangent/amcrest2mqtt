@@ -172,6 +172,61 @@ class FakeReader(AmcrestAPIMixin):
         return self.devices.get(device_id, {}).get("name", device_id)
 
 
+class TestGetEventsFromDevice:
+    """The event stream is the only path motion takes to MQTT, so a reconnect that gives up
+    too fast makes a camera silently stop reporting motion for hours."""
+
+    def _device(self, error=None, events=()):
+        ep = FakeEventProcessor()
+        ep._add_device("CAM1")
+        ep.is_rebooting = MagicMock(return_value=False)
+        ep.increase_api_calls = MagicMock()
+        ep.process_device_event = AsyncMock()
+
+        async def _stream(_codes):
+            if error is not None:
+                raise error
+            for code, payload in events:
+                yield code, payload
+
+        ep.amcrest_devices["CAM1"]["camera"].async_event_actions = _stream
+        return ep
+
+    async def test_backs_off_between_reconnect_attempts(self, monkeypatch):
+        # Without this the three attempts are spent in milliseconds, so a camera that is
+        # briefly unreachable -- a Wi-Fi blip, or its daily AutoReboot -- burns the whole
+        # budget before it is back, and then reports no motion at all.
+        sleeps = []
+
+        async def _sleep(delay):
+            sleeps.append(delay)
+
+        monkeypatch.setattr(amcrest_api.asyncio, "sleep", _sleep)
+        ep = self._device(error=CommError("unreachable"))
+
+        await ep.get_events_from_device("CAM1")
+
+        assert len(sleeps) == 2  # between attempts only, not after the last
+        assert all(delay > 0 for delay in sleeps)
+        assert sleeps[1] > sleeps[0]  # exponential
+        ep.logger.error.assert_called_once()
+
+    async def test_does_not_sleep_when_the_stream_connects(self, monkeypatch):
+        sleeps = []
+
+        async def _sleep(delay):
+            sleeps.append(delay)
+
+        monkeypatch.setattr(amcrest_api.asyncio, "sleep", _sleep)
+        ep = self._device(events=[("VideoMotion", {"action": "Start"})])
+
+        await ep.get_events_from_device("CAM1")
+
+        assert sleeps == []
+        ep.process_device_event.assert_awaited_once()
+        ep.logger.error.assert_not_called()
+
+
 class TestReadWithRetry:
     @pytest.fixture(autouse=True)
     def _no_delay(self, monkeypatch):
