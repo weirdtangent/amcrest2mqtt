@@ -10,7 +10,7 @@ license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = [
     "deepmerge==4.0.0",
-    "paho-mqtt>=2.1.0",
+    "paho-mqtt>=2.2.0",
     "pyyaml>=6.0.3",
     "requests>=2.34.2",
     "amcrest>=1.9.9",
@@ -24,7 +24,7 @@ amcrest2mqtt = "amcrest2mqtt.app:main"
 [project.optional-dependencies]
 dev = [
     # linting/formatting
-    "ruff>=0.17.3",
+    "ruff>=0.17.4",
 
     # testing/coverage
     "pytest>=9.2.0",
@@ -131,8 +131,8 @@ dev = [
     "pytest>=9.2.0",
     "pytest-asyncio>=1.4.1.post1",
     "pytest-cov>=7.1.0",
-    "ruff>=0.17.3",
-    "types-pyyaml>=6.0.12.20261030",
+    "ruff>=0.17.4",
+    "types-pyyaml>=6.0.12.20261103",
     "pip-audit>=2.10.1",
 ]
 
