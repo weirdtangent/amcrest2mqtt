@@ -11,7 +11,7 @@ requires-python = ">=3.12"
 dependencies = [
     "deepmerge==4.0.0",
     "paho-mqtt>=2.2.0",
-    "pyyaml>=6.0.3",
+    "pyyaml>=6.0.4",
     "requests>=2.34.2",
     "amcrest>=1.9.9",
     "json-logging-graystorm",
@@ -24,7 +24,7 @@ amcrest2mqtt = "amcrest2mqtt.app:main"
 [project.optional-dependencies]
 dev = [
     # linting/formatting
-    "ruff>=0.17.5",
+    "ruff>=0.17.6",
 
     # testing/coverage
     "pytest>=9.2.0",
@@ -131,8 +131,8 @@ dev = [
     "pytest>=9.2.0",
     "pytest-asyncio>=1.5.0",
     "pytest-cov>=7.1.0",
-    "ruff>=0.17.5",
-    "types-pyyaml>=6.0.12.20261113",
+    "ruff>=0.17.6",
+    "types-pyyaml>=6.0.12.20261122",
     "pip-audit>=2.10.1",
 ]
 
